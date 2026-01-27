@@ -4,9 +4,10 @@ import { cn } from '../lib/utils';
 interface HeaderProps {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
   onNewSession: () => void;
+  onOpenSettings?: () => void;
 }
 
-export function Header({ connectionStatus, onNewSession }: HeaderProps) {
+export function Header({ connectionStatus, onNewSession, onOpenSettings }: HeaderProps) {
   const statusConfig = {
     connecting: {
       icon: Loader2,
@@ -58,6 +59,7 @@ export function Header({ connectionStatus, onNewSession }: HeaderProps) {
         </button>
 
         <button
+          onClick={onOpenSettings}
           className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           title="Settings"
         >

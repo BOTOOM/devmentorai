@@ -35,6 +35,10 @@ export default defineConfig({
         48: '/icons/icon-48.png',
       },
     },
+    options_ui: {
+      page: 'options.html',
+      open_in_tab: true,
+    },
   },
   runner: {
     startUrls: ['https://github.com'],

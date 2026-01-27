@@ -53,9 +53,9 @@ export function useSessions() {
     }
   };
 
-  const createSession = useCallback(async (name: string, type: SessionType) => {
+  const createSession = useCallback(async (name: string, type: SessionType, model?: string) => {
     try {
-      const request: CreateSessionRequest = { name, type };
+      const request: CreateSessionRequest = { name, type, model };
       const response = await apiClient.createSession(request);
       
       if (response.success && response.data) {

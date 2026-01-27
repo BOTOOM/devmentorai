@@ -8,10 +8,13 @@ import { useSessions } from '../../hooks/useSessions';
 import { useChat } from '../../hooks/useChat';
 import type { Session, QuickAction, MessageContext } from '@devmentorai/shared';
 
+// Extend QuickAction to include tone variations
+type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
+
 export function SidePanel() {
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
-    action: QuickAction;
+    action: ExtendedAction;
     selectedText: string;
     pageUrl?: string;
     pageTitle?: string;
@@ -48,6 +51,17 @@ export function SidePanel() {
     };
 
     checkPendingAction();
+    
+    // Also listen for storage changes (for quick actions from toolbar)
+    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      if (changes.pendingAction?.newValue) {
+        setPendingAction(changes.pendingAction.newValue);
+        chrome.storage.local.remove('pendingAction');
+      }
+    };
+    
+    chrome.storage.onChanged.addListener(handleStorageChange);
+    return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
 
   // Process pending action when we have an active session
@@ -57,21 +71,33 @@ export function SidePanel() {
         selectedText: pendingAction.selectedText,
         pageUrl: pendingAction.pageUrl,
         pageTitle: pendingAction.pageTitle,
-        action: pendingAction.action,
+        action: pendingAction.action.startsWith('rewrite_') ? 'rewrite' : pendingAction.action as QuickAction,
       };
 
-      const actionPrompts: Record<QuickAction, string> = {
-        explain: 'Explain the following:\n\n',
-        translate: 'Translate the following to English (or to the user\'s language if already in English):\n\n',
-        rewrite: 'Rewrite the following for clarity and improved style:\n\n',
-        fix_grammar: 'Fix the grammar and spelling in the following:\n\n',
-        summarize: 'Summarize the following:\n\n',
-        expand: 'Expand on the following with more details:\n\n',
-        analyze_config: 'Analyze the following configuration for best practices and potential issues:\n\n',
-        diagnose_error: 'Diagnose the following error and suggest solutions:\n\n',
-      };
+      // Build prompt based on action
+      let prompt: string;
+      
+      if (pendingAction.action === 'chat') {
+        // Just open chat with context, user will type
+        setPendingAction(null);
+        return;
+      } else if (pendingAction.action.startsWith('rewrite_')) {
+        const tone = pendingAction.action.replace('rewrite_', '');
+        prompt = `Rewrite the following text in a ${tone} tone:\n\n${pendingAction.selectedText}`;
+      } else {
+        const actionPrompts: Record<QuickAction, string> = {
+          explain: 'Explain the following:\n\n',
+          translate: 'Translate the following to English (or to the user\'s language if already in English):\n\n',
+          rewrite: 'Rewrite the following for clarity and improved style:\n\n',
+          fix_grammar: 'Fix the grammar and spelling in the following:\n\n',
+          summarize: 'Summarize the following:\n\n',
+          expand: 'Expand on the following with more details:\n\n',
+          analyze_config: 'Analyze the following configuration for best practices and potential issues:\n\n',
+          diagnose_error: 'Diagnose the following error and suggest solutions:\n\n',
+        };
+        prompt = actionPrompts[pendingAction.action as QuickAction] + pendingAction.selectedText;
+      }
 
-      const prompt = actionPrompts[pendingAction.action] + pendingAction.selectedText;
       sendMessage(prompt, context);
       setPendingAction(null);
     }
@@ -103,6 +129,7 @@ export function SidePanel() {
       <Header
         connectionStatus={connectionStatus}
         onNewSession={() => setShowNewSessionModal(true)}
+        onOpenSettings={() => chrome.runtime.openOptionsPage()}
       />
 
       {connectionError && (
@@ -125,6 +152,7 @@ export function SidePanel() {
         onSendMessage={handleSendMessage}
         onAbort={abortMessage}
         disabled={connectionStatus !== 'connected'}
+        pendingText={pendingAction?.action === 'chat' ? pendingAction.selectedText : undefined}
       />
 
       {showNewSessionModal && (

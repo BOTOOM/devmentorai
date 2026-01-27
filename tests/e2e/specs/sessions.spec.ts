@@ -31,6 +31,22 @@ test.describe('Session Management', () => {
     await expect(sidePanelPage.getByText('Email Draft')).toBeVisible();
   });
 
+  test('should create a session with custom model', async ({ sidePanelPage }) => {
+    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByPlaceholder(/session name/i).fill('Custom Model Test');
+    await sidePanelPage.getByText('DevOps Mentor').click();
+    
+    // Open model selector
+    await sidePanelPage.getByText('GPT-4.1').click();
+    // Select a different model
+    await sidePanelPage.getByText('Claude Sonnet 4.5').click();
+    
+    await sidePanelPage.getByRole('button', { name: /create session/i }).click();
+
+    // Verify session created with model displayed
+    await expect(sidePanelPage.getByText('Custom Model Test')).toBeVisible();
+  });
+
   test('should switch between sessions', async ({ sidePanelPage }) => {
     // Create first session
     await sidePanelPage.getByRole('button', { name: /new/i }).click();
@@ -53,5 +69,27 @@ test.describe('Session Management', () => {
 
     // Verify Session 1 is now active
     await expect(sidePanelPage.locator('[class*="text-primary"]').getByText('Session 1')).toBeVisible();
+  });
+
+  test('should show session type indicator', async ({ sidePanelPage }) => {
+    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByPlaceholder(/session name/i).fill('DevOps Test');
+    await sidePanelPage.getByText('DevOps Mentor').click();
+    await sidePanelPage.getByRole('button', { name: /create session/i }).click();
+
+    // Verify session info bar shows type icon
+    await expect(sidePanelPage.getByText('🔧')).toBeVisible();
+    await expect(sidePanelPage.getByText('DevOps Test')).toBeVisible();
+  });
+
+  test('should show quick prompts for session type', async ({ sidePanelPage }) => {
+    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByPlaceholder(/session name/i).fill('DevOps Quick');
+    await sidePanelPage.getByText('DevOps Mentor').click();
+    await sidePanelPage.getByRole('button', { name: /create session/i }).click();
+
+    // Verify DevOps quick prompts are visible
+    await expect(sidePanelPage.getByText('Explain Kubernetes pods')).toBeVisible();
+    await expect(sidePanelPage.getByText('Best practices for CI/CD')).toBeVisible();
   });
 });

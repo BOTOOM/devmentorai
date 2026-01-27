@@ -57,6 +57,31 @@ function setupContextMenus() {
       });
     }
 
+    // Tone submenu for rewrite
+    chrome.contextMenus.create({
+      id: 'devmentorai-tone',
+      parentId: 'devmentorai-parent',
+      title: '🎨 Rewrite with tone...',
+      contexts: ['selection'],
+    });
+
+    const tones = [
+      { id: 'formal', title: '👔 Formal' },
+      { id: 'casual', title: '😊 Casual' },
+      { id: 'technical', title: '⚙️ Technical' },
+      { id: 'friendly', title: '🤝 Friendly' },
+      { id: 'professional', title: '💼 Professional' },
+    ];
+
+    for (const tone of tones) {
+      chrome.contextMenus.create({
+        id: `devmentorai-rewrite_${tone.id}`,
+        parentId: 'devmentorai-tone',
+        title: tone.title,
+        contexts: ['selection'],
+      });
+    }
+
     console.log('[DevMentorAI] Context menus created');
   });
 }
@@ -69,7 +94,7 @@ async function handleContextMenuClick(
   tab?: chrome.tabs.Tab
 ) {
   const menuId = info.menuItemId.toString();
-  if (!menuId.startsWith('devmentorai-') || menuId === 'devmentorai-parent') {
+  if (!menuId.startsWith('devmentorai-') || menuId === 'devmentorai-parent' || menuId === 'devmentorai-tone') {
     return;
   }
 
@@ -103,7 +128,7 @@ async function handleContextMenuClick(
  * Handle messages from other parts of the extension
  */
 async function handleMessage(
-  message: { type: string; payload?: unknown },
+  message: { type: string; payload?: unknown; selectedText?: string },
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: unknown) => void
 ) {
@@ -145,6 +170,95 @@ async function handleMessage(
       sendResponse(result.pendingAction || null);
       // Clear the pending action
       await chrome.storage.local.remove('pendingAction');
+      break;
+    }
+
+    case 'OPEN_SIDE_PANEL': {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.windowId) {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+      }
+      sendResponse({ success: true });
+      break;
+    }
+
+    case 'OPEN_SIDE_PANEL_WITH_TEXT': {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.windowId) {
+        // Store text to be used in chat
+        await chrome.storage.local.set({
+          pendingAction: {
+            action: 'chat',
+            selectedText: message.selectedText,
+            pageUrl: tab.url,
+            pageTitle: tab.title,
+            timestamp: Date.now(),
+          },
+        });
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+      }
+      sendResponse({ success: true });
+      break;
+    }
+
+    case 'QUICK_ACTION': {
+      const { action, selectedText, pageUrl, pageTitle } = message as {
+        type: string;
+        action: string;
+        selectedText: string;
+        pageUrl: string;
+        pageTitle: string;
+      };
+      
+      // Store action for sidepanel
+      await chrome.storage.local.set({
+        pendingAction: {
+          action,
+          selectedText,
+          pageUrl,
+          pageTitle,
+          timestamp: Date.now(),
+        },
+      });
+
+      // Open side panel
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.windowId) {
+        await chrome.sidePanel.open({ windowId: tab.windowId });
+      }
+      sendResponse({ success: true });
+      break;
+    }
+
+    case 'TOGGLE_FLOATING_BUBBLE': {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        try {
+          const response = await chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_BUBBLE' });
+          sendResponse(response);
+        } catch {
+          sendResponse({ visible: false, error: 'Content script not available' });
+        }
+      }
+      break;
+    }
+
+    case 'GET_SETTINGS': {
+      const settings = await chrome.storage.local.get([
+        'theme',
+        'floatingBubbleEnabled',
+        'showSelectionToolbar',
+        'defaultSessionType',
+        'language',
+      ]);
+      sendResponse(settings);
+      break;
+    }
+
+    case 'SAVE_SETTINGS': {
+      const { settings } = message as { type: string; settings: Record<string, unknown> };
+      await chrome.storage.local.set(settings);
+      sendResponse({ success: true });
       break;
     }
 

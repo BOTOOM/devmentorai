@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Square, Loader2 } from 'lucide-react';
+import { Send, Square, Loader2, Cpu } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import type { Session, Message } from '@devmentorai/shared';
@@ -11,6 +11,7 @@ interface ChatViewProps {
   onSendMessage: (content: string) => void;
   onAbort: () => void;
   disabled?: boolean;
+  pendingText?: string;
 }
 
 export function ChatView({
@@ -20,6 +21,7 @@ export function ChatView({
   onSendMessage,
   onAbort,
   disabled = false,
+  pendingText,
 }: ChatViewProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -37,6 +39,14 @@ export function ChatView({
     }
   }, [session, disabled]);
 
+  // Set pending text when provided
+  useEffect(() => {
+    if (pendingText) {
+      setInput(`Regarding this text:\n"${pendingText.substring(0, 200)}${pendingText.length > 200 ? '...' : ''}"\n\n`);
+      inputRef.current?.focus();
+    }
+  }, [pendingText]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || disabled || isStreaming) return;
@@ -49,6 +59,15 @@ export function ChatView({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
+    }
+  };
+
+  const getSessionIcon = (type: Session['type']) => {
+    switch (type) {
+      case 'devops': return '🔧';
+      case 'writing': return '✍️';
+      case 'development': return '💻';
+      default: return '🤖';
     }
   };
 
@@ -71,6 +90,18 @@ export function ChatView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Session info bar */}
+      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 text-sm">
+          <span>{getSessionIcon(session.type)}</span>
+          <span className="font-medium text-gray-700 dark:text-gray-300">{session.name}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          <Cpu className="w-3.5 h-3.5" />
+          <span>{session.model}</span>
+        </div>
+      </div>
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
@@ -78,6 +109,38 @@ export function ChatView({
             <p className="text-gray-500 dark:text-gray-400">
               Start a conversation by typing a message below.
             </p>
+            {session.type === 'devops' && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs text-gray-400 dark:text-gray-500">Quick prompts:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {['Explain Kubernetes pods', 'Best practices for CI/CD', 'Debug AWS Lambda'].map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => setInput(prompt)}
+                      className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {session.type === 'writing' && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs text-gray-400 dark:text-gray-500">Quick prompts:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {['Write a professional email', 'Translate to Spanish', 'Make this more formal'].map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => setInput(prompt)}
+                      className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           messages.map((message) => (

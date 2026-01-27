@@ -10,12 +10,25 @@ import type {
   StreamEvent,
 } from '@devmentorai/shared';
 
+interface Model {
+  id: string;
+  name: string;
+  description: string;
+  provider: string;
+  isDefault: boolean;
+}
+
+interface ModelsResponse {
+  models: Model[];
+  default: string;
+}
+
 export class ApiClient {
   private static instance: ApiClient;
   private baseUrl: string;
 
-  private constructor() {
-    this.baseUrl = `http://${DEFAULT_CONFIG.DEFAULT_HOST}:${DEFAULT_CONFIG.DEFAULT_PORT}`;
+  constructor(baseUrl?: string) {
+    this.baseUrl = baseUrl || `http://${DEFAULT_CONFIG.DEFAULT_HOST}:${DEFAULT_CONFIG.DEFAULT_PORT}`;
   }
 
   static getInstance(): ApiClient {
@@ -55,6 +68,11 @@ export class ApiClient {
   // Health
   async getHealth(): Promise<ApiResponse<HealthResponse>> {
     return this.request<HealthResponse>(API_ENDPOINTS.HEALTH);
+  }
+
+  // Models
+  async getModels(): Promise<ApiResponse<ModelsResponse>> {
+    return this.request<ModelsResponse>('/api/models');
   }
 
   // Sessions

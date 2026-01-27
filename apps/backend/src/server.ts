@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import { healthRoutes } from './routes/health.js';
 import { sessionRoutes } from './routes/sessions.js';
 import { chatRoutes } from './routes/chat.js';
+import { modelsRoutes } from './routes/models.js';
 import { CopilotService } from './services/copilot.service.js';
 import { SessionService } from './services/session.service.js';
 import { initDatabase } from './db/index.js';
@@ -57,6 +58,7 @@ async function main() {
   await fastify.register(healthRoutes, { prefix: '/api' });
   await fastify.register(sessionRoutes, { prefix: '/api' });
   await fastify.register(chatRoutes, { prefix: '/api' });
+  await fastify.register(modelsRoutes, { prefix: '/api' });
 
   // Graceful shutdown
   const shutdown = async () => {

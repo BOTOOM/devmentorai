@@ -2,11 +2,29 @@ import { CopilotClient, type SessionEvent } from '@github/copilot-sdk';
 import { SessionService } from './session.service.js';
 import { getAgentConfig, SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
 import type { SessionType, MessageContext } from '@devmentorai/shared';
+import { devopsTools, getToolByName, type Tool } from '../tools/devops-tools.js';
 
 interface CopilotSession {
   sessionId: string;
   session: Awaited<ReturnType<CopilotClient['createSession']>>;
+  type: SessionType;
 }
+
+interface MCPServerConfig {
+  type: 'http' | 'stdio';
+  url?: string;
+  command?: string;
+  args?: string[];
+}
+
+// MCP server configurations for different integrations
+const MCP_SERVERS: Record<string, MCPServerConfig> = {
+  github: {
+    type: 'http',
+    url: 'https://api.githubcopilot.com/mcp/',
+  },
+  // Future: Add more MCP servers like filesystem, database, etc.
+};
 
 export class CopilotService {
   private client: CopilotClient | null = null;
@@ -42,13 +60,15 @@ export class CopilotService {
     sessionId: string,
     type: SessionType,
     model: string,
-    systemPrompt?: string
+    systemPrompt?: string,
+    enableMcp: boolean = false
   ): Promise<void> {
     if (this.mockMode || !this.client) {
       // Create mock session
       this.sessions.set(sessionId, {
         sessionId,
         session: null as any,
+        type,
       });
       return;
     }
@@ -56,15 +76,80 @@ export class CopilotService {
     const agentConfig = getAgentConfig(type);
     const typeConfig = SESSION_TYPE_CONFIGS[type];
 
+    // Build tools for DevOps sessions
+    const tools = type === 'devops' ? this.buildToolDefinitions() : undefined;
+
+    // Build MCP server config if enabled
+    const mcpServers = enableMcp ? MCP_SERVERS : undefined;
+
     const session = await this.client.createSession({
       sessionId,
       model: model || typeConfig.defaultModel,
       streaming: true,
       customAgents: agentConfig ? [agentConfig] : undefined,
       systemMessage: systemPrompt ? { content: systemPrompt } : undefined,
+      tools,
+      mcpServers,
     });
 
-    this.sessions.set(sessionId, { sessionId, session });
+    // Set up tool execution handler
+    if (tools) {
+      session.on((event: SessionEvent) => {
+        if (event.type === 'tool.execution_start') {
+          this.handleToolExecution(sessionId, event);
+        }
+      });
+    }
+
+    this.sessions.set(sessionId, { sessionId, session, type });
+  }
+
+  /**
+   * Build tool definitions from DevOps tools for Copilot SDK
+   */
+  private buildToolDefinitions(): Record<string, unknown>[] {
+    return devopsTools.map(tool => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    }));
+  }
+
+  /**
+   * Handle tool execution requests from Copilot
+   */
+  private async handleToolExecution(sessionId: string, event: SessionEvent): Promise<void> {
+    const { toolName, toolCallId, input } = event.data as {
+      toolName: string;
+      toolCallId: string;
+      input: Record<string, unknown>;
+    };
+
+    const tool = getToolByName(toolName);
+    if (!tool) {
+      console.warn(`[CopilotService] Unknown tool: ${toolName}`);
+      return;
+    }
+
+    try {
+      console.log(`[CopilotService] Executing tool ${toolName} for session ${sessionId}`);
+      const result = await tool.handler(input);
+      
+      // Send tool result back to Copilot
+      const copilotSession = this.sessions.get(sessionId);
+      if (copilotSession?.session) {
+        copilotSession.session.sendToolResult(toolCallId, result);
+      }
+    } catch (error) {
+      console.error(`[CopilotService] Tool ${toolName} failed:`, error);
+      const copilotSession = this.sessions.get(sessionId);
+      if (copilotSession?.session) {
+        copilotSession.session.sendToolResult(
+          toolCallId, 
+          `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+    }
   }
 
   async resumeCopilotSession(sessionId: string): Promise<boolean> {
@@ -88,39 +173,41 @@ export class CopilotService {
     context?: MessageContext,
     onEvent?: (event: SessionEvent) => void
   ): Promise<string> {
-    const copilotSession = this.sessions.get(sessionId);
-    
-    // Build full prompt with context
-    let fullPrompt = prompt;
-    if (context?.selectedText) {
-      fullPrompt = `Context (selected text):\n${context.selectedText}\n\nUser request: ${prompt}`;
-    }
-    if (context?.pageUrl) {
-      fullPrompt = `Page: ${context.pageUrl}\n${fullPrompt}`;
-    }
-
-    if (this.mockMode || !copilotSession?.session) {
-      // Mock response
-      return this.generateMockResponse(prompt, context);
-    }
-
-    let responseContent = '';
-
-    // Set up event listener
-    if (onEvent) {
-      copilotSession.session.on(onEvent);
-    }
-
-    copilotSession.session.on((event: SessionEvent) => {
-      if (event.type === 'assistant.message') {
-        responseContent = event.data.content || '';
+    return this.withRetry(async () => {
+      const copilotSession = this.sessions.get(sessionId);
+      
+      // Build full prompt with context
+      let fullPrompt = prompt;
+      if (context?.selectedText) {
+        fullPrompt = `Context (selected text):\n${context.selectedText}\n\nUser request: ${prompt}`;
       }
-    });
+      if (context?.pageUrl) {
+        fullPrompt = `Page: ${context.pageUrl}\n${fullPrompt}`;
+      }
 
-    // Send and wait for response
-    const response = await copilotSession.session.sendAndWait({ prompt: fullPrompt });
-    
-    return response?.data.content || responseContent;
+      if (this.mockMode || !copilotSession?.session) {
+        // Mock response
+        return this.generateMockResponse(prompt, context);
+      }
+
+      let responseContent = '';
+
+      // Set up event listener
+      if (onEvent) {
+        copilotSession.session.on(onEvent);
+      }
+
+      copilotSession.session.on((event: SessionEvent) => {
+        if (event.type === 'assistant.message') {
+          responseContent = event.data.content || '';
+        }
+      });
+
+      // Send and wait for response
+      const response = await copilotSession.session.sendAndWait({ prompt: fullPrompt });
+      
+      return response?.data.content || responseContent;
+    }, 3, 1000);
   }
 
   async streamMessage(
@@ -150,6 +237,72 @@ export class CopilotService {
 
     // Send message (don't wait, let events handle it)
     copilotSession.session.send({ prompt: fullPrompt });
+  }
+
+  /**
+   * Retry logic for transient errors
+   */
+  private async withRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    delayMs: number = 1000
+  ): Promise<T> {
+    let lastError: Error | undefined;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        // Don't retry on certain errors
+        const nonRetryableErrors = ['authentication', 'invalid_session', 'rate_limit'];
+        if (nonRetryableErrors.some(e => lastError!.message.toLowerCase().includes(e))) {
+          throw lastError;
+        }
+        
+        if (attempt < maxRetries) {
+          console.warn(`[CopilotService] Attempt ${attempt} failed, retrying in ${delayMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          delayMs *= 2; // Exponential backoff
+        }
+      }
+    }
+    
+    throw lastError;
+  }
+
+  /**
+   * Get available tools for a session type
+   */
+  getAvailableTools(type: SessionType): Array<{ name: string; description: string }> {
+    if (type === 'devops') {
+      return devopsTools.map(t => ({ name: t.name, description: t.description }));
+    }
+    return [];
+  }
+
+  /**
+   * Execute a tool directly (for testing or standalone use)
+   */
+  async executeTool(
+    toolName: string, 
+    params: Record<string, unknown>
+  ): Promise<{ success: boolean; result?: string; error?: string }> {
+    const tool = getToolByName(toolName);
+    if (!tool) {
+      return { success: false, error: `Unknown tool: ${toolName}` };
+    }
+    
+    try {
+      const result = await tool.handler(params);
+      return { success: true, result };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error) 
+      };
+    }
   }
 
   async abortRequest(sessionId: string): Promise<void> {

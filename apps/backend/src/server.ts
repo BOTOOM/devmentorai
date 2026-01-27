@@ -4,6 +4,7 @@ import { healthRoutes } from './routes/health.js';
 import { sessionRoutes } from './routes/sessions.js';
 import { chatRoutes } from './routes/chat.js';
 import { modelsRoutes } from './routes/models.js';
+import { registerToolsRoutes } from './routes/tools.js';
 import { CopilotService } from './services/copilot.service.js';
 import { SessionService } from './services/session.service.js';
 import { initDatabase } from './db/index.js';
@@ -12,7 +13,7 @@ import { DEFAULT_CONFIG } from '@devmentorai/shared';
 const PORT = DEFAULT_CONFIG.DEFAULT_PORT;
 const HOST = '0.0.0.0';
 
-async function main() {
+export async function createServer() {
   const fastify = Fastify({
     logger: {
       level: 'info',
@@ -59,12 +60,21 @@ async function main() {
   await fastify.register(sessionRoutes, { prefix: '/api' });
   await fastify.register(chatRoutes, { prefix: '/api' });
   await fastify.register(modelsRoutes, { prefix: '/api' });
+  
+  // Register tools routes (not prefixed - has /api in route definitions)
+  registerToolsRoutes(fastify, copilotService);
+
+  return fastify;
+}
+
+async function main() {
+  const fastify = await createServer();
 
   // Graceful shutdown
   const shutdown = async () => {
     fastify.log.info('Shutting down...');
     try {
-      await copilotService.shutdown();
+      await fastify.copilotService.shutdown();
       await fastify.close();
       process.exit(0);
     } catch (err) {

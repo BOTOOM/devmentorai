@@ -16,48 +16,57 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
 │  │  │   (React UI)    │  │  - Context menu management       │ │  │
 │  │  │  - Chat view    │  │  - Message routing               │ │  │
 │  │  │  - Sessions     │  │  - Side panel control            │ │  │
-│  │  │  - History      │  │                                  │ │  │
+│  │  │  - Activity     │  │  - Keyboard shortcuts            │ │  │
 │  │  └────────┬────────┘  └──────────────────────────────────┘ │  │
 │  │           │                                                 │  │
 │  │  ┌────────┴────────┐  ┌─────────────────────────────────┐ │  │
-│  │  │   API Client    │  │      Content Script              │ │  │
-│  │  │  - HTTP/SSE     │  │  - Text selection detection      │ │  │
-│  │  │  - Streaming    │  │  - Page context capture          │ │  │
+│  │  │ Communication   │  │      Content Script              │ │  │
+│  │  │ Service         │  │  - Floating bubble UI            │ │  │
+│  │  │ - HTTP Adapter  │  │  - Selection toolbar             │ │  │
+│  │  │ - Native Msg    │  │  - Text selection detection      │ │  │
 │  │  └────────┬────────┘  └─────────────────────────────────┘ │  │
 │  └───────────┼───────────────────────────────────────────────┘  │
 └──────────────┼──────────────────────────────────────────────────┘
-               │ HTTP (localhost:3847)
+               │ HTTP (localhost:3847) or Native Messaging
                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     DevMentorAI Backend                          │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │                    Fastify Server                          │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │  │
-│  │  │   Health    │  │  Sessions   │  │        Chat         │ │  │
-│  │  │   Route     │  │   Routes    │  │       Routes        │ │  │
-│  │  └─────────────┘  └──────┬──────┘  └──────────┬──────────┘ │  │
-│  └──────────────────────────┼────────────────────┼────────────┘  │
-│                             │                    │               │
-│  ┌──────────────────────────┼────────────────────┼────────────┐  │
-│  │                     Services Layer                         │  │
-│  │  ┌─────────────────────┐  ┌─────────────────────────────┐ │  │
-│  │  │   SessionService    │  │      CopilotService         │ │  │
-│  │  │  - CRUD operations  │  │  - SDK client wrapper       │ │  │
-│  │  │  - Message history  │  │  - Session management       │ │  │
-│  │  │  - Persistence      │  │  - Streaming responses      │ │  │
-│  │  └──────────┬──────────┘  └──────────┬──────────────────┘ │  │
-│  └─────────────┼─────────────────────────┼────────────────────┘  │
-│                │                         │                       │
-│  ┌─────────────┴─────────────┐  ┌───────┴─────────────────────┐  │
-│  │        SQLite DB          │  │    @github/copilot-sdk      │  │
-│  │  ~/.devmentorai/          │  │  - CopilotClient            │  │
-│  │  - sessions table         │  │  - createSession()          │  │
-│  │  - messages table         │  │  - resumeSession()          │  │
-│  └───────────────────────────┘  │  - Custom agents            │  │
-│                                 └───────────┬─────────────────┘  │
-└─────────────────────────────────────────────┼────────────────────┘
-                                              │ JSON-RPC
-                                              ▼
+│  │  ┌───────────┐ ┌──────────┐ ┌─────────┐ ┌───────────────┐ │  │
+│  │  │  Health   │ │ Sessions │ │  Chat   │ │    Tools      │ │  │
+│  │  │  Route    │ │  Routes  │ │ Routes  │ │    Routes     │ │  │
+│  │  └───────────┘ └────┬─────┘ └────┬────┘ └───────┬───────┘ │  │
+│  └─────────────────────┼────────────┼──────────────┼─────────┘  │
+│                        │            │              │            │
+│  ┌─────────────────────┼────────────┼──────────────┼─────────┐  │
+│  │                     Services Layer                        │  │
+│  │  ┌──────────────────┐ ┌────────────────────────────────┐ │  │
+│  │  │  SessionService  │ │       CopilotService           │ │  │
+│  │  │ - CRUD ops       │ │ - SDK client wrapper           │ │  │
+│  │  │ - Message history│ │ - Tool execution               │ │  │
+│  │  │ - Persistence    │ │ - MCP server integration       │ │  │
+│  │  └────────┬─────────┘ │ - Retry logic                  │ │  │
+│  │           │           └────────────┬───────────────────┘ │  │
+│  └───────────┼────────────────────────┼─────────────────────┘  │
+│              │                        │                        │
+│  ┌───────────┴──────────┐  ┌─────────┴────────────────────┐   │
+│  │     SQLite DB        │  │   @github/copilot-sdk        │   │
+│  │  ~/.devmentorai/     │  │   - CopilotClient            │   │
+│  │  - sessions table    │  │   - createSession()          │   │
+│  │  - messages table    │  │   - Custom agents + Tools    │   │
+│  └──────────────────────┘  └─────────┬────────────────────┘   │
+│                                      │                        │
+│  ┌───────────────────────────────────┴────────────────────┐   │
+│  │                  DevOps Tools                          │   │
+│  │  - read_file: Read local files                         │   │
+│  │  - list_directory: Browse file system                  │   │
+│  │  - analyze_config: K8s/Docker/Terraform analysis       │   │
+│  │  - analyze_error: Error diagnosis                      │   │
+│  └────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+               │ JSON-RPC
+               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     GitHub Copilot CLI                           │
 │  - Pre-installed by user                                         │
@@ -86,18 +95,18 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
 - Better UX for extended conversations
 - Doesn't block page content
 
-### 3. Local HTTP Server vs Native Messaging
+### 3. Communication Abstraction Layer
 
-**MVP: HTTP Server**
-- Simpler to implement and debug
-- Works across all browsers
-- Easy to test with curl/Postman
-- No special permissions needed
+**Dual-Protocol Support:**
+The extension uses a `CommunicationService` that abstracts over:
+- **HTTP Adapter** (Default): Simple REST/SSE communication
+- **Native Messaging Adapter**: Direct Chrome Native Messaging protocol
 
-**Future: Native Messaging (Phase 3)**
-- More secure (no exposed ports)
-- Better for enterprise environments
-- Scaffolded and documented for future implementation
+```typescript
+// Automatically falls back to HTTP if Native Messaging fails
+const service = getCommunicationService();
+await service.initialize(); // Auto-detects available mode
+```
 
 ### 4. SQLite for Persistence
 
@@ -134,7 +143,7 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
                 ↓
 2. React component calls useChat hook
                 ↓
-3. ApiClient.streamChat() initiates SSE connection
+3. CommunicationService routes to appropriate adapter
                 ↓
 4. POST /api/sessions/:id/chat/stream
                 ↓
@@ -146,11 +155,13 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
                 ↓
 8. Events converted to SSE and sent to client
                 ↓
-9. React updates UI with streaming content
+9. ActivityView shows tool executions (if any)
                 ↓
-10. On session.idle, save assistant message to SQLite
+10. React updates UI with streaming content
                 ↓
-11. Send [DONE] to close SSE connection
+11. On session.idle, save assistant message to SQLite
+                ↓
+12. Send [DONE] to close SSE connection
 ```
 
 ### Context Menu Action Flow
@@ -175,6 +186,24 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
 9. Sends to backend as normal chat message
 ```
 
+### Selection Toolbar Flow
+
+```
+1. User selects text on any webpage
+                ↓
+2. Content script detects selection via SelectionToolbar
+                ↓
+3. Toolbar appears above selection with quick actions
+                ↓
+4. User clicks action (e.g., "Explain", "Translate")
+                ↓
+5. Action sent to background script via runtime message
+                ↓
+6. Background opens Side Panel with pendingText
+                ↓
+7. Chat auto-sends the action request
+```
+
 ## Security Considerations
 
 1. **No Credential Storage**
@@ -190,24 +219,76 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
    - Prevent injection attacks
 
 4. **Content Script Isolation**
-   - Content script has minimal functionality
-   - Uses Shadow DOM for any injected UI (Phase 2)
+   - Uses Shadow DOM for floating bubble and toolbar
+   - Isolated styles prevent page interference
+
+5. **File System Sandbox**
+   - DevOps tools only access allowed directories
+   - Prevents unauthorized file system access
+
+## Native Messaging Architecture
+
+```
+┌─────────────┐      stdin/stdout      ┌──────────────────┐
+│  Extension  │ ←─────────────────────→│  Native Host     │
+│             │    JSON messages       │  (Node.js)       │
+│  Native     │                        │                  │
+│  Messaging  │    4-byte length +     │  - Routes to     │
+│  Adapter    │    JSON payload        │    Fastify       │
+└─────────────┘                        │  - SSE → chunks  │
+                                       └────────┬─────────┘
+                                                │
+                                       ┌────────┴─────────┐
+                                       │  Copilot SDK     │
+                                       └──────────────────┘
+```
+
+**Installation:**
+```bash
+cd apps/backend
+node src/native/install-native-host.js <extension-id>
+```
+
+## Custom DevOps Tools
+
+The backend provides specialized tools for DevOps analysis:
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `read_file` | Read local file contents | `path`, `maxLines` |
+| `list_directory` | List directory contents | `path`, `recursive` |
+| `analyze_config` | Analyze IaC configs | `content`, `type` |
+| `analyze_error` | Diagnose error messages | `error`, `context` |
+
+**Supported Config Types:**
+- Kubernetes manifests
+- Docker/Dockerfile
+- Terraform (.tf)
+- CloudFormation (YAML/JSON)
+- GitHub Actions workflows
+
+**Example API Usage:**
+```bash
+# Analyze a Kubernetes config
+curl -X POST http://localhost:3847/api/tools/analyze-config \
+  -H "Content-Type: application/json" \
+  -d '{"content": "apiVersion: v1...", "type": "kubernetes"}'
+```
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Shift+N` | Create new session |
+| `Ctrl+K` | Focus chat input |
+| `Ctrl+Enter` | Send message |
+| `Ctrl+/` | Show shortcuts help |
+| `Ctrl+Shift+S` | Open settings |
+| `Escape` | Close modal / Cancel |
 
 ## Future Considerations
 
-### Native Messaging (Phase 3)
-
-```
-Extension ←→ Native Host (Node.js) ←→ Copilot CLI
-           stdin/stdout JSON
-```
-
-Benefits:
-- No exposed HTTP ports
-- Better process lifecycle management
-- More secure for enterprise environments
-
-### MCP Server Integration (Phase 3)
+### MCP Server Integration
 
 ```typescript
 const session = await client.createSession({
@@ -216,6 +297,11 @@ const session = await client.createSession({
       type: "http",
       url: "https://api.githubcopilot.com/mcp/",
     },
+    filesystem: {
+      type: "stdio",
+      command: "npx",
+      args: ["@modelcontextprotocol/server-filesystem", "/allowed/path"]
+    }
   },
 });
 ```
@@ -224,15 +310,4 @@ Enables:
 - Repository analysis
 - PR review integration
 - Issue management
-
-### Custom Tools (Phase 3)
-
-```typescript
-const analyzeConfig = defineTool("analyze_config", {
-  description: "Analyze infrastructure configuration",
-  handler: async ({ content, type }) => {
-    // Parse Terraform/Kubernetes/Docker configs
-    // Return best practice violations
-  },
-});
-```
+- Extended file system access

@@ -1,0 +1,82 @@
+{
+  "extension_name": {
+    "message": "DevMentorAI",
+    "description": "Nombre de la extensión"
+  },
+  "extension_description": {
+    "message": "Asistente de mentoría DevOps y escritura impulsado por GitHub Copilot",
+    "description": "Descripción de la extensión"
+  },
+  "session_devops": {
+    "message": "Mentor DevOps",
+    "description": "Nombre del tipo de sesión DevOps"
+  },
+  "session_writing": {
+    "message": "Asistente de Escritura",
+    "description": "Nombre del tipo de sesión de escritura"
+  },
+  "session_development": {
+    "message": "Ayudante de Desarrollo",
+    "description": "Nombre del tipo de sesión de desarrollo"
+  },
+  "session_general": {
+    "message": "Asistente General",
+    "description": "Nombre del tipo de sesión general"
+  },
+  "action_explain": {
+    "message": "Explicar esto",
+    "description": "Acción del menú contextual para explicar texto seleccionado"
+  },
+  "action_translate": {
+    "message": "Traducir",
+    "description": "Acción del menú contextual para traducir texto seleccionado"
+  },
+  "action_rewrite": {
+    "message": "Reescribir",
+    "description": "Acción del menú contextual para reescribir texto seleccionado"
+  },
+  "action_fix_grammar": {
+    "message": "Corregir gramática",
+    "description": "Acción del menú contextual para corregir gramática"
+  },
+  "action_summarize": {
+    "message": "Resumir",
+    "description": "Acción del menú contextual para resumir"
+  },
+  "placeholder_message": {
+    "message": "Escribe un mensaje...",
+    "description": "Placeholder del input de chat"
+  },
+  "btn_send": {
+    "message": "Enviar",
+    "description": "Texto del botón enviar"
+  },
+  "btn_new_session": {
+    "message": "Nueva Sesión",
+    "description": "Texto del botón nueva sesión"
+  },
+  "status_connecting": {
+    "message": "Conectando...",
+    "description": "Estado de conexión"
+  },
+  "status_connected": {
+    "message": "Conectado",
+    "description": "Estado conectado"
+  },
+  "status_disconnected": {
+    "message": "Desconectado",
+    "description": "Estado desconectado"
+  },
+  "status_processing": {
+    "message": "Procesando...",
+    "description": "Estado procesando"
+  },
+  "error_connection": {
+    "message": "Error al conectar con el backend. Asegúrate de que el servidor DevMentorAI está ejecutándose.",
+    "description": "Mensaje de error de conexión"
+  },
+  "error_generic": {
+    "message": "Algo salió mal. Por favor, intenta de nuevo.",
+    "description": "Mensaje de error genérico"
+  }
+}

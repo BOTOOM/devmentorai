@@ -1,0 +1,82 @@
+{
+  "extension_name": {
+    "message": "DevMentorAI",
+    "description": "Name of the extension"
+  },
+  "extension_description": {
+    "message": "DevOps mentoring and writing assistant powered by GitHub Copilot",
+    "description": "Description of the extension"
+  },
+  "session_devops": {
+    "message": "DevOps Mentor",
+    "description": "DevOps session type name"
+  },
+  "session_writing": {
+    "message": "Writing Assistant",
+    "description": "Writing session type name"
+  },
+  "session_development": {
+    "message": "Development Helper",
+    "description": "Development session type name"
+  },
+  "session_general": {
+    "message": "General Assistant",
+    "description": "General session type name"
+  },
+  "action_explain": {
+    "message": "Explain this",
+    "description": "Context menu action to explain selected text"
+  },
+  "action_translate": {
+    "message": "Translate",
+    "description": "Context menu action to translate selected text"
+  },
+  "action_rewrite": {
+    "message": "Rewrite",
+    "description": "Context menu action to rewrite selected text"
+  },
+  "action_fix_grammar": {
+    "message": "Fix grammar",
+    "description": "Context menu action to fix grammar"
+  },
+  "action_summarize": {
+    "message": "Summarize",
+    "description": "Context menu action to summarize"
+  },
+  "placeholder_message": {
+    "message": "Type a message...",
+    "description": "Chat input placeholder"
+  },
+  "btn_send": {
+    "message": "Send",
+    "description": "Send button text"
+  },
+  "btn_new_session": {
+    "message": "New Session",
+    "description": "New session button text"
+  },
+  "status_connecting": {
+    "message": "Connecting...",
+    "description": "Connection status"
+  },
+  "status_connected": {
+    "message": "Connected",
+    "description": "Connected status"
+  },
+  "status_disconnected": {
+    "message": "Disconnected",
+    "description": "Disconnected status"
+  },
+  "status_processing": {
+    "message": "Processing...",
+    "description": "Processing status"
+  },
+  "error_connection": {
+    "message": "Failed to connect to backend. Make sure the DevMentorAI server is running.",
+    "description": "Connection error message"
+  },
+  "error_generic": {
+    "message": "Something went wrong. Please try again.",
+    "description": "Generic error message"
+  }
+}

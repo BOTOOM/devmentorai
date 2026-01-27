@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@devmentorai/shared": ["../../packages/shared/src/index.ts"],
+      "@devmentorai/shared/*": ["../../packages/shared/src/*"]
+    },
+    "types": ["chrome"]
+  },
+  "include": ["src/**/*", "wxt.config.ts", ".wxt/wxt.d.ts"],
+  "exclude": ["node_modules", ".output"]
+}

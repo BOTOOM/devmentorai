@@ -1,17 +1,28 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, DollarSign } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { SessionType } from '@devmentorai/shared';
 import { SESSION_TYPE_CONFIGS, DEFAULT_CONFIG } from '@devmentorai/shared';
 import { ApiClient } from '../services/api-client';
 
+// D.5 - Extended model interface with pricing
 interface Model {
   id: string;
   name: string;
   description: string;
   provider: string;
   isDefault: boolean;
+  pricingTier?: 'free' | 'cheap' | 'standard' | 'premium';
+  pricingMultiplier?: number;
 }
+
+// D.5 - Pricing tier display
+const PRICING_BADGES: Record<string, { label: string; color: string }> = {
+  free: { label: 'Free', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  cheap: { label: 'Cheap', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' },
+  premium: { label: 'Premium', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+};
 
 interface NewSessionModalProps {
   onClose: () => void;
@@ -165,36 +176,56 @@ export function NewSessionModal({ onClose, onSubmit }: NewSessionModalProps) {
 
               {showModelPicker && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
-                  {models.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setModel(m.id);
-                        setShowModelPicker(false);
-                      }}
-                      className={cn(
-                        'w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors',
-                        model === m.id && 'bg-primary-50 dark:bg-primary-900/20'
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-sm text-gray-900 dark:text-white">
-                            {m.name}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {m.description}
-                          </p>
-                        </div>
-                        {m.isDefault && (
-                          <span className="text-xs px-2 py-0.5 bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-full">
-                            Default
+                  {/* D.5 - Group models by pricing tier */}
+                  {['free', 'cheap', 'standard', 'premium'].map(tier => {
+                    const tierModels = models.filter(m => m.pricingTier === tier || (!m.pricingTier && tier === 'standard'));
+                    if (tierModels.length === 0) return null;
+                    
+                    return (
+                      <div key={tier}>
+                        <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                          <span className={cn(
+                            'text-xs font-medium px-2 py-0.5 rounded-full',
+                            PRICING_BADGES[tier]?.color || PRICING_BADGES.standard.color
+                          )}>
+                            {PRICING_BADGES[tier]?.label || 'Standard'}
                           </span>
-                        )}
+                        </div>
+                        {tierModels.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              setModel(m.id);
+                              setShowModelPicker(false);
+                            }}
+                            className={cn(
+                              'w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors',
+                              model === m.id && 'bg-primary-50 dark:bg-primary-900/20'
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-sm text-gray-900 dark:text-white">
+                                  {m.name}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {m.description}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                {m.isDefault && (
+                                  <span className="text-xs px-2 py-0.5 bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-full">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

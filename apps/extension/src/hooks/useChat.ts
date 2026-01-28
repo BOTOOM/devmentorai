@@ -9,12 +9,24 @@ export function useChat(sessionId: string | undefined) {
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentMessageRef = useRef<string>('');
+  const currentSessionRef = useRef<string | undefined>(sessionId);
 
   const apiClient = ApiClient.getInstance();
+
+  // Track session changes to prevent message mixup (A.4 fix)
+  useEffect(() => {
+    currentSessionRef.current = sessionId;
+  }, [sessionId]);
 
   // Load messages when session changes
   useEffect(() => {
     if (sessionId) {
+      // Abort any ongoing streaming when switching sessions
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      setIsStreaming(false);
       loadMessages(sessionId);
     } else {
       setMessages([]);
@@ -35,6 +47,9 @@ export function useChat(sessionId: string | undefined) {
   const sendMessage = useCallback(async (content: string, context?: MessageContext) => {
     if (!sessionId || isStreaming) return;
 
+    // Store the session ID at the start of this request (A.4 fix)
+    const requestSessionId = sessionId;
+
     setError(null);
     setIsStreaming(true);
     currentMessageRef.current = '';
@@ -42,7 +57,7 @@ export function useChat(sessionId: string | undefined) {
     // Add user message immediately
     const userMessage: Message = {
       id: generateMessageId(),
-      sessionId,
+      sessionId: requestSessionId,
       role: 'user',
       content,
       timestamp: formatDate(),
@@ -58,7 +73,7 @@ export function useChat(sessionId: string | undefined) {
     const assistantMessageId = generateMessageId();
     const assistantMessage: Message = {
       id: assistantMessageId,
-      sessionId,
+      sessionId: requestSessionId,
       role: 'assistant',
       content: '',
       timestamp: formatDate(),
@@ -69,9 +84,14 @@ export function useChat(sessionId: string | undefined) {
       abortControllerRef.current = new AbortController();
 
       await apiClient.streamChat(
-        sessionId,
+        requestSessionId,
         { prompt: content, context },
         (event: StreamEvent) => {
+          // A.4 fix: Only update if we're still on the same session
+          if (currentSessionRef.current !== requestSessionId) {
+            return;
+          }
+
           switch (event.type) {
             case 'message_delta':
               if (event.data.deltaContent) {

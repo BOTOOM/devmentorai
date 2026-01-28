@@ -1,47 +1,34 @@
 import { useState, useEffect } from 'react';
-
-interface Settings {
-  theme: 'light' | 'dark' | 'system';
-  floatingBubbleEnabled: boolean;
-  showSelectionToolbar: boolean;
-  defaultSessionType: 'devops' | 'writing' | 'development' | 'general';
-  language: string;
-  backendUrl: string;
-}
-
-const DEFAULT_SETTINGS: Settings = {
-  theme: 'system',
-  floatingBubbleEnabled: false,
-  showSelectionToolbar: true,
-  defaultSessionType: 'devops',
-  language: 'en',
-  backendUrl: 'http://localhost:3847',
-};
+import { useSettings, DEFAULT_SETTINGS, AVAILABLE_LANGUAGES, type Settings } from '../../hooks/useSettings';
 
 export function OptionsPage() {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const { settings, isLoaded, updateSetting, saveAllSettings } = useSettings();
+  const [localSettings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
 
+  // Sync local settings with loaded settings
   useEffect(() => {
-    loadSettings();
-    checkBackendConnection();
-  }, []);
+    if (isLoaded) {
+      setLocalSettings(settings);
+    }
+  }, [settings, isLoaded]);
 
-  const loadSettings = async () => {
-    const result = await chrome.storage.local.get(Object.keys(DEFAULT_SETTINGS));
-    setSettings({ ...DEFAULT_SETTINGS, ...result });
-  };
+  useEffect(() => {
+    if (isLoaded) {
+      checkBackendConnection();
+    }
+  }, [isLoaded, localSettings.backendUrl]);
 
   const saveSettings = async () => {
-    await chrome.storage.local.set(settings);
+    await saveAllSettings(localSettings);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const checkBackendConnection = async () => {
     try {
-      const response = await fetch(`${settings.backendUrl}/api/health`);
+      const response = await fetch(`${localSettings.backendUrl}/api/health`);
       if (response.ok) {
         setBackendStatus('connected');
       } else {
@@ -52,9 +39,17 @@ export function OptionsPage() {
     }
   };
 
-  const updateSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+  const updateLocalSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
+    setLocalSettings(prev => ({ ...prev, [key]: value }));
   };
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -103,8 +98,8 @@ export function OptionsPage() {
             </label>
             <input
               type="text"
-              value={settings.backendUrl}
-              onChange={(e) => updateSetting('backendUrl', e.target.value)}
+              value={localSettings.backendUrl}
+              onChange={(e) => updateLocalSetting('backendUrl', e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               placeholder="http://localhost:3847"
             />
@@ -124,9 +119,9 @@ export function OptionsPage() {
                 {(['light', 'dark', 'system'] as const).map((theme) => (
                   <button
                     key={theme}
-                    onClick={() => updateSetting('theme', theme)}
+                    onClick={() => updateLocalSetting('theme', theme)}
                     className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
-                      settings.theme === theme
+                      localSettings.theme === theme
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary'
                     }`}
@@ -141,16 +136,39 @@ export function OptionsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Language
+                Interface Language
               </label>
               <select
-                value={settings.language}
-                onChange={(e) => updateSetting('language', e.target.value)}
+                value={localSettings.language}
+                onChange={(e) => updateLocalSetting('language', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="en">English</option>
-                <option value="es">Español</option>
+                {AVAILABLE_LANGUAGES.filter(l => ['en', 'es'].includes(l.code)).map(lang => (
+                  <option key={lang.code} value={lang.code}>{lang.name}</option>
+                ))}
               </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Note: Changing language requires extension reload
+              </p>
+            </div>
+
+            {/* B.3 - Translation target language */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Translation Target Language
+              </label>
+              <select
+                value={localSettings.translationLanguage}
+                onChange={(e) => updateLocalSetting('translationLanguage', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                {AVAILABLE_LANGUAGES.map(lang => (
+                  <option key={lang.code} value={lang.code}>{lang.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Default language for text translations
+              </p>
             </div>
           </div>
         </div>
@@ -168,15 +186,15 @@ export function OptionsPage() {
               <div className="relative">
                 <input
                   type="checkbox"
-                  checked={settings.floatingBubbleEnabled}
-                  onChange={(e) => updateSetting('floatingBubbleEnabled', e.target.checked)}
+                  checked={localSettings.floatingBubbleEnabled}
+                  onChange={(e) => updateLocalSetting('floatingBubbleEnabled', e.target.checked)}
                   className="sr-only"
                 />
                 <div className={`w-11 h-6 rounded-full transition-colors ${
-                  settings.floatingBubbleEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                  localSettings.floatingBubbleEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
                 }`}>
                   <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
-                    settings.floatingBubbleEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                    localSettings.floatingBubbleEnabled ? 'translate-x-5' : 'translate-x-0.5'
                   } mt-0.5`} />
                 </div>
               </div>
@@ -190,15 +208,15 @@ export function OptionsPage() {
               <div className="relative">
                 <input
                   type="checkbox"
-                  checked={settings.showSelectionToolbar}
-                  onChange={(e) => updateSetting('showSelectionToolbar', e.target.checked)}
+                  checked={localSettings.showSelectionToolbar}
+                  onChange={(e) => updateLocalSetting('showSelectionToolbar', e.target.checked)}
                   className="sr-only"
                 />
                 <div className={`w-11 h-6 rounded-full transition-colors ${
-                  settings.showSelectionToolbar ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                  localSettings.showSelectionToolbar ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
                 }`}>
                   <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
-                    settings.showSelectionToolbar ? 'translate-x-5' : 'translate-x-0.5'
+                    localSettings.showSelectionToolbar ? 'translate-x-5' : 'translate-x-0.5'
                   } mt-0.5`} />
                 </div>
               </div>
@@ -209,8 +227,8 @@ export function OptionsPage() {
                 Default Session Type
               </label>
               <select
-                value={settings.defaultSessionType}
-                onChange={(e) => updateSetting('defaultSessionType', e.target.value as Settings['defaultSessionType'])}
+                value={localSettings.defaultSessionType}
+                onChange={(e) => updateLocalSetting('defaultSessionType', e.target.value as Settings['defaultSessionType'])}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="devops">🔧 DevOps Mentor</option>
@@ -218,6 +236,40 @@ export function OptionsPage() {
                 <option value="development">💻 Development Helper</option>
                 <option value="general">🤖 General Assistant</option>
               </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Advanced Settings - C.3 */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Advanced</h2>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Communication Mode
+              </label>
+              <div className="flex gap-2">
+                {(['http', 'native'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => updateLocalSetting('communicationMode', mode)}
+                    className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
+                      localSettings.communicationMode === mode
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary'
+                    }`}
+                  >
+                    {mode === 'http' && '🌐 HTTP Server'}
+                    {mode === 'native' && '⚡ Native Messaging'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                {localSettings.communicationMode === 'http' 
+                  ? 'Uses local HTTP server (requires backend running)'
+                  : 'Uses Native Messaging (requires native host installed)'}
+              </p>
             </div>
           </div>
         </div>

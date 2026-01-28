@@ -64,14 +64,15 @@ export function createSelectionToolbar(
       }
     }
     
+    /* C.6 - Smaller icon buttons */
     .action-btn {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       background: transparent;
       cursor: pointer;
-      font-size: 18px;
+      font-size: 15px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -81,7 +82,7 @@ export function createSelectionToolbar(
     
     .action-btn:hover {
       background: #f3f4f6;
-      transform: scale(1.1);
+      transform: scale(1.05);
     }
     
     .action-btn:active {
@@ -126,26 +127,44 @@ export function createSelectionToolbar(
       background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
     }
     
+    /* C.5 - Enhanced tone submenu */
+    .tone-container {
+      position: relative;
+    }
+    
     .tone-menu {
       position: absolute;
-      top: 100%;
+      bottom: calc(100% + 8px);
       right: 0;
-      margin-top: 8px;
-      padding: 4px;
+      padding: 6px;
       background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
       display: none;
-      min-width: 140px;
+      min-width: 150px;
+      z-index: 100;
     }
     
     .tone-menu.visible {
       display: block;
-      animation: fadeIn 0.15s ease-out;
+      animation: slideUp 0.15s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
     
     .tone-item {
-      display: block;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       width: 100%;
       padding: 8px 12px;
       border: none;
@@ -155,10 +174,15 @@ export function createSelectionToolbar(
       cursor: pointer;
       border-radius: 6px;
       color: #374151;
+      transition: background 0.1s;
     }
     
     .tone-item:hover {
       background: #f3f4f6;
+    }
+    
+    .tone-item .emoji {
+      font-size: 14px;
     }
   `;
 
@@ -187,9 +211,9 @@ export function createSelectionToolbar(
   divider.className = 'divider';
   toolbar.appendChild(divider);
 
-  // Add tone menu button
+  // C.5 - Enhanced tone menu with submenu
   const toneContainer = document.createElement('div');
-  toneContainer.style.position = 'relative';
+  toneContainer.className = 'tone-container';
 
   const toneBtn = document.createElement('button');
   toneBtn.className = 'action-btn';
@@ -202,17 +226,18 @@ export function createSelectionToolbar(
   toneMenu.className = 'tone-menu';
 
   const tones = [
-    { id: 'formal', label: '👔 Formal' },
-    { id: 'casual', label: '😊 Casual' },
-    { id: 'technical', label: '⚙️ Technical' },
-    { id: 'friendly', label: '🤝 Friendly' },
-    { id: 'professional', label: '💼 Professional' },
+    { id: 'formal', emoji: '👔', label: 'Formal' },
+    { id: 'casual', emoji: '😊', label: 'Casual' },
+    { id: 'technical', emoji: '⚙️', label: 'Technical' },
+    { id: 'friendly', emoji: '🤝', label: 'Friendly' },
+    { id: 'professional', emoji: '💼', label: 'Professional' },
+    { id: 'concise', emoji: '📝', label: 'Concise' },
   ];
 
   tones.forEach((tone) => {
     const item = document.createElement('button');
     item.className = 'tone-item';
-    item.textContent = tone.label;
+    item.innerHTML = `<span class="emoji">${tone.emoji}</span> ${tone.label}`;
     item.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -226,6 +251,11 @@ export function createSelectionToolbar(
     e.stopPropagation();
     toneMenu.classList.toggle('visible');
   });
+
+  // Close menu when clicking outside
+  document.addEventListener('click', () => {
+    toneMenu.classList.remove('visible');
+  }, { once: true });
 
   toneContainer.appendChild(toneBtn);
   toneContainer.appendChild(toneMenu);

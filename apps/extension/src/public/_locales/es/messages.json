@@ -71,6 +71,10 @@
     "message": "Procesando...",
     "description": "Estado procesando"
   },
+  "status_thinking": {
+    "message": "Thinking...",
+    "description": "Thinking/reasoning status indicator"
+  },
   "error_connection": {
     "message": "Error al conectar con el backend. Asegúrate de que el servidor DevMentorAI está ejecutándose.",
     "description": "Mensaje de error de conexión"

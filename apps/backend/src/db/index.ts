@@ -6,6 +6,8 @@ import fs from 'fs';
 const DB_DIR = path.join(os.homedir(), '.devmentorai');
 const DB_PATH = path.join(DB_DIR, 'devmentorai.db');
 
+console.log(`Database path: ${DB_PATH}`);
+
 export function initDatabase(): Database.Database {
   // Ensure directory exists
   if (!fs.existsSync(DB_DIR)) {

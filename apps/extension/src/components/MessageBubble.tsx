@@ -1,14 +1,42 @@
-import { User, Bot, Wrench } from 'lucide-react';
+import { useState } from 'react';
+import { User, Bot, Wrench, Copy, Check, Replace } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { Message } from '@devmentorai/shared';
 
 interface MessageBubbleProps {
   message: Message;
+  onReplaceText?: (text: string) => void; // D.3, D.4 - Callback to replace selected text
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
+  const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  
+  // Don't render empty assistant messages (A.2 fix)
+  if (message.role === 'assistant' && !message.content.trim()) {
+    return null;
+  }
+
+  // D.3, D.4 - Check if this is a translate/rewrite action
+  const action = message.metadata?.action;
+  const isReplaceableAction = !isUser && (action === 'translate' || action === 'rewrite' || action === 'fix_grammar');
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const handleReplace = () => {
+    if (onReplaceText) {
+      onReplaceText(message.content);
+    }
+  };
 
   return (
     <div className={cn(
@@ -55,6 +83,31 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             {formatContent(message.content)}
           </div>
         </div>
+
+        {/* D.3, D.4 - Action buttons for copy/replace */}
+        {!isUser && message.content && (
+          <div className="flex items-center gap-1 mt-1">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              title="Copy to clipboard"
+            >
+              {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+              <span>{copied ? 'Copied!' : 'Copy'}</span>
+            </button>
+            
+            {isReplaceableAction && onReplaceText && (
+              <button
+                onClick={handleReplace}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
+                title="Replace original text"
+              >
+                <Replace className="w-3 h-3" />
+                <span>Replace</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Timestamp */}
         <span className="text-xs text-gray-400 dark:text-gray-500 mt-1">

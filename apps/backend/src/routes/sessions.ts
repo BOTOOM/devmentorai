@@ -45,6 +45,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
   }>('/sessions', async (request, reply) => {
     try {
       const body = createSessionSchema.parse(request.body);
+      console.log('[sessionRoutes] Creating session with body:', body);
       
       // Create in database
       const session = fastify.sessionService.createSession(body);

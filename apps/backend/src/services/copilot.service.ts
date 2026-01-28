@@ -205,6 +205,9 @@ export class CopilotService {
 
       // Send and wait for response
       const response = await copilotSession.session.sendAndWait({ prompt: fullPrompt });
+      console.log(`[CopilotService] Received response for session ${sessionId}`);
+      console.log(`[CopilotService] Response: ${response?.data}...`);
+      console.log(`[CopilotService] responseContent: ${responseContent}...`);
       
       return response?.data.content || responseContent;
     }, 3, 1000);

@@ -3,9 +3,12 @@ import { Header } from '../../components/Header';
 import { SessionSelector } from '../../components/SessionSelector';
 import { ChatView } from '../../components/ChatView';
 import { NewSessionModal } from '../../components/NewSessionModal';
+import { HelpModal } from '../../components/HelpModal';
+import { PageContextModal } from '../../components/PageContextModal';
 import { useBackendConnection } from '../../hooks/useBackendConnection';
 import { useSessions } from '../../hooks/useSessions';
 import { useChat } from '../../hooks/useChat';
+import { useSettings } from '../../hooks/useSettings';
 import type { Session, QuickAction, MessageContext } from '@devmentorai/shared';
 
 // Extend QuickAction to include tone variations
@@ -13,12 +16,17 @@ type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
 
 export function SidePanel() {
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);         // D.2
+  const [showPageContextModal, setShowPageContextModal] = useState(false); // D.1
   const [pendingAction, setPendingAction] = useState<{
     action: ExtendedAction;
     selectedText: string;
     pageUrl?: string;
     pageTitle?: string;
   } | null>(null);
+
+  // B.1 - Apply theme via settings hook
+  const { settings } = useSettings();
 
   const { status: connectionStatus, error: connectionError } = useBackendConnection();
   const {
@@ -107,10 +115,25 @@ export function SidePanel() {
     sendMessage(content);
   }, [sendMessage]);
 
-  const handleNewSession = useCallback(async (name: string, type: Session['type']) => {
-    await createSession(name, type);
+  const handleNewSession = useCallback(async (name: string, type: Session['type'], model?: string) => {
+    await createSession(name, type, model);
     setShowNewSessionModal(false);
   }, [createSession]);
+
+  // D.1 - Handle using page context in chat
+  const handleUsePageContext = useCallback((context: { url: string; title: string; selectedText?: string }) => {
+    const contextText = context.selectedText 
+      ? `About this page (${context.title}):\nURL: ${context.url}\n\nSelected text:\n"${context.selectedText}"\n\n`
+      : `About this page (${context.title}):\nURL: ${context.url}\n\n`;
+    
+    // Set as pending text for the chat input
+    setPendingAction({
+      action: 'chat',
+      selectedText: contextText,
+      pageUrl: context.url,
+      pageTitle: context.title,
+    });
+  }, []);
 
   // Show loading state
   if (sessionsLoading) {
@@ -130,6 +153,8 @@ export function SidePanel() {
         connectionStatus={connectionStatus}
         onNewSession={() => setShowNewSessionModal(true)}
         onOpenSettings={() => chrome.runtime.openOptionsPage()}
+        onOpenHelp={() => setShowHelpModal(true)}
+        onViewPage={() => setShowPageContextModal(true)}
       />
 
       {connectionError && (
@@ -159,6 +184,17 @@ export function SidePanel() {
         <NewSessionModal
           onClose={() => setShowNewSessionModal(false)}
           onSubmit={handleNewSession}
+        />
+      )}
+
+      {showHelpModal && (
+        <HelpModal onClose={() => setShowHelpModal(false)} />
+      )}
+
+      {showPageContextModal && (
+        <PageContextModal 
+          onClose={() => setShowPageContextModal(false)} 
+          onUseInChat={handleUsePageContext}
         />
       )}
     </div>

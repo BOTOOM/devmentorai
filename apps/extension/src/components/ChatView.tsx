@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Square, Loader2, Cpu } from 'lucide-react';
+import { Send, Square, Loader2, Cpu, ChevronDown, Brain } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import type { Session, Message } from '@devmentorai/shared';
@@ -10,6 +10,8 @@ interface ChatViewProps {
   isStreaming: boolean;
   onSendMessage: (content: string) => void;
   onAbort: () => void;
+  onChangeModel?: (model: string) => void; // C.1 - Model change callback
+  availableModels?: Array<{ id: string; name: string }>; // C.1
   disabled?: boolean;
   pendingText?: string;
 }
@@ -20,10 +22,13 @@ export function ChatView({
   isStreaming,
   onSendMessage,
   onAbort,
+  onChangeModel,
+  availableModels = [],
   disabled = false,
   pendingText,
 }: ChatViewProps) {
   const [input, setInput] = useState('');
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -39,10 +44,13 @@ export function ChatView({
     }
   }, [session, disabled]);
 
-  // Set pending text when provided
+  // Set pending text when provided (A.3 fix: increased limit to 5000 chars)
   useEffect(() => {
     if (pendingText) {
-      setInput(`Regarding this text:\n"${pendingText.substring(0, 200)}${pendingText.length > 200 ? '...' : ''}"\n\n`);
+      const maxLength = 5000;
+      const truncated = pendingText.length > maxLength;
+      const text = truncated ? pendingText.substring(0, maxLength) : pendingText;
+      setInput(`Regarding this text:\n"${text}${truncated ? '...' : ''}"\n\n`);
       inputRef.current?.focus();
     }
   }, [pendingText]);
@@ -90,15 +98,49 @@ export function ChatView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Session info bar */}
+      {/* Session info bar - C.1: clickeable model selector */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 text-sm">
           <span>{getSessionIcon(session.type)}</span>
           <span className="font-medium text-gray-700 dark:text-gray-300">{session.name}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-          <Cpu className="w-3.5 h-3.5" />
-          <span>{session.model}</span>
+        
+        {/* Model selector */}
+        <div className="relative">
+          <button
+            onClick={() => onChangeModel && setShowModelPicker(!showModelPicker)}
+            disabled={!onChangeModel || isStreaming}
+            className={cn(
+              "flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors",
+              onChangeModel && !isStreaming
+                ? "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
+                : "text-gray-400 dark:text-gray-500 cursor-default"
+            )}
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span>{session.model}</span>
+            {onChangeModel && <ChevronDown className="w-3 h-3" />}
+          </button>
+          
+          {showModelPicker && availableModels.length > 0 && (
+            <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[180px] max-h-60 overflow-y-auto">
+              {availableModels.map((model) => (
+                <button
+                  key={model.id}
+                  onClick={() => {
+                    onChangeModel?.(model.id);
+                    setShowModelPicker(false);
+                  }}
+                  className={cn(
+                    "w-full px-3 py-2 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
+                    model.id === session.model && "bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400"
+                  )}
+                >
+                  {model.name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -148,11 +190,19 @@ export function ChatView({
           ))
         )}
         
+        {/* C.4 - Enhanced thinking indicator */}
         {isStreaming && (
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">
-              {chrome.i18n.getMessage('status_processing') || 'Processing...'}
+          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-50 to-indigo-50 dark:from-primary-900/20 dark:to-indigo-900/20 rounded-lg border border-primary-100 dark:border-primary-800/50">
+            <div className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-primary-600 dark:text-primary-400 animate-pulse" />
+              <div className="flex gap-1">
+                <span className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+            <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
+              {chrome.i18n.getMessage('status_thinking') || 'Thinking...'}
             </span>
           </div>
         )}

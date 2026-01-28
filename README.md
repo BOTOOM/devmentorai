@@ -10,6 +10,11 @@ A Chrome/Chromium browser extension that provides DevOps mentoring, infrastructu
 - 💬 **Multi-Session Support** - Manage multiple independent conversations
 - 🌐 **Context Awareness** - Use selected text and page context in conversations
 - 🔄 **Streaming Responses** - Real-time streaming of AI responses
+- 🔧 **Custom DevOps Tools** - Config analysis, error diagnosis, file access
+- 🎯 **Selection Toolbar** - Quick actions on text selection
+- 🫧 **Floating Bubble** - Persistent UI overlay on any webpage
+- ⌨️ **Keyboard Shortcuts** - Full keyboard navigation support
+- 🌍 **i18n Support** - English and Spanish localization
 
 ## Prerequisites
 
@@ -55,8 +60,8 @@ For development with hot reload:
 # Terminal 1: Backend
 pnpm dev:backend
 
-# Terminal 2: Extension
-pnpm dev
+# Terminal 2: Extension (with hot reload)
+cd apps/extension && pnpm dev
 ```
 
 ## Project Structure
@@ -66,10 +71,10 @@ devmentorai/
 ├── apps/
 │   ├── extension/          # WXT Chrome Extension
 │   │   ├── src/
-│   │   │   ├── entrypoints/ # Background, content, sidepanel
+│   │   │   ├── entrypoints/ # Background, content, sidepanel, options
 │   │   │   ├── components/  # React UI components
-│   │   │   ├── hooks/       # React hooks
-│   │   │   └── services/    # API client
+│   │   │   ├── hooks/       # React hooks (useKeyboardShortcuts)
+│   │   │   └── services/    # Communication adapter (HTTP/Native)
 │   │   └── public/
 │   │       └── _locales/    # i18n (en, es)
 │   │
@@ -77,14 +82,19 @@ devmentorai/
 │       ├── src/
 │       │   ├── routes/     # API endpoints
 │       │   ├── services/   # CopilotService, SessionService
+│       │   ├── tools/      # Custom DevOps tools
+│       │   ├── native/     # Native Messaging host
 │       │   └── db/         # SQLite database
-│       └── tests/          # Vitest unit tests
+│       └── tests/          # Vitest unit tests (57 tests)
 │
 ├── packages/
 │   └── shared/             # Shared types & contracts
 │
-└── tests/
-    └── e2e/                # Playwright E2E tests
+├── tests/
+│   └── e2e/                # Playwright E2E tests
+│
+└── docs/
+    └── ARCHITECTURE.md     # Detailed architecture docs
 ```
 
 ## Architecture
@@ -94,21 +104,25 @@ devmentorai/
 │                     Chrome Extension (WXT)                       │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
 │  │  Side Panel │  │  Content    │  │     Background          │  │
-│  │   (Chat UI) │  │  Scripts    │  │   (Service Worker)      │  │
+│  │  (Chat UI)  │  │  Scripts    │  │   (Service Worker)      │  │
+│  │  Activity   │  │  - Bubble   │  │   - Context menus       │  │
+│  │  Settings   │  │  - Toolbar  │  │   - Message routing     │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                               │
-                         HTTP / SSE
+                    HTTP/SSE or Native Messaging
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Node.js Backend                              │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │   Session   │  │  Copilot    │  │     SQLite DB           │  │
-│  │  Service    │  │  Service    │  │                         │  │
+│  │   Session   │  │  Copilot    │  │     DevOps Tools        │  │
+│  │  Service    │  │  Service    │  │  - analyze_config       │  │
+│  │             │  │  - Retry    │  │  - analyze_error        │  │
+│  │  SQLite DB  │  │  - MCP      │  │  - read_file            │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                               │
-                         JSON-RPC
+                          JSON-RPC
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                     GitHub Copilot CLI                           │
@@ -120,10 +134,21 @@ devmentorai/
 
 | Type | Icon | Description |
 |------|------|-------------|
-| DevOps | 🛠️ | Expert in cloud, Kubernetes, CI/CD, IaC |
-| Writing | ✍️ | Email, rewriting, translation, grammar |
+| DevOps | 🔧 | Expert in cloud, Kubernetes, CI/CD, IaC, with custom analysis tools |
+| Writing | ✍️ | Email, rewriting, translation, grammar, tone adjustment |
 | Development | 💻 | Code review, debugging, best practices |
 | General | 💬 | General-purpose assistant |
+
+## Custom DevOps Tools
+
+The backend provides specialized tools for DevOps analysis:
+
+| Tool | Description |
+|------|-------------|
+| `read_file` | Read local files (sandboxed) |
+| `list_directory` | Browse file system |
+| `analyze_config` | Analyze K8s/Docker/Terraform/GH Actions configs |
+| `analyze_error` | Diagnose errors with solutions |
 
 ## API Endpoints
 
@@ -140,15 +165,32 @@ devmentorai/
 | GET | `/api/sessions/:id/messages` | Get messages |
 | POST | `/api/sessions/:id/chat` | Send message |
 | POST | `/api/sessions/:id/chat/stream` | Stream message (SSE) |
+| GET | `/api/models` | List available models |
+| GET | `/api/tools` | List available tools |
+| POST | `/api/tools/execute` | Execute a tool |
+| POST | `/api/tools/analyze-config` | Analyze configuration |
+| POST | `/api/tools/analyze-error` | Diagnose error |
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Shift+N` | Create new session |
+| `Ctrl+K` | Focus chat input |
+| `Ctrl+Enter` | Send message |
+| `Ctrl+/` | Show shortcuts help |
+| `Ctrl+Shift+S` | Open settings |
+| `Escape` | Close modal / Cancel |
+| `Alt+↑/↓` | Previous/Next session |
 
 ## Testing
 
 ```bash
-# Unit tests
-pnpm test:unit
+# Backend unit tests (57 tests)
+cd apps/backend && pnpm vitest run
 
-# E2E tests
-pnpm test:e2e
+# Build extension
+pnpm build:extension
 
 # All tests
 pnpm test
@@ -161,7 +203,20 @@ The backend stores data in `~/.devmentorai/`:
 
 The extension uses Chrome's `storage.local` for:
 - Active session ID
-- User preferences
+- User preferences (theme, bubble position, toolbar enabled)
+- Communication mode (HTTP or Native)
+
+## Native Messaging (Optional)
+
+For enhanced security, you can use Native Messaging instead of HTTP:
+
+```bash
+# Get your extension ID from chrome://extensions
+cd apps/backend
+node src/native/install-native-host.js <extension-id>
+```
+
+Then enable "Native Messaging" in DevMentorAI settings.
 
 ## Development
 
@@ -171,43 +226,60 @@ The extension uses Chrome's `storage.local` for:
 2. Add the agent config to `packages/shared/src/contracts/session-types.ts`
 3. Update the UI in `apps/extension/src/components/NewSessionModal.tsx`
 
-### Adding Custom Tools (Phase 3)
+### Adding Custom Tools
 
-Custom tools can be added in `apps/backend/src/services/copilot.service.ts`:
+Add tools in `apps/backend/src/tools/devops-tools.ts`:
 
 ```typescript
-import { defineTool } from '@github/copilot-sdk';
-
-const myTool = defineTool('my_tool', {
+export const myTool: Tool = {
+  name: 'my_tool',
   description: 'What this tool does',
-  parameters: { /* ... */ },
-  handler: async (args) => { /* ... */ },
-});
+  parameters: {
+    type: 'object',
+    properties: {
+      param1: { type: 'string', description: 'Parameter description' }
+    },
+    required: ['param1']
+  },
+  handler: async (params) => {
+    // Implementation
+    return result;
+  },
+};
 ```
 
-## Roadmap
+## Implementation Status
 
-- **Phase 1 (MVP)** ✅
-  - Monorepo setup
-  - WXT extension with React
+- **Phase 1 (MVP)** ✅ Complete
+  - Monorepo setup with pnpm
+  - WXT extension with React + Tailwind
   - Fastify backend with SQLite
   - Copilot SDK integration
-  - Basic chat UI
+  - Chat UI with streaming
   - DevOps/Writing/Development modes
   - Context menu actions
   - i18n (English/Spanish)
+  - 37 unit tests
 
-- **Phase 2**
+- **Phase 2 (UX)** ✅ Complete
   - Multi-session UI improvements
-  - Floating bubble UI
-  - Email writing assistant
-  - Session history display
+  - Floating bubble UI (draggable)
+  - Selection toolbar with quick actions
+  - Tone adjustment (formal/casual/technical)
+  - Settings page
+  - Model selection per session
+  - Quick prompts for session types
 
-- **Phase 3**
+- **Phase 3 (Advanced)** ✅ Complete
   - Native Messaging support
-  - Activity/transparency view
-  - Custom DevOps tools
-  - GitHub MCP Server integration
+  - Communication adapter abstraction
+  - Activity view (tool visibility)
+  - Custom DevOps tools (4 tools)
+  - Retry logic with exponential backoff
+  - MCP server configuration
+  - Keyboard shortcuts
+  - 57 unit tests total
+  - Full documentation
 
 ## License
 
@@ -215,4 +287,4 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please read the [Contributing Guide](docs/CONTRIBUTING.md) first.
+Contributions are welcome! Please read the architecture documentation in `docs/ARCHITECTURE.md` first.

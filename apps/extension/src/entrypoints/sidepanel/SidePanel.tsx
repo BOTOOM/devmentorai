@@ -74,7 +74,16 @@ export function SidePanel() {
 
   // Process pending action when we have an active session
   useEffect(() => {
+    console.log('[SidePanel] Checking pending action:', {
+      hasPendingAction: !!pendingAction,
+      hasActiveSession: !!activeSession,
+      connectionStatus,
+      pendingAction: pendingAction?.action,
+    });
+
     if (pendingAction && activeSession && connectionStatus === 'connected') {
+      console.log('[SidePanel] Processing pending action:', pendingAction.action);
+      
       const context: MessageContext = {
         selectedText: pendingAction.selectedText,
         pageUrl: pendingAction.pageUrl,
@@ -82,11 +91,23 @@ export function SidePanel() {
         action: pendingAction.action.startsWith('rewrite_') ? 'rewrite' : pendingAction.action as QuickAction,
       };
 
+      // Get target language name for translation (B.3)
+      const getLanguageName = (code: string) => {
+        const languages: Record<string, string> = {
+          en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+          pt: 'Portuguese', it: 'Italian', ja: 'Japanese', zh: 'Chinese',
+          ko: 'Korean', ru: 'Russian',
+        };
+        return languages[code] || 'English';
+      };
+      const targetLanguage = getLanguageName(settings.translationLanguage);
+
       // Build prompt based on action
       let prompt: string;
       
       if (pendingAction.action === 'chat') {
         // Just open chat with context, user will type
+        console.log('[SidePanel] Chat action, clearing pending');
         setPendingAction(null);
         return;
       } else if (pendingAction.action.startsWith('rewrite_')) {
@@ -95,7 +116,7 @@ export function SidePanel() {
       } else {
         const actionPrompts: Record<QuickAction, string> = {
           explain: 'Explain the following:\n\n',
-          translate: 'Translate the following to English (or to the user\'s language if already in English):\n\n',
+          translate: `Translate the following to ${targetLanguage}:\n\n`,
           rewrite: 'Rewrite the following for clarity and improved style:\n\n',
           fix_grammar: 'Fix the grammar and spelling in the following:\n\n',
           summarize: 'Summarize the following:\n\n',
@@ -106,10 +127,11 @@ export function SidePanel() {
         prompt = actionPrompts[pendingAction.action as QuickAction] + pendingAction.selectedText;
       }
 
+      console.log('[SidePanel] Sending message with prompt length:', prompt.length);
       sendMessage(prompt, context);
       setPendingAction(null);
     }
-  }, [pendingAction, activeSession, connectionStatus, sendMessage]);
+  }, [pendingAction, activeSession, connectionStatus, sendMessage, settings.translationLanguage]);
 
   const handleSendMessage = useCallback((content: string) => {
     sendMessage(content);

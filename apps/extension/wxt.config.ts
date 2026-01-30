@@ -12,6 +12,8 @@ export default defineConfig({
       'activeTab',
       'contextMenus',
       'sidePanel',
+      'scripting',
+      'tabs',
     ],
     host_permissions: [
       'http://localhost:3847/*',

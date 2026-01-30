@@ -135,7 +135,12 @@ export class ApiClient {
     signal?: AbortSignal
   ): Promise<void> {
     console.log('[ApiClient] streamChat called for session:', sessionId);
-    console.log('[ApiClient] Request data:', { prompt: data.prompt.substring(0, 100), hasContext: !!data.context });
+    console.log('[ApiClient] Request data:', { 
+      prompt: data.prompt.substring(0, 100), 
+      hasContext: !!data.context,
+      hasFullContext: !!data.fullContext,
+      useContextAwareMode: data.useContextAwareMode,
+    });
     
     const response = await fetch(`${this.baseUrl}${API_ENDPOINTS.CHAT_STREAM(sessionId)}`, {
       method: 'POST',

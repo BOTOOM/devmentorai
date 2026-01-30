@@ -47,6 +47,10 @@
     "message": "Escribe un mensaje...",
     "description": "Placeholder del input de chat"
   },
+  "placeholder_context": {
+    "message": "Pregunta sobre esta página...",
+    "description": "Placeholder del input cuando el modo contexto está activado"
+  },
   "btn_send": {
     "message": "Enviar",
     "description": "Texto del botón enviar"
@@ -72,8 +76,20 @@
     "description": "Estado procesando"
   },
   "status_thinking": {
-    "message": "Thinking...",
-    "description": "Thinking/reasoning status indicator"
+    "message": "Pensando...",
+    "description": "Indicador de pensamiento/razonamiento"
+  },
+  "context_mode_on": {
+    "message": "Modo contexto ACTIVADO - Click para desactivar",
+    "description": "Tooltip cuando el modo contexto está activado"
+  },
+  "context_mode_off": {
+    "message": "Usar contexto de la página",
+    "description": "Tooltip cuando el modo contexto está desactivado"
+  },
+  "context_mode_hint": {
+    "message": "Modo contexto: La IA analizará la página actual",
+    "description": "Texto de ayuda cuando el modo contexto está activado"
   },
   "error_connection": {
     "message": "Error al conectar con el backend. Asegúrate de que el servidor DevMentorAI está ejecutándose.",

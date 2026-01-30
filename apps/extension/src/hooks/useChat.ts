@@ -1,12 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ApiClient } from '../services/api-client';
 import { generateMessageId, formatDate } from '@devmentorai/shared';
-import type { Message, MessageContext, StreamEvent } from '@devmentorai/shared';
+import type { Message, MessageContext, StreamEvent, ContextPayload } from '@devmentorai/shared';
+
+export interface SendMessageOptions {
+  context?: MessageContext;
+  fullContext?: ContextPayload;
+  useContextAwareMode?: boolean;
+}
 
 export function useChat(sessionId: string | undefined) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isExtractingContext, setIsExtractingContext] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentMessageRef = useRef<string>('');
   const currentSessionRef = useRef<string | undefined>(sessionId);
@@ -44,13 +51,18 @@ export function useChat(sessionId: string | undefined) {
     }
   };
 
-  const sendMessage = useCallback(async (content: string, context?: MessageContext) => {
+  const sendMessage = useCallback(async (content: string, options?: SendMessageOptions | MessageContext) => {
     console.log('[useChat] sendMessage called:', { sessionId, isStreaming, contentLength: content.length });
     
     if (!sessionId || isStreaming) {
       console.log('[useChat] Blocked - no sessionId or already streaming');
       return;
     }
+
+    // Handle both old (MessageContext) and new (SendMessageOptions) API
+    const sendOptions: SendMessageOptions = options && 'useContextAwareMode' in options
+      ? options
+      : { context: options as MessageContext };
 
     // Store the session ID at the start of this request (A.4 fix)
     const requestSessionId = sessionId;
@@ -66,10 +78,10 @@ export function useChat(sessionId: string | undefined) {
       role: 'user',
       content,
       timestamp: formatDate(),
-      metadata: context ? {
-        pageUrl: context.pageUrl,
-        selectedText: context.selectedText,
-        action: context.action,
+      metadata: sendOptions.context ? {
+        pageUrl: sendOptions.context.pageUrl,
+        selectedText: sendOptions.context.selectedText,
+        action: sendOptions.context.action,
       } : undefined,
     };
     setMessages(prev => [...prev, userMessage]);
@@ -83,6 +95,7 @@ export function useChat(sessionId: string | undefined) {
       role: 'assistant',
       content: '',
       timestamp: formatDate(),
+      metadata: sendOptions.useContextAwareMode ? { contextAware: true } : undefined,
     };
     setMessages(prev => [...prev, assistantMessage]);
     console.log('[useChat] Added empty assistant message placeholder');
@@ -90,10 +103,27 @@ export function useChat(sessionId: string | undefined) {
     try {
       abortControllerRef.current = new AbortController();
 
+      // Build request body with optional full context
+      const requestBody: {
+        prompt: string;
+        context?: MessageContext;
+        fullContext?: ContextPayload;
+        useContextAwareMode?: boolean;
+      } = {
+        prompt: content,
+        context: sendOptions.context,
+      };
+
+      if (sendOptions.fullContext && sendOptions.useContextAwareMode !== false) {
+        requestBody.fullContext = sendOptions.fullContext;
+        requestBody.useContextAwareMode = true;
+        console.log('[useChat] Using context-aware mode with full context');
+      }
+
       console.log('[useChat] Starting streamChat...');
       await apiClient.streamChat(
         requestSessionId,
-        { prompt: content, context },
+        requestBody,
         (event: StreamEvent) => {
           console.log('[useChat] Received SSE event:', event.type);
           
@@ -221,9 +251,11 @@ export function useChat(sessionId: string | undefined) {
   return {
     messages,
     isStreaming,
+    isExtractingContext,
     error,
     sendMessage,
     abortMessage,
     clearError: () => setError(null),
+    setIsExtractingContext,
   };
 }

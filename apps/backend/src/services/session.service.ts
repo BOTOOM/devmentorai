@@ -205,6 +205,154 @@ export class SessionService {
     stmt.run(content, messageId);
   }
 
+  // ============================================================================
+  // Context Persistence (Phase 5)
+  // ============================================================================
+
+  /**
+   * Save context for a session (associated with a message)
+   */
+  saveContext(
+    sessionId: string,
+    contextJson: string,
+    messageId?: string,
+    pageUrl?: string,
+    pageTitle?: string,
+    platform?: string
+  ): string {
+    const id = `ctx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = formatDate();
+
+    const stmt = this.db.prepare(`
+      INSERT INTO session_contexts (id, session_id, message_id, context_json, page_url, page_title, platform, extracted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(id, sessionId, messageId || null, contextJson, pageUrl || null, pageTitle || null, platform || null, now);
+
+    return id;
+  }
+
+  /**
+   * Get the most recent context for a session
+   */
+  getLatestContext(sessionId: string): { id: string; contextJson: string; pageUrl?: string; platform?: string; extractedAt: string } | null {
+    const stmt = this.db.prepare(`
+      SELECT id, context_json, page_url, platform, extracted_at
+      FROM session_contexts
+      WHERE session_id = ?
+      ORDER BY extracted_at DESC
+      LIMIT 1
+    `);
+
+    const row = stmt.get(sessionId) as { id: string; context_json: string; page_url: string | null; platform: string | null; extracted_at: string } | undefined;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      contextJson: row.context_json,
+      pageUrl: row.page_url || undefined,
+      platform: row.platform || undefined,
+      extractedAt: row.extracted_at,
+    };
+  }
+
+  /**
+   * Get context history for a session
+   */
+  getContextHistory(sessionId: string, limit: number = 10): Array<{
+    id: string;
+    messageId?: string;
+    pageUrl?: string;
+    pageTitle?: string;
+    platform?: string;
+    extractedAt: string;
+  }> {
+    const stmt = this.db.prepare(`
+      SELECT id, message_id, page_url, page_title, platform, extracted_at
+      FROM session_contexts
+      WHERE session_id = ?
+      ORDER BY extracted_at DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(sessionId, limit) as Array<{
+      id: string;
+      message_id: string | null;
+      page_url: string | null;
+      page_title: string | null;
+      platform: string | null;
+      extracted_at: string;
+    }>;
+
+    return rows.map(row => ({
+      id: row.id,
+      messageId: row.message_id || undefined,
+      pageUrl: row.page_url || undefined,
+      pageTitle: row.page_title || undefined,
+      platform: row.platform || undefined,
+      extractedAt: row.extracted_at,
+    }));
+  }
+
+  /**
+   * Get a specific context by ID
+   */
+  getContext(contextId: string): { id: string; sessionId: string; contextJson: string; extractedAt: string } | null {
+    const stmt = this.db.prepare(`
+      SELECT id, session_id, context_json, extracted_at
+      FROM session_contexts
+      WHERE id = ?
+    `);
+
+    const row = stmt.get(contextId) as { id: string; session_id: string; context_json: string; extracted_at: string } | undefined;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      sessionId: row.session_id,
+      contextJson: row.context_json,
+      extractedAt: row.extracted_at,
+    };
+  }
+
+  /**
+   * Clean up old contexts for a session (keep only last N)
+   */
+  cleanupOldContexts(sessionId: string, keepCount: number = 20): number {
+    // Get IDs to keep
+    const keepStmt = this.db.prepare(`
+      SELECT id FROM session_contexts
+      WHERE session_id = ?
+      ORDER BY extracted_at DESC
+      LIMIT ?
+    `);
+    const idsToKeep = (keepStmt.all(sessionId, keepCount) as Array<{ id: string }>).map(r => r.id);
+
+    if (idsToKeep.length === 0) return 0;
+
+    // Delete older contexts
+    const deleteStmt = this.db.prepare(`
+      DELETE FROM session_contexts
+      WHERE session_id = ?
+      AND id NOT IN (${idsToKeep.map(() => '?').join(',')})
+    `);
+
+    const result = deleteStmt.run(sessionId, ...idsToKeep);
+    return result.changes;
+  }
+
+  /**
+   * Get context count for a session
+   */
+  getContextCount(sessionId: string): number {
+    const stmt = this.db.prepare('SELECT COUNT(*) as count FROM session_contexts WHERE session_id = ?');
+    const result = stmt.get(sessionId) as { count: number };
+    return result.count;
+  }
+
   private mapDbSession(row: DbSession): Session {
     return {
       id: row.id,

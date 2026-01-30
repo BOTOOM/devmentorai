@@ -44,8 +44,24 @@ export function initDatabase(): Database.Database {
       FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
     );
 
+    -- New table for session context persistence (Phase 5)
+    CREATE TABLE IF NOT EXISTS session_contexts (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      message_id TEXT,
+      context_json TEXT NOT NULL,
+      page_url TEXT,
+      page_title TEXT,
+      platform TEXT,
+      extracted_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+      FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE SET NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
     CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_session_contexts_session_id ON session_contexts(session_id);
+    CREATE INDEX IF NOT EXISTS idx_session_contexts_extracted_at ON session_contexts(extracted_at);
   `);
 
   return db;

@@ -9,6 +9,7 @@ import { useBackendConnection } from '../../hooks/useBackendConnection';
 import { useSessions } from '../../hooks/useSessions';
 import { useChat } from '../../hooks/useChat';
 import { useSettings } from '../../hooks/useSettings';
+import { useContextExtraction } from '../../hooks/useContextExtraction';
 import type { Session, QuickAction, MessageContext } from '@devmentorai/shared';
 
 // Extend QuickAction to include tone variations
@@ -18,6 +19,7 @@ export function SidePanel() {
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);         // D.2
   const [showPageContextModal, setShowPageContextModal] = useState(false); // D.1
+  const [contextModeEnabled, setContextModeEnabled] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     action: ExtendedAction;
     selectedText: string;
@@ -44,6 +46,17 @@ export function SidePanel() {
     sendMessage,
     abortMessage,
   } = useChat(activeSession?.id);
+
+  // Context extraction hook
+  const {
+    extractedContext,
+    platform,
+    isExtracting: isExtractingContext,
+    extractionError,
+    extractContext,
+    clearContext,
+    errorCount,
+  } = useContextExtraction();
 
   // Check for pending actions from context menu
   useEffect(() => {
@@ -133,9 +146,41 @@ export function SidePanel() {
     }
   }, [pendingAction, activeSession, connectionStatus, sendMessage, settings.translationLanguage]);
 
-  const handleSendMessage = useCallback((content: string) => {
-    sendMessage(content);
-  }, [sendMessage]);
+  const handleSendMessage = useCallback(async (content: string, useContext?: boolean) => {
+    if (useContext && activeSession?.id) {
+      // Extract context and send with full context payload
+      console.log('[SidePanel] Context mode enabled, extracting context...');
+      const aggregatedContext = await extractContext(activeSession.id, content);
+      
+      if (aggregatedContext) {
+        console.log('[SidePanel] Context extracted, sending with full context');
+        sendMessage(content, {
+          fullContext: aggregatedContext,
+          useContextAwareMode: true,
+        });
+      } else {
+        // Fallback to regular send if context extraction fails
+        console.log('[SidePanel] Context extraction failed, sending without context');
+        sendMessage(content);
+      }
+    } else {
+      sendMessage(content);
+    }
+  }, [sendMessage, extractContext, activeSession?.id]);
+
+  // Toggle context mode and extract context if enabling
+  const handleToggleContextMode = useCallback(async () => {
+    const newState = !contextModeEnabled;
+    setContextModeEnabled(newState);
+    
+    if (newState && activeSession?.id) {
+      // Extract context when enabling
+      await extractContext(activeSession.id);
+    } else {
+      // Clear context when disabling
+      clearContext();
+    }
+  }, [contextModeEnabled, activeSession?.id, extractContext, clearContext]);
 
   const handleNewSession = useCallback(async (name: string, type: Session['type'], model?: string) => {
     await createSession(name, type, model);
@@ -200,6 +245,13 @@ export function SidePanel() {
         onAbort={abortMessage}
         disabled={connectionStatus !== 'connected'}
         pendingText={pendingAction?.action === 'chat' ? pendingAction.selectedText : undefined}
+        // Context-aware mode props
+        contextEnabled={contextModeEnabled}
+        onToggleContext={handleToggleContextMode}
+        isExtractingContext={isExtractingContext}
+        extractedContext={extractedContext}
+        platform={platform}
+        errorCount={errorCount}
       />
 
       {showNewSessionModal && (

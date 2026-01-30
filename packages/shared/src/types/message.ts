@@ -71,4 +71,5 @@ export interface StreamEventData {
   toolCallId?: string;
   error?: string;
   messageId?: string;
+  reason?: string;  // Reason for completion (e.g., 'completed', 'timeout', 'idle_timeout')
 }

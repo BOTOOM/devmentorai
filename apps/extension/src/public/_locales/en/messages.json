@@ -47,6 +47,10 @@
     "message": "Type a message...",
     "description": "Chat input placeholder"
   },
+  "placeholder_context": {
+    "message": "Ask about this page...",
+    "description": "Chat input placeholder when context mode is enabled"
+  },
   "btn_send": {
     "message": "Send",
     "description": "Send button text"
@@ -74,6 +78,18 @@
   "status_thinking": {
     "message": "Thinking...",
     "description": "Thinking/reasoning status indicator"
+  },
+  "context_mode_on": {
+    "message": "Context mode ON - Click to disable",
+    "description": "Tooltip when context mode is enabled"
+  },
+  "context_mode_off": {
+    "message": "Use page context",
+    "description": "Tooltip when context mode is disabled"
+  },
+  "context_mode_hint": {
+    "message": "Context mode: AI will analyze the current page",
+    "description": "Hint text when context mode is enabled"
   },
   "error_connection": {
     "message": "Failed to connect to backend. Make sure the DevMentorAI server is running.",

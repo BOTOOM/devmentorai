@@ -90,11 +90,21 @@ export function useSessions() {
       if (response.success) {
         setSessions(prev => prev.filter(s => s.id !== sessionId));
         
-        // If deleted session was active, select another
+        // If deleted session was active, select another and clean up storage
         if (activeSessionId === sessionId) {
           const remaining = sessions.filter(s => s.id !== sessionId);
-          setActiveSessionId(remaining.length > 0 ? remaining[0].id : null);
+          const newActiveId = remaining.length > 0 ? remaining[0].id : null;
+          setActiveSessionId(newActiveId);
+          
+          // Clean up chrome storage - remove reference to deleted session
+          if (newActiveId) {
+            chrome.storage.local.set({ activeSessionId: newActiveId });
+          } else {
+            chrome.storage.local.remove('activeSessionId');
+          }
         }
+        
+        console.log('[useSessions] Session deleted successfully:', sessionId);
       } else {
         throw new Error(response.error?.message || 'Failed to delete session');
       }

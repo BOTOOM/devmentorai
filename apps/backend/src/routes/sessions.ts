@@ -142,17 +142,15 @@ export async function sessionRoutes(fastify: FastifyInstance) {
   // Delete session
   fastify.delete<{
     Params: { id: string };
-    Reply: ApiResponse<void>;
+    Reply: ApiResponse<{ deleted: boolean; sessionId: string }>;
   }>('/sessions/:id', async (request, reply) => {
     const sessionId = request.params.id;
+    
+    console.log(`[SessionRoute] Deleting session: ${sessionId}`);
 
-    // Destroy Copilot session
-    await fastify.copilotService.destroySession(sessionId);
-
-    // Delete from database
-    const deleted = fastify.sessionService.deleteSession(sessionId);
-
-    if (!deleted) {
+    // First check if session exists
+    const session = fastify.sessionService.getSession(sessionId);
+    if (!session) {
       return reply.code(404).send({
         success: false,
         error: {
@@ -162,7 +160,23 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       });
     }
 
-    return reply.code(204).send({ success: true });
+    // Destroy Copilot session first (handles cleanup of SDK resources)
+    try {
+      await fastify.copilotService.destroySession(sessionId);
+    } catch (error) {
+      console.error(`[SessionRoute] Error destroying Copilot session:`, error);
+      // Continue with DB deletion even if Copilot cleanup fails
+    }
+
+    // Delete from database (CASCADE will delete messages)
+    const deleted = fastify.sessionService.deleteSession(sessionId);
+    
+    console.log(`[SessionRoute] Session ${sessionId} deleted: ${deleted}`);
+
+    return reply.code(200).send({ 
+      success: true,
+      data: { deleted, sessionId }
+    });
   });
 
   // Resume session

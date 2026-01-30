@@ -176,12 +176,13 @@ export class CopilotService {
     return this.withRetry(async () => {
       const copilotSession = this.sessions.get(sessionId);
       
-      // Build full prompt with context
+      // Note: The prompt should already be enriched with context by the route
+      // We only add basic context fallback if the prompt doesn't contain it
       let fullPrompt = prompt;
-      if (context?.selectedText) {
+      if (context?.selectedText && !prompt.includes(context.selectedText)) {
         fullPrompt = `Context (selected text):\n${context.selectedText}\n\nUser request: ${prompt}`;
       }
-      if (context?.pageUrl) {
+      if (context?.pageUrl && !prompt.includes(context.pageUrl)) {
         fullPrompt = `Page: ${context.pageUrl}\n${fullPrompt}`;
       }
 
@@ -203,7 +204,8 @@ export class CopilotService {
         }
       });
 
-      // Send and wait for response
+      // Send message - no systemMessage override to preserve Copilot's intelligence
+      // The customAgents from session creation provide the persona/expertise
       const response = await copilotSession.session.sendAndWait({ prompt: fullPrompt });
       console.log(`[CopilotService] Received response for session ${sessionId}`);
       console.log(`[CopilotService] Response: ${response?.data}...`);
@@ -221,9 +223,10 @@ export class CopilotService {
   ): Promise<void> {
     const copilotSession = this.sessions.get(sessionId);
 
-    // Build full prompt with context
+    // Note: The prompt should already be enriched with context by the route
+    // We only add basic context fallback if the prompt doesn't contain it
     let fullPrompt = prompt;
-    if (context?.selectedText) {
+    if (context?.selectedText && !prompt.includes(context.selectedText)) {
       fullPrompt = `Context (selected text):\n${context.selectedText}\n\nUser request: ${prompt}`;
     }
 
@@ -241,7 +244,8 @@ export class CopilotService {
       copilotSession.session.on(onEvent);
     }
 
-    // Send message (don't wait, let events handle it)
+    // Send message - no systemMessage override to preserve Copilot's intelligence
+    // The customAgents from session creation provide the persona/expertise
     copilotSession.session.send({ prompt: fullPrompt });
     console.log('[CopilotService] Message sent, waiting for events...');
   }
@@ -321,10 +325,23 @@ export class CopilotService {
 
   async destroySession(sessionId: string): Promise<void> {
     const copilotSession = this.sessions.get(sessionId);
+    
     if (copilotSession?.session && !this.mockMode) {
-      await copilotSession.session.destroy();
+      try {
+        // Abort any pending requests first
+        await copilotSession.session.abort().catch(() => {});
+        // Destroy the session
+        await copilotSession.session.destroy();
+        console.log(`[CopilotService] Session ${sessionId} destroyed successfully`);
+      } catch (error) {
+        console.error(`[CopilotService] Error destroying session ${sessionId}:`, error);
+        // Continue with cleanup even if destroy fails
+      }
     }
+    
+    // Remove from in-memory map
     this.sessions.delete(sessionId);
+    console.log(`[CopilotService] Session ${sessionId} removed from memory`);
   }
 
   async shutdown(): Promise<void> {

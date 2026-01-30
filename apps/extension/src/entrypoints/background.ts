@@ -168,8 +168,9 @@ async function handleMessage(
     case 'GET_PENDING_ACTION': {
       const result = await chrome.storage.local.get('pendingAction');
       sendResponse(result.pendingAction || null);
-      // Clear the pending action
+      // Clear the pending action and badge
       await chrome.storage.local.remove('pendingAction');
+      await chrome.action.setBadgeText({ text: '' });
       break;
     }
 
@@ -221,11 +222,23 @@ async function handleMessage(
         },
       });
 
-      // Open side panel
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab?.windowId) {
-        await chrome.sidePanel.open({ windowId: tab.windowId });
+      // Show badge to indicate pending action
+      await chrome.action.setBadgeText({ text: '1' });
+      await chrome.action.setBadgeBackgroundColor({ color: '#3b82f6' });
+
+      // Try to open side panel, but don't fail if we can't due to user gesture requirement
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab?.windowId) {
+          await chrome.sidePanel.open({ windowId: tab.windowId });
+          // Clear badge if we successfully opened
+          await chrome.action.setBadgeText({ text: '' });
+        }
+      } catch (err) {
+        // User needs to click the extension icon to see the pending action
+        console.log('[DevMentorAI] Stored pending action, user needs to open side panel');
       }
+      
       sendResponse({ success: true });
       break;
     }

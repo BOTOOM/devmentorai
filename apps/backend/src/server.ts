@@ -13,10 +13,23 @@ import { DEFAULT_CONFIG } from '@devmentorai/shared';
 const PORT = DEFAULT_CONFIG.DEFAULT_PORT;
 const HOST = '0.0.0.0';
 
+// Observability mode - enable with DEVMENTORAI_DEBUG=true
+const DEBUG_MODE = true;
+// const DEBUG_MODE = process.env.DEVMENTORAI_DEBUG === 'true';
+
+/**
+ * Truncate long strings for logging
+ */
+function truncate(str: string | undefined | null, maxLen = 500): string {
+  if (!str) return '';
+  if (str.length <= maxLen) return str;
+  return str.slice(0, maxLen) + `... [truncated ${str.length - maxLen} chars]`;
+}
+
 export async function createServer() {
   const fastify = Fastify({
     logger: {
-      level: 'info',
+      level: DEBUG_MODE ? 'debug' : 'info',
       transport: {
         target: 'pino-pretty',
         options: {
@@ -27,6 +40,60 @@ export async function createServer() {
       },
     },
   });
+
+  // Observability middleware - log all requests and responses
+  if (DEBUG_MODE) {
+    fastify.log.info('🔍 Debug mode enabled - logging all requests and responses');
+    
+    // Log after body is parsed
+    fastify.addHook('preHandler', async (request) => {
+      const body = request.body ? truncate(JSON.stringify(request.body)) : null;
+      fastify.log.debug({
+        type: '→ REQUEST',
+        method: request.method,
+        url: request.url,
+        headers: {
+          'content-type': request.headers['content-type'],
+          'user-agent': request.headers['user-agent'],
+        },
+        body: body,
+      });
+    });
+
+    fastify.addHook('onSend', async (request, reply, payload) => {
+      const statusCode = reply.statusCode;
+      let responseBody: string | null = null;
+      
+      // Skip logging SSE streams (too verbose)
+      if (reply.getHeader('content-type') === 'text/event-stream') {
+        responseBody = '[SSE Stream]';
+      } else if (typeof payload === 'string') {
+        responseBody = truncate(payload);
+      } else if (Buffer.isBuffer(payload)) {
+        responseBody = truncate(payload.toString());
+      }
+      
+      fastify.log.debug({
+        type: '← RESPONSE',
+        method: request.method,
+        url: request.url,
+        statusCode,
+        body: responseBody,
+      });
+      
+      return payload;
+    });
+
+    fastify.addHook('onError', async (request, reply, error) => {
+      fastify.log.error({
+        type: '✗ ERROR',
+        method: request.method,
+        url: request.url,
+        error: error.message,
+        stack: error.stack,
+      });
+    });
+  }
 
   // Initialize database
   const db = initDatabase();

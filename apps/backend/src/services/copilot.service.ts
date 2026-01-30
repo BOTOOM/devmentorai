@@ -229,10 +229,13 @@ export class CopilotService {
 
     if (this.mockMode || !copilotSession?.session) {
       // Mock streaming response
+      console.log('[CopilotService] Streaming mock response');
       await this.streamMockResponse(prompt, context, onEvent);
       return;
     }
 
+    console.log('[CopilotService] Starting real stream for session', sessionId);
+    
     // Set up event listener
     if (onEvent) {
       copilotSession.session.on(onEvent);
@@ -240,6 +243,7 @@ export class CopilotService {
 
     // Send message (don't wait, let events handle it)
     copilotSession.session.send({ prompt: fullPrompt });
+    console.log('[CopilotService] Message sent, waiting for events...');
   }
 
   /**

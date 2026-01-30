@@ -51,6 +51,11 @@ export class ApiClient {
         },
       });
 
+      // Handle 204 No Content (e.g., DELETE requests)
+      if (response.status === 204) {
+        return { success: true } as ApiResponse<T>;
+      }
+
       const data = await response.json();
       return data as ApiResponse<T>;
     } catch (error) {
@@ -100,12 +105,14 @@ export class ApiClient {
   async resumeSession(sessionId: string): Promise<ApiResponse<Session>> {
     return this.request<Session>(API_ENDPOINTS.SESSION_RESUME(sessionId), {
       method: 'POST',
+      body: JSON.stringify({}), // Send empty body to satisfy Content-Type header
     });
   }
 
   async abortRequest(sessionId: string): Promise<ApiResponse<void>> {
     return this.request<void>(API_ENDPOINTS.SESSION_ABORT(sessionId), {
       method: 'POST',
+      body: JSON.stringify({}), // Send empty body to satisfy Content-Type header
     });
   }
 
@@ -127,6 +134,9 @@ export class ApiClient {
     onEvent: (event: StreamEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
+    console.log('[ApiClient] streamChat called for session:', sessionId);
+    console.log('[ApiClient] Request data:', { prompt: data.prompt.substring(0, 100), hasContext: !!data.context });
+    
     const response = await fetch(`${this.baseUrl}${API_ENDPOINTS.CHAT_STREAM(sessionId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -134,6 +144,8 @@ export class ApiClient {
       signal,
     });
 
+    console.log('[ApiClient] Response status:', response.status, response.statusText);
+    
     if (!response.ok) {
       throw new Error(`Stream request failed: ${response.status}`);
     }
@@ -142,6 +154,8 @@ export class ApiClient {
       throw new Error('No response body');
     }
 
+    console.log('[ApiClient] Starting to read SSE stream...');
+    
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -151,6 +165,7 @@ export class ApiClient {
         const { done, value } = await reader.read();
         
         if (done) {
+          console.log('[ApiClient] Stream done (reader.read() returned done)');
           onEvent({ type: 'done', data: {} });
           break;
         }
@@ -163,12 +178,14 @@ export class ApiClient {
           if (line.startsWith('data: ')) {
             const data = line.slice(6).trim();
             if (data === '[DONE]') {
+              console.log('[ApiClient] Received [DONE] marker');
               onEvent({ type: 'done', data: {} });
               return;
             }
             
             try {
               const event = JSON.parse(data) as StreamEvent;
+              console.log('[ApiClient] Parsed SSE event:', event.type);
               onEvent(event);
             } catch (e) {
               console.error('[ApiClient] Failed to parse SSE event:', data);

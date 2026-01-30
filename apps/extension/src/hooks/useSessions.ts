@@ -71,8 +71,16 @@ export function useSessions() {
     }
   }, []);
 
-  const selectSession = useCallback((sessionId: string) => {
+  const selectSession = useCallback(async (sessionId: string) => {
     setActiveSessionId(sessionId);
+    
+    // Resume session on backend to restore Copilot context
+    try {
+      await apiClient.resumeSession(sessionId);
+    } catch (err) {
+      console.warn('[useSessions] Failed to resume session:', err);
+      // Don't fail silently - the session is still selected but may not have full context
+    }
   }, []);
 
   const deleteSession = useCallback(async (sessionId: string) => {

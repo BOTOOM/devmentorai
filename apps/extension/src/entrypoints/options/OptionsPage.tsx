@@ -41,6 +41,24 @@ export function OptionsPage() {
 
   const updateLocalSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
+    
+    // Apply theme immediately when changed (don't wait for Save)
+    if (key === 'theme') {
+      applyTheme(value as Settings['theme']);
+      // Also save to storage immediately so other contexts can react
+      chrome.storage.local.set({ theme: value });
+    }
+  };
+
+  // Helper function to apply theme (same as in useSettings)
+  const applyTheme = (theme: Settings['theme']) => {
+    const root = document.documentElement;
+    if (theme === 'system') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', prefersDark);
+    } else {
+      root.classList.toggle('dark', theme === 'dark');
+    }
   };
 
   if (!isLoaded) {
@@ -148,7 +166,8 @@ export function OptionsPage() {
                 ))}
               </select>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Note: Changing language requires extension reload
+                ⚠️ Chrome extensions use the browser's language setting. To change the UI language, 
+                go to Chrome Settings → Languages and set your preferred language as default.
               </p>
             </div>
 

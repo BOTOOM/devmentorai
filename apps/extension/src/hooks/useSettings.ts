@@ -104,7 +104,13 @@ export function useSettings() {
 
   // Listen for storage changes (from other contexts like options page)
   useEffect(() => {
-    const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+    const handleStorageChange = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string
+    ) => {
+      // Only respond to local storage changes
+      if (areaName !== 'local') return;
+      
       const updatedSettings = { ...settings };
       let hasChanges = false;
       
@@ -112,6 +118,11 @@ export function useSettings() {
         if (key in DEFAULT_SETTINGS && change.newValue !== undefined) {
           (updatedSettings as any)[key] = change.newValue;
           hasChanges = true;
+          
+          // Apply theme immediately when changed from another context
+          if (key === 'theme') {
+            applyTheme(change.newValue);
+          }
         }
       }
       

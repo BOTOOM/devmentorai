@@ -45,7 +45,12 @@ export function useChat(sessionId: string | undefined) {
   };
 
   const sendMessage = useCallback(async (content: string, context?: MessageContext) => {
-    if (!sessionId || isStreaming) return;
+    console.log('[useChat] sendMessage called:', { sessionId, isStreaming, contentLength: content.length });
+    
+    if (!sessionId || isStreaming) {
+      console.log('[useChat] Blocked - no sessionId or already streaming');
+      return;
+    }
 
     // Store the session ID at the start of this request (A.4 fix)
     const requestSessionId = sessionId;
@@ -68,6 +73,7 @@ export function useChat(sessionId: string | undefined) {
       } : undefined,
     };
     setMessages(prev => [...prev, userMessage]);
+    console.log('[useChat] Added user message to UI');
 
     // Create placeholder for assistant message
     const assistantMessageId = generateMessageId();
@@ -79,14 +85,18 @@ export function useChat(sessionId: string | undefined) {
       timestamp: formatDate(),
     };
     setMessages(prev => [...prev, assistantMessage]);
+    console.log('[useChat] Added empty assistant message placeholder');
 
     try {
       abortControllerRef.current = new AbortController();
 
+      console.log('[useChat] Starting streamChat...');
       await apiClient.streamChat(
         requestSessionId,
         { prompt: content, context },
         (event: StreamEvent) => {
+          console.log('[useChat] Received SSE event:', event.type);
+          
           // A.4 fix: Only update if we're still on the same session
           if (currentSessionRef.current !== requestSessionId) {
             return;
@@ -107,10 +117,19 @@ export function useChat(sessionId: string | undefined) {
               break;
 
             case 'message_complete':
+              // Update content if provided (for cases where no deltas were sent)
+              if (event.data.content) {
+                currentMessageRef.current = event.data.content;
+              }
+              
               setMessages(prev =>
                 prev.map(m =>
                   m.id === assistantMessageId
-                    ? { ...m, metadata: { ...m.metadata, streamComplete: true } }
+                    ? { 
+                        ...m, 
+                        content: currentMessageRef.current,
+                        metadata: { ...m.metadata, streamComplete: true } 
+                      }
                     : m
                 )
               );

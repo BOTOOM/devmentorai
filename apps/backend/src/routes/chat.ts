@@ -139,75 +139,87 @@ export async function chatRoutes(fastify: FastifyInstance) {
         reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
       };
 
-      // Handle Copilot events
-      const handleEvent = (event: SessionEvent) => {
-        switch (event.type) {
-          case 'assistant.message_delta':
-            fullContent += event.data.deltaContent || '';
-            sendSSE({
-              type: 'message_delta',
-              data: { deltaContent: event.data.deltaContent },
-            });
-            break;
+      // Create a Promise that resolves when streaming is complete
+      const streamComplete = new Promise<void>((resolve) => {
+        // Handle Copilot events
+        const handleEvent = (event: SessionEvent) => {
+          console.log('[ChatRoute] Received event:', event.type);
+          
+          switch (event.type) {
+            case 'assistant.message_delta':
+              fullContent += event.data.deltaContent || '';
+              sendSSE({
+                type: 'message_delta',
+                data: { deltaContent: event.data.deltaContent },
+              });
+              break;
 
-          case 'assistant.message':
-            fullContent = event.data.content || fullContent;
-            sendSSE({
-              type: 'message_complete',
-              data: { content: fullContent },
-            });
-            break;
+            case 'assistant.message':
+              fullContent = event.data.content || fullContent;
+              sendSSE({
+                type: 'message_complete',
+                data: { content: fullContent },
+              });
+              break;
 
-          case 'tool.execution_start':
-            sendSSE({
-              type: 'tool_start',
-              data: {
-                toolName: (event.data as any).toolName,
-                toolCallId: (event.data as any).toolCallId,
-              },
-            });
-            break;
+            case 'tool.execution_start':
+              sendSSE({
+                type: 'tool_start',
+                data: {
+                  toolName: (event.data as any).toolName,
+                  toolCallId: (event.data as any).toolCallId,
+                },
+              });
+              break;
 
-          case 'tool.execution_complete':
-            sendSSE({
-              type: 'tool_complete',
-              data: { toolCallId: (event.data as any).toolCallId },
-            });
-            break;
+            case 'tool.execution_complete':
+              sendSSE({
+                type: 'tool_complete',
+                data: { toolCallId: (event.data as any).toolCallId },
+              });
+              break;
 
-          case 'session.idle':
-            // Save the complete assistant message
-            if (fullContent && !assistantMessageId) {
-              const message = fastify.sessionService.addMessage(
-                sessionId,
-                'assistant',
-                fullContent
-              );
-              assistantMessageId = message.id;
-            }
+            case 'session.idle':
+              console.log('[ChatRoute] Session idle, saving message. Content length:', fullContent.length);
+              // Save the complete assistant message
+              if (fullContent && !assistantMessageId) {
+                const message = fastify.sessionService.addMessage(
+                  sessionId,
+                  'assistant',
+                  fullContent
+                );
+                assistantMessageId = message.id;
+              }
 
-            sendSSE({ type: 'done', data: { messageId: assistantMessageId || undefined } });
-            reply.raw.write('data: [DONE]\n\n');
-            reply.raw.end();
-            break;
-        }
-      };
+              sendSSE({ type: 'done', data: { messageId: assistantMessageId || undefined } });
+              reply.raw.write('data: [DONE]\n\n');
+              reply.raw.end();
+              console.log('[ChatRoute] Stream ended');
+              resolve(); // Resolve the promise to let the handler finish
+              break;
+          }
+        };
 
-      // Start streaming
-      await fastify.copilotService.streamMessage(
-        sessionId,
-        body.prompt,
-        body.context,
-        handleEvent
-      );
+        // Start streaming
+        fastify.copilotService.streamMessage(
+          sessionId,
+          body.prompt,
+          body.context,
+          handleEvent
+        );
+      });
 
       // Handle client disconnect
       request.raw.on('close', async () => {
         if (!reply.raw.writableEnded) {
+          console.log('[ChatRoute] Client disconnected, aborting');
           await fastify.copilotService.abortRequest(sessionId);
           reply.raw.end();
         }
       });
+
+      // Wait for streaming to complete before allowing Fastify to close the connection
+      await streamComplete;
 
     } catch (error) {
       if (error instanceof z.ZodError) {

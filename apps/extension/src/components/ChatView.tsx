@@ -280,7 +280,7 @@ export function ChatView({
           </div>
         )}
 
-        <div className="flex items-end gap-2">
+        <div className="flex items-center gap-2" style={{ alignItems: 'stretch' }}>
           {/* Context toggle button */}
           {onToggleContext && (
             <button
@@ -288,7 +288,7 @@ export function ChatView({
               onClick={onToggleContext}
               disabled={isStreaming || isExtractingContext}
               className={cn(
-                'flex items-center justify-center w-10 h-10 rounded-lg transition-all',
+                'flex items-center justify-center w-12 h-12 rounded-xl transition-all shrink-0',
                 contextEnabled
                   ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 ring-2 ring-indigo-500'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
@@ -318,7 +318,7 @@ export function ChatView({
               disabled={disabled || isStreaming}
               rows={1}
               className={cn(
-                'w-full px-4 py-3 pr-12 text-sm rounded-xl border resize-none',
+                'w-full px-4 text-sm rounded-xl border resize-none',
                 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700',
                 'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
@@ -326,7 +326,13 @@ export function ChatView({
                 contextEnabled && 'ring-1 ring-indigo-300 dark:ring-indigo-700'
               )}
               style={{
+                height: '48px',
                 minHeight: '48px',
+                maxHeight: '128px',
+                paddingTop: '12px',
+                paddingBottom: '12px',
+                lineHeight: '24px',
+                boxSizing: 'border-box',
               }}
             />
           </div>
@@ -335,7 +341,7 @@ export function ChatView({
             <button
               type="button"
               onClick={onAbort}
-              className="flex items-center justify-center w-12 h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors"
+              className="flex items-center justify-center w-12 h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors shrink-0"
               title="Stop"
             >
               <Square className="w-5 h-5" />
@@ -345,7 +351,7 @@ export function ChatView({
               type="submit"
               disabled={!input.trim() || disabled}
               className={cn(
-                'flex items-center justify-center w-12 h-12 rounded-xl transition-colors',
+                'flex items-center justify-center w-12 h-12 rounded-xl transition-colors shrink-0',
                 input.trim() && !disabled
                   ? 'bg-primary-600 hover:bg-primary-700 text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'

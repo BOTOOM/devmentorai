@@ -99,6 +99,7 @@ export class ApiClient {
   async deleteSession(sessionId: string): Promise<ApiResponse<void>> {
     return this.request<void>(API_ENDPOINTS.SESSION(sessionId), {
       method: 'DELETE',
+      body: JSON.stringify({}), // Send empty body to satisfy Content-Type header
     });
   }
 

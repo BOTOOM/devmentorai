@@ -259,6 +259,65 @@ export function OptionsPage() {
           </div>
         </div>
 
+        {/* Image & Screenshots */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Images & Screenshots</h2>
+          
+          <div className="space-y-4">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div>
+                <span className="text-gray-700 dark:text-gray-300">Image Attachments</span>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Allow pasting and dragging images into chat</p>
+              </div>
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  checked={localSettings.imageAttachmentsEnabled}
+                  onChange={(e) => updateLocalSetting('imageAttachmentsEnabled', e.target.checked)}
+                  className="sr-only"
+                />
+                <div className={`w-11 h-6 rounded-full transition-colors ${
+                  localSettings.imageAttachmentsEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
+                    localSettings.imageAttachmentsEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                  } mt-0.5`} />
+                </div>
+              </div>
+            </label>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Screenshot Behavior (Context Mode)
+              </label>
+              <div className="flex gap-2">
+                {(['disabled', 'ask', 'auto'] as const).map((behavior) => (
+                  <button
+                    key={behavior}
+                    onClick={() => updateLocalSetting('screenshotBehavior', behavior)}
+                    className={`flex-1 py-2 px-3 rounded-lg border transition-colors text-sm ${
+                      localSettings.screenshotBehavior === behavior
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary'
+                    }`}
+                  >
+                    {behavior === 'disabled' && '🚫 Disabled'}
+                    {behavior === 'ask' && '❓ Ask'}
+                    {behavior === 'auto' && '📸 Auto'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                {localSettings.screenshotBehavior === 'disabled' 
+                  ? 'Screenshots are not captured automatically'
+                  : localSettings.screenshotBehavior === 'ask'
+                    ? 'Ask before capturing screenshot when context mode is enabled'
+                    : 'Automatically capture screenshot when context mode is enabled'}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Advanced Settings - C.3 */}
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Advanced</h2>

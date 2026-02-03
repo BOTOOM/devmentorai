@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, Square, Loader2, Cpu, ChevronDown, Brain, Sparkles, Globe, AlertTriangle, X } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, Square, Loader2, Cpu, ChevronDown, Brain, Sparkles, Globe, AlertTriangle, ImagePlus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
-import type { Session, Message, ContextPayload, PlatformDetection } from '@devmentorai/shared';
+import { ImageAttachmentZone } from './ImageAttachmentZone';
+import { useImageAttachments, type DraftImage } from '../hooks/useImageAttachments';
+import type { Session, Message, ContextPayload, PlatformDetection, ImagePayload } from '@devmentorai/shared';
 
 interface ChatViewProps {
   session: Session | null;
   messages: Message[];
   isStreaming: boolean;
-  onSendMessage: (content: string, useContext?: boolean) => void;
+  onSendMessage: (content: string, useContext?: boolean, images?: ImagePayload[]) => void;
   onAbort: () => void;
   onChangeModel?: (model: string) => void;
   availableModels?: Array<{ id: string; name: string }>;
@@ -21,6 +23,10 @@ interface ChatViewProps {
   extractedContext?: ContextPayload | null;
   platform?: PlatformDetection | null;
   errorCount?: number;
+  // Image attachment props
+  imageAttachmentsEnabled?: boolean;
+  onCaptureScreenshot?: () => Promise<string | null>;
+  screenshotBehavior?: 'disabled' | 'ask' | 'auto';
 }
 
 export function ChatView({
@@ -40,12 +46,33 @@ export function ChatView({
   extractedContext,
   platform,
   errorCount = 0,
+  // Image attachments
+  imageAttachmentsEnabled = true,
+  onCaptureScreenshot,
+  screenshotBehavior = 'disabled',
 }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showContextPreview, setShowContextPreview] = useState(false);
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Image attachments hook
+  const {
+    images,
+    isAtLimit,
+    remainingSlots,
+    addImage,
+    removeImage,
+    clearImages,
+    getImagesForSend,
+    handlePaste,
+    handleDrop,
+    lastError,
+    clearError,
+  } = useImageAttachments();
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -70,12 +97,55 @@ export function ChatView({
     }
   }, [pendingText]);
 
+  // Handle paste event for images
+  const handleInputPaste = useCallback(async (e: React.ClipboardEvent) => {
+    if (!imageAttachmentsEnabled) return;
+    
+    // Check if clipboard contains image data
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault(); // Prevent default paste behavior for images
+        await handlePaste(e.nativeEvent as ClipboardEvent);
+        return;
+      }
+    }
+    // If no images, let default text paste happen
+  }, [imageAttachmentsEnabled, handlePaste]);
+
+  // Handle screenshot capture
+  const handleCaptureScreenshot = useCallback(async () => {
+    if (!onCaptureScreenshot || isAtLimit) return;
+    
+    setIsCapturingScreenshot(true);
+    try {
+      const dataUrl = await onCaptureScreenshot();
+      if (dataUrl) {
+        await addImage(dataUrl, 'screenshot');
+      }
+    } catch (error) {
+      console.error('[ChatView] Screenshot capture failed:', error);
+    } finally {
+      setIsCapturingScreenshot(false);
+    }
+  }, [onCaptureScreenshot, isAtLimit, addImage]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || disabled || isStreaming) return;
+    if (disabled || isStreaming) return;
+    
+    // Allow sending with images even without text
+    const hasContent = input.trim() || images.length > 0;
+    if (!hasContent) return;
 
-    onSendMessage(input.trim(), contextEnabled);
+    // Get images for sending and clear them
+    const imagesToSend = images.length > 0 ? getImagesForSend() : undefined;
+    
+    onSendMessage(input.trim(), contextEnabled, imagesToSend);
     setInput('');
+    clearImages();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -227,9 +297,27 @@ export function ChatView({
 
       {/* Input area */}
       <form
+        ref={formRef}
         onSubmit={handleSubmit}
         className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800"
       >
+        {/* Image attachment zone */}
+        {imageAttachmentsEnabled && (
+          <ImageAttachmentZone
+            images={images}
+            isAtLimit={isAtLimit}
+            remainingSlots={remainingSlots}
+            onRemoveImage={removeImage}
+            onDrop={handleDrop}
+            error={lastError}
+            onClearError={clearError}
+            enabled={imageAttachmentsEnabled && !disabled && !isStreaming}
+            onCaptureScreenshot={screenshotBehavior !== 'disabled' ? handleCaptureScreenshot : undefined}
+            isCapturingScreenshot={isCapturingScreenshot}
+            showScreenshotButton={screenshotBehavior !== 'disabled' && !!onCaptureScreenshot}
+          />
+        )}
+
         {/* Context preview bar (shows when context is enabled) */}
         {contextEnabled && extractedContext && (
           <div className="mb-3 p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
@@ -312,9 +400,12 @@ export function ChatView({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handleInputPaste}
               placeholder={contextEnabled 
                 ? (chrome.i18n.getMessage('placeholder_context') || 'Ask about this page...')
-                : (chrome.i18n.getMessage('placeholder_message') || 'Type a message...')}
+                : images.length > 0
+                  ? 'Add a message or send images...'
+                  : (chrome.i18n.getMessage('placeholder_message') || 'Type a message...')}
               disabled={disabled || isStreaming}
               rows={1}
               className={cn(
@@ -323,7 +414,8 @@ export function ChatView({
                 'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 'max-h-32',
-                contextEnabled && 'ring-1 ring-indigo-300 dark:ring-indigo-700'
+                contextEnabled && 'ring-1 ring-indigo-300 dark:ring-indigo-700',
+                images.length > 0 && 'ring-1 ring-primary-300 dark:ring-primary-700'
               )}
               style={{
                 height: '48px',
@@ -337,6 +429,45 @@ export function ChatView({
             />
           </div>
 
+          {/* Image attachment button (when no images yet) */}
+          {imageAttachmentsEnabled && images.length === 0 && !isStreaming && (
+            <button
+              type="button"
+              onClick={() => {
+                // Create a hidden file input and trigger it
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/png,image/jpeg,image/webp';
+                input.multiple = true;
+                input.onchange = async (e) => {
+                  const files = (e.target as HTMLInputElement).files;
+                  if (files) {
+                    for (const file of Array.from(files)) {
+                      const reader = new FileReader();
+                      reader.onload = async () => {
+                        if (reader.result) {
+                          await addImage(reader.result as string, 'drop');
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }
+                };
+                input.click();
+              }}
+              disabled={disabled}
+              className={cn(
+                'flex items-center justify-center w-12 h-12 rounded-xl transition-colors shrink-0',
+                'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
+                'hover:bg-gray-200 dark:hover:bg-gray-600',
+                disabled && 'opacity-50 cursor-not-allowed'
+              )}
+              title="Attach images"
+            >
+              <ImagePlus className="w-5 h-5" />
+            </button>
+          )}
+
           {isStreaming ? (
             <button
               type="button"
@@ -349,10 +480,10 @@ export function ChatView({
           ) : (
             <button
               type="submit"
-              disabled={!input.trim() || disabled}
+              disabled={(!input.trim() && images.length === 0) || disabled}
               className={cn(
                 'flex items-center justify-center w-12 h-12 rounded-xl transition-colors shrink-0',
-                input.trim() && !disabled
+                (input.trim() || images.length > 0) && !disabled
                   ? 'bg-primary-600 hover:bg-primary-700 text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
               )}
@@ -367,6 +498,13 @@ export function ChatView({
         {contextEnabled && (
           <div className="mt-2 text-[10px] text-center text-indigo-600 dark:text-indigo-400">
             {chrome.i18n.getMessage('context_mode_hint') || 'Context mode: AI will analyze the current page'}
+          </div>
+        )}
+
+        {/* Image attachment hint */}
+        {imageAttachmentsEnabled && !contextEnabled && images.length === 0 && (
+          <div className="mt-2 text-[10px] text-center text-gray-400 dark:text-gray-500">
+            Paste or drag images to attach
           </div>
         )}
       </form>

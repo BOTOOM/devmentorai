@@ -4,6 +4,7 @@ import { healthRoutes } from './routes/health.js';
 import { sessionRoutes } from './routes/sessions.js';
 import { chatRoutes } from './routes/chat.js';
 import { modelsRoutes } from './routes/models.js';
+import { imagesRoutes } from './routes/images.js';
 import { registerToolsRoutes } from './routes/tools.js';
 import { CopilotService } from './services/copilot.service.js';
 import { SessionService } from './services/session.service.js';
@@ -127,6 +128,7 @@ export async function createServer() {
   await fastify.register(sessionRoutes, { prefix: '/api' });
   await fastify.register(chatRoutes, { prefix: '/api' });
   await fastify.register(modelsRoutes, { prefix: '/api' });
+  await fastify.register(imagesRoutes, { prefix: '/api/images' });
   
   // Register tools routes (not prefixed - has /api in route definitions)
   registerToolsRoutes(fastify, copilotService);

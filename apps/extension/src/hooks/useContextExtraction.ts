@@ -30,6 +30,7 @@ export interface UseContextExtractionResult {
   screenshot: ScreenshotData | null;
   extractContext: (sessionId: string, userMessage?: string, captureScreenshot?: boolean) => Promise<AggregatedContext | null>;
   captureScreenshot: () => Promise<ScreenshotData | null>;
+  captureVisibleTabScreenshot: () => Promise<string | null>;
   clearContext: () => void;
   hasErrors: boolean;
   errorCount: number;
@@ -89,6 +90,19 @@ export function useContextExtraction(): UseContextExtractionResult {
     const screenshotData = await captureVisibleTabScreenshot();
     setScreenshot(screenshotData);
     return screenshotData;
+  }, []);
+
+  /**
+   * Capture visible tab screenshot and return just the dataUrl
+   * This is a simplified version for direct use in ChatView
+   */
+  const captureVisibleTabScreenshotSimple = useCallback(async (): Promise<string | null> => {
+    const screenshotData = await captureVisibleTabScreenshot();
+    if (screenshotData) {
+      setScreenshot(screenshotData);
+      return screenshotData.dataUrl;
+    }
+    return null;
   }, []);
 
   /**
@@ -193,6 +207,7 @@ export function useContextExtraction(): UseContextExtractionResult {
     screenshot,
     extractContext,
     captureScreenshot,
+    captureVisibleTabScreenshot: captureVisibleTabScreenshotSimple,
     clearContext,
     hasErrors: (extractedContext?.text.errors.length ?? 0) > 0,
     errorCount: extractedContext?.text.errors.length ?? 0,

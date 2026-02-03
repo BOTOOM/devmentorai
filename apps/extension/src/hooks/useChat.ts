@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ApiClient } from '../services/api-client';
 import { generateMessageId, formatDate } from '@devmentorai/shared';
-import type { Message, MessageContext, StreamEvent, ContextPayload } from '@devmentorai/shared';
+import type { Message, MessageContext, StreamEvent, ContextPayload, ImagePayload } from '@devmentorai/shared';
 
 export interface SendMessageOptions {
   context?: MessageContext;
   fullContext?: ContextPayload;
   useContextAwareMode?: boolean;
+  images?: ImagePayload[];
 }
 
 export function useChat(sessionId: string | undefined) {
@@ -103,12 +104,13 @@ export function useChat(sessionId: string | undefined) {
     try {
       abortControllerRef.current = new AbortController();
 
-      // Build request body with optional full context
+      // Build request body with optional full context and images
       const requestBody: {
         prompt: string;
         context?: MessageContext;
         fullContext?: ContextPayload;
         useContextAwareMode?: boolean;
+        images?: ImagePayload[];
       } = {
         prompt: content,
         context: sendOptions.context,
@@ -118,6 +120,12 @@ export function useChat(sessionId: string | undefined) {
         requestBody.fullContext = sendOptions.fullContext;
         requestBody.useContextAwareMode = true;
         console.log('[useChat] Using context-aware mode with full context');
+      }
+
+      // Add images if provided
+      if (sendOptions.images && sendOptions.images.length > 0) {
+        requestBody.images = sendOptions.images;
+        console.log(`[useChat] Attaching ${sendOptions.images.length} images to message`);
       }
 
       console.log('[useChat] Starting streamChat...');

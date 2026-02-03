@@ -7,6 +7,8 @@ import type {
   SendMessageRequest,
   StreamEvent,
   ContextPayload,
+  ImagePayload,
+  ImageAttachment,
 } from '@devmentorai/shared';
 import {
   buildContextAwarePrompt,
@@ -14,6 +16,10 @@ import {
   validateContext,
   sanitizeContext,
 } from '../services/context-prompt-builder.js';
+import {
+  processMessageImages,
+  toImageAttachments,
+} from '../services/thumbnail-service.js';
 
 // Schema for simple context (backward compatible)
 const simpleContextSchema = z.object({
@@ -107,11 +113,20 @@ const fullContextSchema = z.object({
   }),
 }).passthrough();
 
+// Schema for image payload
+const imagePayloadSchema = z.object({
+  id: z.string(),
+  dataUrl: z.string(),
+  mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+  source: z.enum(['screenshot', 'paste', 'drop']),
+});
+
 const sendMessageSchema = z.object({
   prompt: z.string().min(1),
   context: simpleContextSchema.optional(),
   fullContext: fullContextSchema.optional(),
   useContextAwareMode: z.boolean().optional(),
+  images: z.array(imagePayloadSchema).max(5).optional(),
 });
 
 export async function chatRoutes(fastify: FastifyInstance) {
@@ -252,7 +267,12 @@ export async function chatRoutes(fastify: FastifyInstance) {
       const { userPrompt, promptType } = buildPrompt(body);
       console.log(`[ChatRoute] Using ${promptType} prompt for streaming`);
 
-      // Save user message
+      // Process images if provided
+      let processedImages: ImageAttachment[] = [];
+      const backendUrl = `http://${request.hostname}`;
+      
+      // We'll need the message ID before processing images
+      // First save the user message without images
       const userMessage = fastify.sessionService.addMessage(
         sessionId,
         'user',
@@ -261,8 +281,34 @@ export async function chatRoutes(fastify: FastifyInstance) {
           pageUrl: body.context.pageUrl,
           selectedText: body.context.selectedText,
           action: body.context.action,
-        } : undefined
+          contextAware: body.useContextAwareMode,
+        } : { contextAware: body.useContextAwareMode }
       );
+
+      // Process images after we have the message ID
+      if (body.images && body.images.length > 0) {
+        try {
+          console.log(`[ChatRoute] Processing ${body.images.length} images for message ${userMessage.id}`);
+          const processed = await processMessageImages(
+            sessionId,
+            userMessage.id,
+            body.images,
+            backendUrl
+          );
+          processedImages = toImageAttachments(processed);
+          
+          // Update message metadata with images
+          fastify.sessionService.updateMessageMetadata(userMessage.id, {
+            ...userMessage.metadata,
+            images: processedImages,
+          });
+          
+          console.log(`[ChatRoute] Processed ${processedImages.length} images successfully`);
+        } catch (err) {
+          console.error('[ChatRoute] Failed to process images:', err);
+          // Continue without images - don't fail the message
+        }
+      }
 
       // Persist context if fullContext is provided (Phase 5)
       if (body.fullContext) {

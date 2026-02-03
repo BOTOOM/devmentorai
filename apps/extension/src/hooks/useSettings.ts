@@ -13,6 +13,10 @@ export interface Settings {
   translationLanguage: string; // B.3 - Target language for translations
   backendUrl: string;
   communicationMode: 'http' | 'native'; // C.3 - HTTP vs Native Messaging
+  /** Screenshot capture behavior when context mode is enabled */
+  screenshotBehavior: 'disabled' | 'ask' | 'auto';
+  /** Whether image attachments (paste/drag) are enabled */
+  imageAttachmentsEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +28,8 @@ export const DEFAULT_SETTINGS: Settings = {
   translationLanguage: 'es', // Default translation target
   backendUrl: 'http://localhost:3847',
   communicationMode: 'http',
+  screenshotBehavior: 'disabled', // Default: user must explicitly enable
+  imageAttachmentsEnabled: true, // Default: enabled
 };
 
 const AVAILABLE_LANGUAGES = [

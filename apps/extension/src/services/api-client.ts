@@ -8,6 +8,7 @@ import type {
   Message,
   SendMessageRequest,
   StreamEvent,
+  ImagePayload,
 } from '@devmentorai/shared';
 
 interface Model {
@@ -141,6 +142,7 @@ export class ApiClient {
       hasContext: !!data.context,
       hasFullContext: !!data.fullContext,
       useContextAwareMode: data.useContextAwareMode,
+      imageCount: data.images?.length || 0,
     });
     
     const response = await fetch(`${this.baseUrl}${API_ENDPOINTS.CHAT_STREAM(sessionId)}`, {
@@ -202,5 +204,20 @@ export class ApiClient {
     } finally {
       reader.releaseLock();
     }
+  }
+
+  /**
+   * Get full URL for a thumbnail image
+   */
+  getThumbnailUrl(relativePath: string): string {
+    // relativePath is like "images/sessionId/messageId/thumb_0.jpg"
+    return `${this.baseUrl}/api/${relativePath}`;
+  }
+
+  /**
+   * Get the base URL for image serving
+   */
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 }

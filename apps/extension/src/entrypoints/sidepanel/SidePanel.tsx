@@ -10,7 +10,7 @@ import { useSessions } from '../../hooks/useSessions';
 import { useChat } from '../../hooks/useChat';
 import { useSettings } from '../../hooks/useSettings';
 import { useContextExtraction } from '../../hooks/useContextExtraction';
-import type { Session, QuickAction, MessageContext } from '@devmentorai/shared';
+import type { Session, QuickAction, MessageContext, ImagePayload } from '@devmentorai/shared';
 
 // Extend QuickAction to include tone variations
 type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
@@ -56,6 +56,7 @@ export function SidePanel() {
     extractContext,
     clearContext,
     errorCount,
+    captureVisibleTabScreenshot,
   } = useContextExtraction();
 
   // Check for pending actions from context menu
@@ -146,7 +147,7 @@ export function SidePanel() {
     }
   }, [pendingAction, activeSession, connectionStatus, sendMessage, settings.translationLanguage]);
 
-  const handleSendMessage = useCallback(async (content: string, useContext?: boolean) => {
+  const handleSendMessage = useCallback(async (content: string, useContext?: boolean, images?: ImagePayload[]) => {
     if (useContext && activeSession?.id) {
       // Extract context and send with full context payload
       console.log('[SidePanel] Context mode enabled, extracting context...');
@@ -157,14 +158,15 @@ export function SidePanel() {
         sendMessage(content, {
           fullContext: aggregatedContext,
           useContextAwareMode: true,
+          images,
         });
       } else {
         // Fallback to regular send if context extraction fails
         console.log('[SidePanel] Context extraction failed, sending without context');
-        sendMessage(content);
+        sendMessage(content, { images });
       }
     } else {
-      sendMessage(content);
+      sendMessage(content, { images });
     }
   }, [sendMessage, extractContext, activeSession?.id]);
 
@@ -252,6 +254,10 @@ export function SidePanel() {
         extractedContext={extractedContext}
         platform={platform}
         errorCount={errorCount}
+        // Image attachment props
+        imageAttachmentsEnabled={settings.imageAttachmentsEnabled}
+        screenshotBehavior={settings.screenshotBehavior}
+        onCaptureScreenshot={captureVisibleTabScreenshot}
       />
 
       {showNewSessionModal && (

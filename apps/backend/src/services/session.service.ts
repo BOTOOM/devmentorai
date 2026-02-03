@@ -205,6 +205,11 @@ export class SessionService {
     stmt.run(content, messageId);
   }
 
+  updateMessageMetadata(messageId: string, metadata: Record<string, unknown>): void {
+    const stmt = this.db.prepare('UPDATE messages SET metadata = ? WHERE id = ?');
+    stmt.run(JSON.stringify(metadata), messageId);
+  }
+
   // ============================================================================
   // Context Persistence (Phase 5)
   // ============================================================================

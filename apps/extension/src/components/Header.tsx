@@ -50,23 +50,17 @@ export function Header({ connectionStatus, onNewSession, onOpenSettings, onOpenH
       </div>
 
       <div className="flex items-center gap-1">
-        {/* D.1 - View current page */}
-        <button
+        {/* D.1 - View current page 
+        {/*<button
           onClick={onViewPage}
           className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           title="View current page"
         >
           <Globe className="w-4.5 h-4.5" />
-        </button>
+        </button>*/}
 
         {/* D.2 - Help */}
-        <button
-          onClick={onOpenHelp}
-          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          title="Help & shortcuts"
-        >
-          <HelpCircle className="w-4.5 h-4.5" />
-        </button>
+        
 
         <button
           onClick={onNewSession}
@@ -84,6 +78,13 @@ export function Header({ connectionStatus, onNewSession, onOpenSettings, onOpenH
           title="Settings"
         >
           <Settings className="w-5 h-5" />
+        </button>
+        <button
+          onClick={onOpenHelp}
+          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          title="Help & shortcuts"
+        >
+          <HelpCircle className="w-4.5 h-4.5" />
         </button>
       </div>
     </header>

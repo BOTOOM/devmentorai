@@ -13,12 +13,57 @@ export interface Message {
   metadata?: MessageMetadata;
 }
 
+// ============================================================================
+// Image Attachment Types
+// ============================================================================
+
+export type ImageSource = 'screenshot' | 'paste' | 'drop';
+export type ImageMimeType = 'image/png' | 'image/jpeg' | 'image/webp';
+
+export interface ImageAttachment {
+  id: string;
+  source: ImageSource;
+  mimeType: ImageMimeType;
+  dimensions: { width: number; height: number };
+  fileSize: number; // bytes
+  timestamp: string; // ISO date string
+  /** Original base64 data URL - only present in draft/request, not persisted */
+  dataUrl?: string;
+  /** Backend-provided thumbnail URL for display in chat history */
+  thumbnailUrl?: string;
+}
+
+/** Image data sent in message request (before processing) */
+export interface ImagePayload {
+  id: string;
+  dataUrl: string;
+  mimeType: ImageMimeType;
+  source: ImageSource;
+}
+
+/** Constants for image handling */
+export const IMAGE_CONSTANTS = {
+  MAX_IMAGES_PER_MESSAGE: 5,
+  MAX_IMAGE_SIZE_BYTES: 5 * 1024 * 1024, // 5MB
+  SUPPORTED_MIME_TYPES: ['image/png', 'image/jpeg', 'image/webp'] as const,
+  THUMBNAIL_MAX_DIMENSION: 200,
+  THUMBNAIL_QUALITY: 60,
+} as const;
+
+// ============================================================================
+// Message Metadata
+// ============================================================================
+
 export interface MessageMetadata {
   pageUrl?: string;
   selectedText?: string;
   action?: QuickAction;
   toolCalls?: ToolCall[];
   streamComplete?: boolean;
+  /** Attached images for this message */
+  images?: ImageAttachment[];
+  /** Whether context-aware mode was used */
+  contextAware?: boolean;
 }
 
 export type QuickAction =
@@ -41,6 +86,12 @@ export interface ToolCall {
 export interface SendMessageRequest {
   prompt: string;
   context?: MessageContext;
+  /** Full extracted context payload for context-aware mode */
+  fullContext?: unknown; // ContextPayload - imported separately to avoid circular deps
+  /** Whether to use context-aware mode */
+  useContextAwareMode?: boolean;
+  /** Images to attach to this message */
+  images?: ImagePayload[];
 }
 
 export interface MessageContext {

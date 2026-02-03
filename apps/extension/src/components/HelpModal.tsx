@@ -20,7 +20,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           <div className="flex items-center gap-2">
             <HelpCircle className="w-5 h-5 text-primary-600" />
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Help & Shortcuts
+              Help
             </h2>
           </div>
           <button
@@ -85,7 +85,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
 
           {/* Keyboard Shortcuts */}
-          <section>
+          {/* <section>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
               <Keyboard className="w-4 h-4" />
               Keyboard Shortcuts
@@ -112,7 +112,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
                 </div>
               ))}
             </div>
-          </section>
+          </section> */}
 
           {/* Quick Actions */}
           <section>
@@ -154,7 +154,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           {/* Version */}
           <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
             <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-              DevMentorAI v0.1.0 • Powered by GitHub Copilot
+              DevMentorAI v0.1.0 • Created by Edwar Diaz • {new Date().getFullYear()}
             </p>
           </div>
         </div>

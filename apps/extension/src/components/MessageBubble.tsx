@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { User, Bot, Wrench, Copy, Check, Replace } from 'lucide-react';
+import { User, Bot, Wrench, Copy, Check, Replace, Image as ImageIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
-import type { Message } from '@devmentorai/shared';
+import { ImageThumbnail } from './ImageThumbnail';
+import { ImageLightbox } from './ImageLightbox';
+import type { Message, ImageAttachment } from '@devmentorai/shared';
 
 interface MessageBubbleProps {
   message: Message;
@@ -10,11 +12,14 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
   const [copied, setCopied] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const images = message.metadata?.images || [];
+  const hasImages = images.length > 0;
   
-  // Don't render empty assistant messages (A.2 fix)
-  if (message.role === 'assistant' && !message.content.trim()) {
+  // Don't render empty assistant messages (A.2 fix) - but allow if has images
+  if (message.role === 'assistant' && !message.content.trim() && !hasImages) {
     return null;
   }
 
@@ -38,7 +43,21 @@ export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
     }
   };
 
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+  };
+
+  const closeLightbox = () => {
+    setLightboxIndex(null);
+  };
+
+  // Get image source for display (prefer thumbnailUrl, fallback to dataUrl)
+  const getImageSrc = (img: ImageAttachment): string => {
+    return img.thumbnailUrl || img.dataUrl || '';
+  };
+
   return (
+    <>
     <div className={cn(
       'flex gap-3',
       isUser ? 'flex-row-reverse' : 'flex-row'
@@ -79,9 +98,43 @@ export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
               ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-md'
         )}>
-          <div className="text-sm whitespace-pre-wrap break-words">
-            {formatContent(message.content)}
-          </div>
+          {/* Image attachments */}
+          {hasImages && (
+            <div className={cn(
+              'flex flex-wrap gap-2 mb-2',
+              images.length === 1 ? 'justify-center' : ''
+            )}>
+              {images.map((img, index) => (
+                <ImageThumbnail
+                  key={img.id}
+                  src={getImageSrc(img)}
+                  alt={`Attachment ${index + 1}`}
+                  source={img.source}
+                  size={images.length === 1 ? 'lg' : 'md'}
+                  onClick={() => openLightbox(index)}
+                  isLoading={!getImageSrc(img)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Text content */}
+          {message.content && (
+            <div className="text-sm whitespace-pre-wrap break-words">
+              {formatContent(message.content)}
+            </div>
+          )}
+
+          {/* Images-only indicator when no text */}
+          {!message.content && hasImages && (
+            <div className={cn(
+              'flex items-center gap-1 text-xs',
+              isUser ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
+            )}>
+              <ImageIcon className="w-3 h-3" />
+              <span>{images.length} image{images.length > 1 ? 's' : ''}</span>
+            </div>
+          )}
         </div>
 
         {/* D.3, D.4 - Action buttons for copy/replace */}
@@ -125,6 +178,20 @@ export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
         )}
       </div>
     </div>
+
+    {/* Lightbox for viewing images */}
+    {lightboxIndex !== null && hasImages && (
+      <ImageLightbox
+        images={images.map(img => ({
+          src: getImageSrc(img),
+          alt: `Image from ${img.source}`,
+          source: img.source,
+        }))}
+        initialIndex={lightboxIndex}
+        onClose={closeLightbox}
+      />
+    )}
+    </>
   );
 }
 

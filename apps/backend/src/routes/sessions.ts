@@ -8,6 +8,7 @@ import type {
   UpdateSessionRequest,
   Message,
 } from '@devmentorai/shared';
+import { deleteSessionImages } from '../services/thumbnail-service.js';
 
 const createSessionSchema = z.object({
   name: z.string().min(1).max(100),
@@ -166,6 +167,14 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     } catch (error) {
       console.error(`[SessionRoute] Error destroying Copilot session:`, error);
       // Continue with DB deletion even if Copilot cleanup fails
+    }
+
+    // Clean up images for this session
+    try {
+      deleteSessionImages(sessionId);
+    } catch (error) {
+      console.error(`[SessionRoute] Error deleting session images:`, error);
+      // Continue with DB deletion even if image cleanup fails
     }
 
     // Delete from database (CASCADE will delete messages)

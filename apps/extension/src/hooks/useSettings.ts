@@ -28,7 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   translationLanguage: 'es', // Default translation target
   backendUrl: 'http://localhost:3847',
   communicationMode: 'http',
-  screenshotBehavior: 'disabled', // Default: user must explicitly enable
+  screenshotBehavior: 'ask', // Default: user must explicitly enable
   imageAttachmentsEnabled: true, // Default: enabled
 };
 

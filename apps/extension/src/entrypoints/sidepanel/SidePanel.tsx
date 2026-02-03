@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from '../../components/Header';
 import { SessionSelector } from '../../components/SessionSelector';
 import { ChatView } from '../../components/ChatView';
@@ -19,6 +19,7 @@ export function SidePanel() {
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);         // D.2
   const [showPageContextModal, setShowPageContextModal] = useState(false); // D.1
+  const [showScreenshotConfirm, setShowScreenshotConfirm] = useState(false);
   const [contextModeEnabled, setContextModeEnabled] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     action: ExtendedAction;
@@ -26,6 +27,9 @@ export function SidePanel() {
     pageUrl?: string;
     pageTitle?: string;
   } | null>(null);
+  
+  // Ref to ChatView's addImage function (passed via callback)
+  const addImageToChatRef = useRef<((dataUrl: string, source: 'screenshot') => Promise<void>) | null>(null);
 
   // B.1 - Apply theme via settings hook
   const { settings } = useSettings();
@@ -170,6 +174,16 @@ export function SidePanel() {
     }
   }, [sendMessage, extractContext, activeSession?.id]);
 
+  // Handle screenshot capture for context mode
+  const handleScreenshotForContextMode = useCallback(async () => {
+    if (!addImageToChatRef.current) return;
+    
+    const dataUrl = await captureVisibleTabScreenshot();
+    if (dataUrl) {
+      await addImageToChatRef.current(dataUrl, 'screenshot');
+    }
+  }, [captureVisibleTabScreenshot]);
+
   // Toggle context mode and extract context if enabling
   const handleToggleContextMode = useCallback(async () => {
     const newState = !contextModeEnabled;
@@ -178,11 +192,28 @@ export function SidePanel() {
     if (newState && activeSession?.id) {
       // Extract context when enabling
       await extractContext(activeSession.id);
+      
+      // Handle screenshot based on behavior setting
+      if (settings.screenshotBehavior === 'auto') {
+        // Auto-capture screenshot
+        await handleScreenshotForContextMode();
+      } else if (settings.screenshotBehavior === 'ask') {
+        // Show confirmation dialog
+        setShowScreenshotConfirm(true);
+      }
     } else {
       // Clear context when disabling
       clearContext();
     }
-  }, [contextModeEnabled, activeSession?.id, extractContext, clearContext]);
+  }, [contextModeEnabled, activeSession?.id, extractContext, clearContext, settings.screenshotBehavior, handleScreenshotForContextMode]);
+
+  // Handle screenshot confirm response
+  const handleScreenshotConfirmResponse = useCallback(async (include: boolean) => {
+    setShowScreenshotConfirm(false);
+    if (include) {
+      await handleScreenshotForContextMode();
+    }
+  }, [handleScreenshotForContextMode]);
 
   const handleNewSession = useCallback(async (name: string, type: Session['type'], model?: string) => {
     await createSession(name, type, model);
@@ -258,6 +289,7 @@ export function SidePanel() {
         imageAttachmentsEnabled={settings.imageAttachmentsEnabled}
         screenshotBehavior={settings.screenshotBehavior}
         onCaptureScreenshot={captureVisibleTabScreenshot}
+        onRegisterAddImage={(fn) => { addImageToChatRef.current = fn; }}
       />
 
       {showNewSessionModal && (
@@ -276,6 +308,34 @@ export function SidePanel() {
           onClose={() => setShowPageContextModal(false)} 
           onUseInChat={handleUsePageContext}
         />
+      )}
+
+      {/* Screenshot confirmation modal */}
+      {showScreenshotConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Include Screenshot?
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Would you like to capture a screenshot of the current page to include with your message? <span className="text-xs">(you can change this behavior in settings)</span>
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => handleScreenshotConfirmResponse(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                No, thanks
+              </button>
+              <button
+                onClick={() => handleScreenshotConfirmResponse(true)}
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+              >
+                Yes, capture
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

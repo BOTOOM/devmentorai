@@ -197,7 +197,7 @@ export function OptionsPage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Behavior</h2>
           
           <div className="space-y-4">
-            <label className="flex items-center justify-between cursor-pointer">
+            {/* <label className="flex items-center justify-between cursor-pointer">
               <div>
                 <span className="text-gray-700 dark:text-gray-300">Floating Bubble</span>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Show floating bubble on all pages</p>
@@ -217,7 +217,7 @@ export function OptionsPage() {
                   } mt-0.5`} />
                 </div>
               </div>
-            </label>
+            </label> */}
 
             <label className="flex items-center justify-between cursor-pointer">
               <div>

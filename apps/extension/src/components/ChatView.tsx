@@ -27,6 +27,8 @@ interface ChatViewProps {
   imageAttachmentsEnabled?: boolean;
   onCaptureScreenshot?: () => Promise<string | null>;
   screenshotBehavior?: 'disabled' | 'ask' | 'auto';
+  /** Callback to register the addImage function for external use */
+  onRegisterAddImage?: (addImage: (dataUrl: string, source: 'screenshot') => Promise<void>) => void;
 }
 
 export function ChatView({
@@ -50,6 +52,7 @@ export function ChatView({
   imageAttachmentsEnabled = true,
   onCaptureScreenshot,
   screenshotBehavior = 'disabled',
+  onRegisterAddImage,
 }: ChatViewProps) {
   const [input, setInput] = useState('');
   const [showModelPicker, setShowModelPicker] = useState(false);
@@ -85,6 +88,16 @@ export function ChatView({
       inputRef.current?.focus();
     }
   }, [session, disabled]);
+
+  // Register addImage function for external use (e.g., context mode screenshot)
+  useEffect(() => {
+    if (onRegisterAddImage) {
+      const addImageWrapper = async (dataUrl: string, source: 'screenshot') => {
+        await addImage(dataUrl, source);
+      };
+      onRegisterAddImage(addImageWrapper);
+    }
+  }, [onRegisterAddImage, addImage]);
 
   // Set pending text when provided (A.3 fix: increased limit to 5000 chars)
   useEffect(() => {
@@ -131,6 +144,49 @@ export function ChatView({
       setIsCapturingScreenshot(false);
     }
   }, [onCaptureScreenshot, isAtLimit, addImage]);
+
+  // Drag & drop state for form-level handling
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounterRef = useRef(0);
+
+  // Handle drag events at form level
+  const handleFormDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!imageAttachmentsEnabled || disabled || isStreaming) return;
+    
+    dragCounterRef.current++;
+    if (e.dataTransfer?.types.includes('Files')) {
+      setIsDraggingOver(true);
+    }
+  }, [imageAttachmentsEnabled, disabled, isStreaming]);
+
+  const handleFormDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDraggingOver(false);
+    }
+  }, []);
+
+  const handleFormDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleFormDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDraggingOver(false);
+    
+    if (!imageAttachmentsEnabled || disabled || isStreaming) return;
+    
+    // Use the handleDrop from useImageAttachments
+    await handleDrop(e.nativeEvent as DragEvent);
+  }, [imageAttachmentsEnabled, disabled, isStreaming, handleDrop]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -299,8 +355,25 @@ export function ChatView({
       <form
         ref={formRef}
         onSubmit={handleSubmit}
-        className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800"
+        onDragEnter={handleFormDragEnter}
+        onDragLeave={handleFormDragLeave}
+        onDragOver={handleFormDragOver}
+        onDrop={handleFormDrop}
+        className={cn(
+          "border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800 relative",
+          isDraggingOver && "ring-2 ring-primary-400 ring-inset"
+        )}
       >
+        {/* Drag overlay */}
+        {isDraggingOver && (
+          <div className="absolute inset-0 bg-primary-50/80 dark:bg-primary-900/50 flex items-center justify-center z-10 rounded-lg pointer-events-none">
+            <div className="text-center">
+              <ImagePlus className="w-10 h-10 mx-auto mb-2 text-primary-500" />
+              <p className="text-sm font-medium text-primary-700 dark:text-primary-300">Drop images here</p>
+            </div>
+          </div>
+        )}
+
         {/* Image attachment zone */}
         {imageAttachmentsEnabled && (
           <ImageAttachmentZone

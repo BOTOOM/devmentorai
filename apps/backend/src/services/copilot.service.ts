@@ -337,12 +337,23 @@ export class CopilotService {
       try {
         // Abort any pending requests first
         await copilotSession.session.abort().catch(() => {});
-        // Destroy the session
+        // Destroy the session (releases resources but doesn't delete files)
         await copilotSession.session.destroy();
         console.log(`[CopilotService] Session ${sessionId} destroyed successfully`);
       } catch (error) {
         console.error(`[CopilotService] Error destroying session ${sessionId}:`, error);
         // Continue with cleanup even if destroy fails
+      }
+    }
+    
+    // Delete session data from disk using SDK's deleteSession
+    if (this.client && !this.mockMode) {
+      try {
+        await this.client.deleteSession(sessionId);
+        console.log(`[CopilotService] Session ${sessionId} files deleted from disk`);
+      } catch (error) {
+        // Session might not exist on disk, that's OK
+        console.log(`[CopilotService] Could not delete session files (may not exist): ${sessionId}`);
       }
     }
     

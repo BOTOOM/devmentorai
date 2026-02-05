@@ -7,8 +7,10 @@
 
 import sharp from 'sharp';
 import fs from 'node:fs';
+import path from 'node:path';
 import {
   getMessageImagesDir,
+  getSessionImagesDir,
   getThumbnailPath,
   toRelativePath,
   toImageRelativePath,
@@ -104,7 +106,7 @@ function getExtensionForMimeType(mimeType: string): string {
  */
 export function getFullImagePath(sessionId: string, messageId: string, index: number, extension: string): string {
   const messageDir = getMessageImagesDir(sessionId, messageId);
-  return `${messageDir}/image_${index}.${extension}`;
+  return path.join(messageDir, `image_${index}.${extension}`);
 }
 
 /**
@@ -212,7 +214,7 @@ export function getThumbnailFilePath(
  * @param sessionId - The session ID
  */
 export function deleteSessionImages(sessionId: string): void {
-  const sessionDir = getMessageImagesDir(sessionId, '').replace(/[/\\]$/, '');
+  const sessionDir = getSessionImagesDir(sessionId);
   deleteDir(sessionDir);
   console.log(`[ThumbnailService] Deleted images for session ${sessionId}`);
 }

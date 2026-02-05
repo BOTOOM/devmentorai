@@ -19,6 +19,7 @@ import {
 import {
   processMessageImages,
   toImageAttachments,
+  type ProcessedImage,
 } from '../services/thumbnail-service.js';
 
 // Schema for simple context (backward compatible)
@@ -268,6 +269,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
       console.log(`[ChatRoute] Using ${promptType} prompt for streaming`);
 
       // Process images if provided
+      let processedImagesRaw: ProcessedImage[] = [];
       let processedImages: ImageAttachment[] = [];
       const backendUrl = `http://${request.hostname}`;
       
@@ -289,13 +291,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
       if (body.images && body.images.length > 0) {
         try {
           console.log(`[ChatRoute] Processing ${body.images.length} images for message ${userMessage.id}`);
-          const processed = await processMessageImages(
+          processedImagesRaw = await processMessageImages(
             sessionId,
             userMessage.id,
             body.images,
             backendUrl
           );
-          processedImages = toImageAttachments(processed);
+          processedImages = toImageAttachments(processedImagesRaw);
           
           // Update message metadata with images
           fastify.sessionService.updateMessageMetadata(userMessage.id, {
@@ -308,6 +310,17 @@ export async function chatRoutes(fastify: FastifyInstance) {
           console.error('[ChatRoute] Failed to process images:', err);
           // Continue without images - don't fail the message
         }
+      }
+
+      // Build attachments for Copilot SDK from processed images
+      const copilotAttachments = processedImagesRaw.map((img, index) => ({
+        type: 'file' as const,
+        path: img.fullImagePath,
+        displayName: `image_${index + 1}.${img.mimeType.split('/')[1] || 'jpg'}`,
+      }));
+      
+      if (copilotAttachments.length > 0) {
+        console.log(`[ChatRoute] Built ${copilotAttachments.length} attachments for Copilot:`, copilotAttachments);
       }
 
       // Persist context if fullContext is provided (Phase 5)
@@ -442,12 +455,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
           }
         };
 
-        // Start streaming (no system prompt - uses customAgents from session)
+        // Start streaming with attachments (no system prompt - uses customAgents from session)
         fastify.copilotService.streamMessage(
           sessionId,
           userPrompt,
           body.context,
-          handleEvent
+          handleEvent,
+          copilotAttachments.length > 0 ? copilotAttachments : undefined
         );
       });
 

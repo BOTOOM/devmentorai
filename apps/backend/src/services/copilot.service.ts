@@ -219,7 +219,8 @@ export class CopilotService {
     sessionId: string,
     prompt: string,
     context?: MessageContext,
-    onEvent?: (event: SessionEvent) => void
+    onEvent?: (event: SessionEvent) => void,
+    attachments?: Array<{ type: 'file' | 'directory'; path: string; displayName?: string }>
   ): Promise<void> {
     const copilotSession = this.sessions.get(sessionId);
 
@@ -238,15 +239,21 @@ export class CopilotService {
     }
 
     console.log('[CopilotService] Starting real stream for session', sessionId);
+    if (attachments && attachments.length > 0) {
+      console.log(`[CopilotService] Sending ${attachments.length} attachments:`, attachments.map(a => a.path));
+    }
     
     // Set up event listener
     if (onEvent) {
       copilotSession.session.on(onEvent);
     }
 
-    // Send message - no systemMessage override to preserve Copilot's intelligence
+    // Send message with attachments if provided
     // The customAgents from session creation provide the persona/expertise
-    copilotSession.session.send({ prompt: fullPrompt });
+    copilotSession.session.send({ 
+      prompt: fullPrompt,
+      attachments: attachments,
+    });
     console.log('[CopilotService] Message sent, waiting for events...');
   }
 

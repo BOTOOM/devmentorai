@@ -209,12 +209,22 @@ export function useImageAttachments(): UseImageAttachmentsResult {
    * Get images formatted for sending to backend
    */
   const getImagesForSend = useCallback(() => {
-    return images.map(img => ({
-      id: img.id,
-      dataUrl: img.dataUrl,
-      mimeType: img.mimeType,
-      source: img.source,
-    }));
+    console.log('[useImageAttachments] getImagesForSend called, images count:', images.length);
+    const result = images.map(img => {
+      console.log('[useImageAttachments] Image:', { 
+        id: img.id, 
+        source: img.source,
+        hasDataUrl: !!img.dataUrl,
+        dataUrlLength: img.dataUrl?.length || 0
+      });
+      return {
+        id: img.id,
+        dataUrl: img.dataUrl,
+        mimeType: img.mimeType,
+        source: img.source,
+      };
+    });
+    return result;
   }, [images]);
 
   /**
@@ -244,13 +254,16 @@ export function useImageAttachments(): UseImageAttachmentsResult {
    */
   const handleDrop = useCallback(async (e: DragEvent): Promise<boolean> => {
     const files = e.dataTransfer?.files;
+    console.log('[useImageAttachments] handleDrop called, files:', files?.length || 0);
     if (!files || files.length === 0) return false;
 
     let addedAny = false;
 
     for (const file of Array.from(files)) {
+      console.log('[useImageAttachments] Processing file:', file.name, file.type, file.size);
       if (file.type.startsWith('image/')) {
         const success = await addImageFromFile(file, 'drop');
+        console.log('[useImageAttachments] addImageFromFile result:', success);
         if (success) addedAny = true;
         // Stop if we hit the limit
         if (images.length + (addedAny ? 1 : 0) >= IMAGE_CONSTANTS.MAX_IMAGES_PER_MESSAGE) {

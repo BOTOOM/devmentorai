@@ -72,21 +72,45 @@ export function useChat(sessionId: string | undefined) {
     setIsStreaming(true);
     currentMessageRef.current = '';
 
-    // Add user message immediately
+    // Build images for metadata (convert to ImageAttachment-like format for display)
+    // The actual ImagePayload has dataUrl which can be used as thumbnailUrl temporarily
+    const imagesForMetadata = sendOptions.images?.map(img => {
+      console.log('[useChat] Processing image for metadata:', { 
+        id: img.id, 
+        source: img.source, 
+        hasDataUrl: !!img.dataUrl,
+        dataUrlLength: img.dataUrl?.length || 0
+      });
+      return {
+        id: img.id,
+        source: img.source,
+        mimeType: img.mimeType,
+        dataUrl: img.dataUrl,  // For immediate display before server processes
+        thumbnailUrl: img.dataUrl,  // Use dataUrl as thumbnail until server provides real one
+        dimensions: { width: 0, height: 0 },
+        fileSize: 0,
+        timestamp: formatDate(),
+      };
+    });
+
+    // Add user message immediately (with images if any)
     const userMessage: Message = {
       id: generateMessageId(),
       sessionId: requestSessionId,
       role: 'user',
       content,
       timestamp: formatDate(),
-      metadata: sendOptions.context ? {
-        pageUrl: sendOptions.context.pageUrl,
-        selectedText: sendOptions.context.selectedText,
-        action: sendOptions.context.action,
-      } : undefined,
+      metadata: {
+        ...(sendOptions.context ? {
+          pageUrl: sendOptions.context.pageUrl,
+          selectedText: sendOptions.context.selectedText,
+          action: sendOptions.context.action,
+        } : {}),
+        ...(imagesForMetadata && imagesForMetadata.length > 0 ? { images: imagesForMetadata } : {}),
+      },
     };
     setMessages(prev => [...prev, userMessage]);
-    console.log('[useChat] Added user message to UI');
+    console.log('[useChat] Added user message to UI', { hasImages: !!imagesForMetadata?.length });
 
     // Create placeholder for assistant message
     const assistantMessageId = generateMessageId();

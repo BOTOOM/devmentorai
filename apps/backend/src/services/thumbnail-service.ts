@@ -2,7 +2,7 @@
  * ThumbnailService
  * 
  * Handles image processing and thumbnail generation.
- * Stores thumbnails on disk and provides URLs for serving.
+ * Stores thumbnails AND full images on disk and provides URLs for serving.
  */
 
 import sharp from 'sharp';
@@ -42,6 +42,8 @@ export interface ProcessedImage {
   thumbnailUrl: string;
   /** Relative path for DB storage */
   thumbnailPath: string;
+  /** Absolute path to full image (for Copilot SDK attachments) */
+  fullImagePath: string;
 }
 
 /**
@@ -82,13 +84,34 @@ async function generateThumbnail(buffer: Buffer): Promise<Buffer> {
 }
 
 /**
- * Process images for a message, generating and storing thumbnails
+ * Get the file extension for a MIME type
+ */
+function getExtensionForMimeType(mimeType: string): string {
+  const extensions: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  };
+  return extensions[mimeType] || 'jpg';
+}
+
+/**
+ * Get the file path for a full image
+ */
+export function getFullImagePath(sessionId: string, messageId: string, index: number, extension: string): string {
+  const messageDir = getMessageImagesDir(sessionId, messageId);
+  return `${messageDir}/image_${index}.${extension}`;
+}
+
+/**
+ * Process images for a message, generating and storing thumbnails AND full images
  * 
  * @param sessionId - The session ID
  * @param messageId - The message ID
  * @param images - Array of image inputs with data URLs
  * @param backendUrl - Base URL for thumbnail serving
- * @returns Array of processed images with thumbnail URLs
+ * @returns Array of processed images with thumbnail URLs and full image paths
  */
 export async function processMessageImages(
   sessionId: string,
@@ -115,7 +138,7 @@ export async function processMessageImages(
         continue;
       }
 
-      const { buffer } = parsed;
+      const { buffer, mimeType } = parsed;
 
       // Get original dimensions
       const dimensions = await getImageDimensions(buffer);
@@ -126,6 +149,12 @@ export async function processMessageImages(
       // Save thumbnail to disk
       const thumbnailAbsPath = getThumbnailPath(sessionId, messageId, index);
       fs.writeFileSync(thumbnailAbsPath, thumbnailBuffer);
+
+      // Save FULL IMAGE to disk (for Copilot SDK attachments)
+      const extension = getExtensionForMimeType(mimeType);
+      const fullImageAbsPath = getFullImagePath(sessionId, messageId, index, extension);
+      fs.writeFileSync(fullImageAbsPath, buffer);
+      console.log(`[ThumbnailService] Saved full image to ${fullImageAbsPath}`);
 
       // Generate relative path for DB and URL for client
       const relativePath = toRelativePath(thumbnailAbsPath);
@@ -140,6 +169,7 @@ export async function processMessageImages(
         timestamp: new Date().toISOString(),
         thumbnailUrl: `${backendUrl}/api/images/${urlPath}`,
         thumbnailPath: relativePath,
+        fullImagePath: fullImageAbsPath,
       });
 
       console.log(`[ThumbnailService] Processed image ${index + 1}/${images.length} for message ${messageId}`);

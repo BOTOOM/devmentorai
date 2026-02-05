@@ -157,12 +157,36 @@ export class CopilotService {
       return true;
     }
 
+    // First, try to resume existing session
     try {
       const session = await this.client.resumeSession(sessionId);
       this.sessions.set(sessionId, { sessionId, session });
+      console.log(`[CopilotService] Session ${sessionId} resumed from disk`);
       return true;
-    } catch (error) {
-      console.error(`[CopilotService] Failed to resume session ${sessionId}:`, error);
+    } catch (resumeError) {
+      console.log(`[CopilotService] Could not resume session ${sessionId}, will try to create new`);
+    }
+
+    // If resume fails, try to create a new session using DB info
+    try {
+      const dbSession = this.sessionService.getSession(sessionId);
+      if (!dbSession) {
+        console.error(`[CopilotService] Session ${sessionId} not found in database`);
+        return false;
+      }
+
+      // Create new Copilot session with same parameters
+      await this.createCopilotSession(
+        sessionId,
+        dbSession.type,
+        dbSession.model,
+        dbSession.systemPrompt || undefined,
+        false // MCP disabled by default on recreate
+      );
+      console.log(`[CopilotService] Session ${sessionId} recreated successfully`);
+      return true;
+    } catch (createError) {
+      console.error(`[CopilotService] Failed to create session ${sessionId}:`, createError);
       return false;
     }
   }
@@ -222,7 +246,19 @@ export class CopilotService {
     onEvent?: (event: SessionEvent) => void,
     attachments?: Array<{ type: 'file' | 'directory'; path: string; displayName?: string }>
   ): Promise<void> {
-    const copilotSession = this.sessions.get(sessionId);
+    let copilotSession = this.sessions.get(sessionId);
+
+    // Auto-resume session if not in memory (e.g., after browser restart)
+    if (!copilotSession?.session && !this.mockMode) {
+      console.log(`[CopilotService] Session ${sessionId} not in memory, attempting auto-resume...`);
+      const resumed = await this.resumeCopilotSession(sessionId);
+      if (resumed) {
+        copilotSession = this.sessions.get(sessionId);
+        console.log(`[CopilotService] Session ${sessionId} auto-resumed successfully`);
+      } else {
+        console.warn(`[CopilotService] Failed to auto-resume session ${sessionId}, falling back to mock`);
+      }
+    }
 
     // Note: The prompt should already be enriched with context by the route
     // We only add basic context fallback if the prompt doesn't contain it

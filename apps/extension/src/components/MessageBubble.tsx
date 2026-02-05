@@ -183,7 +183,8 @@ export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
     {lightboxIndex !== null && hasImages && (
       <ImageLightbox
         images={images.map(img => ({
-          src: getImageSrc(img),
+          thumbnailSrc: getImageSrc(img),
+          fullSrc: img.fullImageUrl,  // Will load full image, fallback to thumbnail
           alt: `Image from ${img.source}`,
           source: img.source,
         }))}

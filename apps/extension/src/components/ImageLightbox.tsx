@@ -3,20 +3,28 @@
  * 
  * Full-screen modal for viewing images at full size.
  * Supports keyboard navigation (ESC to close, arrows for multiple images).
+ * Loads full image with thumbnail as placeholder/fallback.
  */
 
 import { useEffect, useCallback, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { ImageAttachment } from '@devmentorai/shared';
 
+interface LightboxImage {
+  /** Thumbnail URL (shown while loading / fallback) */
+  thumbnailSrc: string;
+  /** Full image URL (loaded progressively) */
+  fullSrc?: string;
+  /** Alt text for accessibility */
+  alt?: string;
+  /** Image source type for badge display */
+  source?: ImageAttachment['source'];
+}
+
 interface ImageLightboxProps {
   /** Images to display in the lightbox */
-  images: Array<{
-    src: string;
-    alt?: string;
-    source?: ImageAttachment['source'];
-  }>;
+  images: LightboxImage[];
   /** Index of the currently displayed image */
   initialIndex?: number;
   /** Callback when lightbox is closed */
@@ -33,11 +41,20 @@ export function ImageLightbox({
 }: ImageLightboxProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isZoomed, setIsZoomed] = useState(false);
+  const [fullImageLoaded, setFullImageLoaded] = useState<Record<number, boolean>>({});
+  const [fullImageError, setFullImageError] = useState<Record<number, boolean>>({});
 
   const currentImage = images[currentIndex];
   const hasMultiple = images.length > 1;
   const canGoNext = currentIndex < images.length - 1;
   const canGoPrev = currentIndex > 0;
+  
+  // Determine which image to display
+  const isFullLoaded = fullImageLoaded[currentIndex];
+  const hasFullError = fullImageError[currentIndex];
+  const showFullImage = currentImage?.fullSrc && isFullLoaded && !hasFullError;
+  const displaySrc = showFullImage ? currentImage.fullSrc! : currentImage?.thumbnailSrc;
+  const isLoadingFull = currentImage?.fullSrc && !isFullLoaded && !hasFullError;
 
   const goNext = useCallback(() => {
     if (canGoNext) {
@@ -57,12 +74,32 @@ export function ImageLightbox({
     setIsZoomed(prev => !prev);
   }, []);
 
+  // Preload full image when lightbox opens or index changes
+  useEffect(() => {
+    if (!currentImage?.fullSrc || fullImageLoaded[currentIndex] || fullImageError[currentIndex]) {
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      setFullImageLoaded(prev => ({ ...prev, [currentIndex]: true }));
+    };
+    img.onerror = () => {
+      console.warn(`[ImageLightbox] Failed to load full image, using thumbnail`);
+      setFullImageError(prev => ({ ...prev, [currentIndex]: true }));
+    };
+    img.src = currentImage.fullSrc;
+  }, [currentIndex, currentImage?.fullSrc, fullImageLoaded, fullImageError]);
+
   const handleDownload = useCallback(() => {
-    if (!currentImage?.src) return;
+    // Prefer full image for download, fallback to thumbnail
+    const downloadSrc = currentImage?.fullSrc || currentImage?.thumbnailSrc;
+    if (!downloadSrc) return;
     
     const link = document.createElement('a');
-    link.href = currentImage.src;
-    link.download = `image_${currentIndex + 1}.${currentImage.src.includes('png') ? 'png' : 'jpg'}`;
+    link.href = downloadSrc;
+    const ext = downloadSrc.includes('png') ? 'png' : 'jpg';
+    link.download = `image_${currentIndex + 1}.${ext}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -159,12 +196,22 @@ export function ImageLightbox({
         )}
         onClick={isZoomed ? toggleZoom : undefined}
       >
+        {/* Loading indicator overlay */}
+        {isLoadingFull && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            <div className="bg-black/60 rounded-full p-3">
+              <Loader2 className="w-6 h-6 text-white animate-spin" />
+            </div>
+          </div>
+        )}
+        
         <img
-          src={currentImage.src}
+          src={displaySrc}
           alt={currentImage.alt || `Image ${currentIndex + 1}`}
           className={cn(
-            'max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl',
-            !isZoomed && 'cursor-zoom-in'
+            'max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-opacity',
+            !isZoomed && 'cursor-zoom-in',
+            isLoadingFull && 'opacity-80'  // Slightly dim while loading full image
           )}
           onClick={!isZoomed ? toggleZoom : undefined}
         />

@@ -11,6 +11,7 @@ import {
   getMessageImagesDir,
   getThumbnailPath,
   toRelativePath,
+  toImageRelativePath,
   toUrlPath,
   ensureDir,
   deleteDir,
@@ -44,6 +45,8 @@ export interface ProcessedImage {
   thumbnailPath: string;
   /** Absolute path to full image (for Copilot SDK attachments) */
   fullImagePath: string;
+  /** URL to serve full image to client */
+  fullImageUrl: string;
 }
 
 /**
@@ -150,15 +153,18 @@ export async function processMessageImages(
       const thumbnailAbsPath = getThumbnailPath(sessionId, messageId, index);
       fs.writeFileSync(thumbnailAbsPath, thumbnailBuffer);
 
-      // Save FULL IMAGE to disk (for Copilot SDK attachments)
+      // Save FULL IMAGE to disk (for Copilot SDK attachments and lightbox view)
       const extension = getExtensionForMimeType(mimeType);
       const fullImageAbsPath = getFullImagePath(sessionId, messageId, index, extension);
       fs.writeFileSync(fullImageAbsPath, buffer);
       console.log(`[ThumbnailService] Saved full image to ${fullImageAbsPath}`);
 
-      // Generate relative path for DB and URL for client
-      const relativePath = toRelativePath(thumbnailAbsPath);
-      const urlPath = toUrlPath(relativePath);
+      // Generate relative paths for DB storage (from DATA_DIR)
+      const thumbnailRelativePath = toRelativePath(thumbnailAbsPath);
+      
+      // Generate URL paths for serving (from IMAGES_DIR, no "images/" prefix)
+      const thumbnailUrlPath = toUrlPath(toImageRelativePath(thumbnailAbsPath));
+      const fullImageUrlPath = toUrlPath(toImageRelativePath(fullImageAbsPath));
 
       processedImages.push({
         id: image.id,
@@ -167,9 +173,10 @@ export async function processMessageImages(
         dimensions,
         fileSize: buffer.length,
         timestamp: new Date().toISOString(),
-        thumbnailUrl: `${backendUrl}/api/images/${urlPath}`,
-        thumbnailPath: relativePath,
+        thumbnailUrl: `${backendUrl}/api/images/${thumbnailUrlPath}`,
+        thumbnailPath: thumbnailRelativePath,
         fullImagePath: fullImageAbsPath,
+        fullImageUrl: `${backendUrl}/api/images/${fullImageUrlPath}`,
       });
 
       console.log(`[ThumbnailService] Processed image ${index + 1}/${images.length} for message ${messageId}`);
@@ -234,6 +241,7 @@ export function toImageAttachments(processedImages: ProcessedImage[]): ImageAtta
     fileSize: img.fileSize,
     timestamp: img.timestamp,
     thumbnailUrl: img.thumbnailUrl,
+    fullImageUrl: img.fullImageUrl,
     // Note: dataUrl is NOT included - it's only used during processing
   }));
 }

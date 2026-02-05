@@ -271,7 +271,9 @@ export async function chatRoutes(fastify: FastifyInstance) {
       // Process images if provided
       let processedImagesRaw: ProcessedImage[] = [];
       let processedImages: ImageAttachment[] = [];
-      const backendUrl = `http://${request.hostname}`;
+      // Build backend URL with port for image serving
+      const host = request.headers.host || `${request.hostname}:3847`;
+      const backendUrl = `http://${host}`;
       
       // We'll need the message ID before processing images
       // First save the user message without images

@@ -31,6 +31,8 @@ export interface ImageAttachment {
   dataUrl?: string;
   /** Backend-provided thumbnail URL for display in chat history */
   thumbnailUrl?: string;
+  /** Backend-provided full image URL for lightbox view */
+  fullImageUrl?: string;
 }
 
 /** Image data sent in message request (before processing) */

@@ -61,9 +61,23 @@ export function useChat(sessionId: string | undefined) {
     }
 
     // Handle both old (MessageContext) and new (SendMessageOptions) API
-    const sendOptions: SendMessageOptions = options && 'useContextAwareMode' in options
-      ? options
+    // SendMessageOptions has: useContextAwareMode, fullContext, or images at top level
+    // MessageContext is the legacy format with pageUrl, selectedText, action
+    const isSendMessageOptions = options && (
+      'useContextAwareMode' in options || 
+      'fullContext' in options || 
+      'images' in options
+    );
+    const sendOptions: SendMessageOptions = isSendMessageOptions
+      ? options as SendMessageOptions
       : { context: options as MessageContext };
+    
+    console.log('[useChat] Parsed options:', { 
+      isSendMessageOptions, 
+      hasImages: !!sendOptions.images?.length,
+      hasFullContext: !!sendOptions.fullContext,
+      hasContext: !!sendOptions.context
+    });
 
     // Store the session ID at the start of this request (A.4 fix)
     const requestSessionId = sessionId;

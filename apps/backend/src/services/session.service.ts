@@ -157,7 +157,7 @@ export class SessionService {
     const rows = stmt.all(sessionId, pageSize, offset) as DbMessage[];
 
     return {
-      items: rows.map(this.mapDbMessage),
+      items: rows.map(row => this.mapDbMessage(row)),
       total: count,
       page,
       pageSize,
@@ -374,13 +374,47 @@ export class SessionService {
   }
 
   private mapDbMessage(row: DbMessage): Message {
+    let metadata = row.metadata ? JSON.parse(row.metadata) : undefined;
+    
+    // Fix legacy image URLs that have incorrect format
+    if (metadata?.images) {
+      metadata.images = metadata.images.map((img: Record<string, unknown>) => ({
+        ...img,
+        thumbnailUrl: this.fixImageUrl(img.thumbnailUrl as string | undefined),
+        fullImageUrl: this.fixImageUrl(img.fullImageUrl as string | undefined),
+      }));
+    }
+    
     return {
       id: row.id,
       sessionId: row.session_id,
       role: row.role,
       content: row.content,
       timestamp: row.timestamp,
-      metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+      metadata,
     };
+  }
+
+  /**
+   * Fix legacy image URLs that have incorrect format
+   * - Adds missing port (localhost -> localhost:3847)
+   * - Removes duplicate "images/images/" path
+   */
+  private fixImageUrl(url: string | undefined): string | undefined {
+    if (!url) return url;
+    
+    let fixed = url;
+    
+    // Fix missing port: http://localhost/api -> http://localhost:3847/api
+    if (fixed.includes('http://localhost/api')) {
+      fixed = fixed.replace('http://localhost/api', 'http://localhost:3847/api');
+    }
+    
+    // Fix duplicate images path: /api/images/images/ -> /api/images/
+    if (fixed.includes('/api/images/images/')) {
+      fixed = fixed.replace('/api/images/images/', '/api/images/');
+    }
+    
+    return fixed;
   }
 }

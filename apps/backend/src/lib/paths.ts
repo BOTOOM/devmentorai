@@ -65,6 +65,16 @@ export function toRelativePath(absolutePath: string): string {
 }
 
 /**
+ * Convert an absolute image path to a relative path from IMAGES_DIR
+ * This is used for constructing image URLs
+ * @param absolutePath - The absolute file path
+ * @returns Relative path from IMAGES_DIR (e.g., "session_xxx/msg_xxx/thumb_0.jpg")
+ */
+export function toImageRelativePath(absolutePath: string): string {
+  return path.relative(IMAGES_DIR, absolutePath);
+}
+
+/**
  * Convert a relative path (from DB) to an absolute path
  * @param relativePath - The relative path stored in DB
  * @returns Absolute file path

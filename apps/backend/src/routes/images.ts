@@ -1,96 +1,81 @@
 /**
  * Images Route
  * 
- * Serves thumbnail images stored on disk.
- * Route: GET /api/images/:sessionId/:messageId/thumb_:index.jpg
+ * Serves thumbnail and full images stored on disk.
+ * Routes:
+ *   GET /api/images/:sessionId/:messageId/thumb_:index.jpg - Thumbnail
+ *   GET /api/images/:sessionId/:messageId/image_:index.:ext - Full image
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import fs from 'node:fs';
+import path from 'node:path';
+import { IMAGES_DIR } from '../lib/paths.js';
 import { getThumbnailFilePath } from '../services/thumbnail-service.js';
 
 interface ImageParams {
   sessionId: string;
   messageId: string;
-  index: string;
+  filename: string;
 }
+
+// MIME types for supported image formats
+const MIME_TYPES: Record<string, string> = {
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'webp': 'image/webp',
+  'gif': 'image/gif',
+};
 
 export async function imagesRoutes(fastify: FastifyInstance) {
   /**
-   * GET /api/images/:sessionId/:messageId/:index
-   * Serves a thumbnail image
+   * GET /api/images/:sessionId/:messageId/:filename
+   * Serves thumbnail or full image
+   * 
+   * Filename patterns:
+   *   - thumb_0.jpg (thumbnail)
+   *   - image_0.jpg (full image)
+   *   - image_0.png (full image)
    */
   fastify.get<{ Params: ImageParams }>(
-    '/:sessionId/:messageId/:index',
+    '/:sessionId/:messageId/:filename',
     async (request: FastifyRequest<{ Params: ImageParams }>, reply: FastifyReply) => {
-      const { sessionId, messageId, index } = request.params;
+      const { sessionId, messageId, filename } = request.params;
 
-      // Parse index (handle "thumb_0.jpg" or just "0")
-      let imageIndex: number;
-      const indexMatch = index.match(/^(?:thumb_)?(\d+)(?:\.jpg)?$/);
-      if (indexMatch) {
-        imageIndex = parseInt(indexMatch[1], 10);
-      } else {
-        return reply.code(400).send({ error: 'Invalid image index format' });
+      // Validate session and message IDs (basic security check)
+      if (!sessionId?.match(/^session_[a-z0-9]+$/) || !messageId?.match(/^msg_[a-z0-9]+$/)) {
+        return reply.code(400).send({ error: 'Invalid session or message ID format' });
       }
 
-      // Validate parameters
-      if (!sessionId || !messageId || isNaN(imageIndex) || imageIndex < 0) {
-        return reply.code(400).send({ error: 'Invalid parameters' });
+      // Parse filename - support thumb_N.jpg and image_N.ext
+      let filePath: string | null = null;
+      let mimeType = 'image/jpeg';
+
+      // Check for thumbnail: thumb_0.jpg
+      const thumbMatch = filename.match(/^thumb_(\d+)\.jpg$/);
+      if (thumbMatch) {
+        const imageIndex = parseInt(thumbMatch[1], 10);
+        filePath = getThumbnailFilePath(sessionId, messageId, imageIndex);
+        mimeType = 'image/jpeg';
       }
 
-      // Get the thumbnail file path
-      const filePath = getThumbnailFilePath(sessionId, messageId, imageIndex);
+      // Check for full image: image_0.jpg, image_0.png, etc.
+      const imageMatch = filename.match(/^image_(\d+)\.(jpg|jpeg|png|webp|gif)$/i);
+      if (imageMatch) {
+        const ext = imageMatch[2].toLowerCase();
+        mimeType = MIME_TYPES[ext] || 'image/jpeg';
+        // Build path directly
+        filePath = path.join(IMAGES_DIR, sessionId, messageId, filename);
+      }
+
       if (!filePath) {
-        return reply.code(404).send({ error: 'Image not found' });
-      }
-
-      // Read and send the file
-      try {
-        const fileBuffer = fs.readFileSync(filePath);
-        
-        return reply
-          .code(200)
-          .header('Content-Type', 'image/jpeg')
-          .header('Cache-Control', 'public, max-age=31536000, immutable') // Cache for 1 year
-          .header('Content-Length', fileBuffer.length)
-          .send(fileBuffer);
-      } catch (error) {
-        console.error('[ImagesRoute] Failed to read image file:', error);
-        return reply.code(500).send({ error: 'Failed to read image' });
-      }
-    }
-  );
-
-  /**
-   * Alternative route pattern for URL-safe paths
-   * GET /api/images/images/:sessionId/:messageId/thumb_:index.jpg
-   * This handles paths like: /api/images/images/session123/msg456/thumb_0.jpg
-   */
-  fastify.get<{ Params: { '*': string } }>(
-    '/images/*',
-    async (request: FastifyRequest<{ Params: { '*': string } }>, reply: FastifyReply) => {
-      const pathParts = request.params['*'].split('/');
-      
-      // Expected format: sessionId/messageId/thumb_X.jpg
-      if (pathParts.length < 3) {
-        return reply.code(400).send({ error: 'Invalid path format' });
-      }
-
-      const sessionId = pathParts[0];
-      const messageId = pathParts[1];
-      const filename = pathParts[2];
-
-      // Parse index from filename
-      const indexMatch = filename.match(/^thumb_(\d+)\.jpg$/);
-      if (!indexMatch) {
         return reply.code(400).send({ error: 'Invalid filename format' });
       }
-      const imageIndex = parseInt(indexMatch[1], 10);
 
-      // Get the thumbnail file path
-      const filePath = getThumbnailFilePath(sessionId, messageId, imageIndex);
-      if (!filePath) {
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        console.log(`[ImagesRoute] File not found: ${filePath}`);
         return reply.code(404).send({ error: 'Image not found' });
       }
 
@@ -100,8 +85,8 @@ export async function imagesRoutes(fastify: FastifyInstance) {
         
         return reply
           .code(200)
-          .header('Content-Type', 'image/jpeg')
-          .header('Cache-Control', 'public, max-age=31536000, immutable')
+          .header('Content-Type', mimeType)
+          .header('Cache-Control', 'public, max-age=31536000, immutable') // Cache for 1 year
           .header('Content-Length', fileBuffer.length)
           .send(fileBuffer);
       } catch (error) {

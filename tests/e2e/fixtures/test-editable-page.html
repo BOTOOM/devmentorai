@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Replacement Test Page</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    .test-section {
+      margin-bottom: 40px;
+      padding: 20px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+    }
+    h2 {
+      margin-top: 0;
+      color: #374151;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .contenteditable {
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      min-height: 80px;
+      background: #f9fafb;
+    }
+    .readonly {
+      background-color: #f3f4f6;
+      cursor: not-allowed;
+    }
+    p.sample {
+      padding: 12px;
+      background: #f3f4f6;
+      border-radius: 6px;
+      line-height: 1.6;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 6px;
+      display: none;
+    }
+    #results.visible {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Text Replacement Test Page</h1>
+  <p>Use this page to test text selection and replacement functionality in editable fields.</p>
+
+  <div class="test-section">
+    <h2>1. Text Input</h2>
+    <label for="test-input">Standard text input:</label>
+    <input type="text" id="test-input" value="The quick brown fox jumps over the lazy dog." />
+  </div>
+
+  <div class="test-section">
+    <h2>2. Email Input</h2>
+    <label for="test-email">Email input (also supports selection):</label>
+    <input type="email" id="test-email" value="user@example.com" />
+  </div>
+
+  <div class="test-section">
+    <h2>3. Textarea</h2>
+    <label for="test-textarea">Multi-line textarea:</label>
+    <textarea id="test-textarea">First line of text.
+Second line with some content to select.
+Third line for more testing.
+Fourth line at the end.</textarea>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Contenteditable Div</h2>
+    <label>Contenteditable element:</label>
+    <div id="test-contenteditable" class="contenteditable" contenteditable="true">
+      This is an editable div. You can select and replace text here.
+      It supports rich editing but we only handle plain text replacement.
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>5. Nested Contenteditable</h2>
+    <label>Nested structure:</label>
+    <div id="test-nested-contenteditable" class="contenteditable" contenteditable="true">
+      <p>First paragraph in nested structure.</p>
+      <p>Second paragraph with <strong>bold</strong> and <em>italic</em> text.</p>
+      <p>Third paragraph for testing.</p>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>6. Readonly Elements (Should NOT be replaceable)</h2>
+    <label for="test-readonly">Readonly input:</label>
+    <input type="text" id="test-readonly" class="readonly" value="This is readonly text." readonly />
+    
+    <label for="test-disabled" style="margin-top: 15px;">Disabled input:</label>
+    <input type="text" id="test-disabled" class="readonly" value="This is disabled text." disabled />
+    
+    <label style="margin-top: 15px;">Non-editable contenteditable (false):</label>
+    <div id="test-non-editable" class="contenteditable readonly" contenteditable="false">
+      This contenteditable is set to false, so it should not be editable.
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>7. Regular Paragraph (Non-editable)</h2>
+    <p class="sample" id="test-paragraph">
+      This is a regular paragraph. Text can be selected here but should NOT be replaceable
+      since it's not an editable element. The extension should detect this and not offer
+      replacement, only copying to clipboard.
+    </p>
+  </div>
+
+  <div id="results">
+    <h3>Last Action Result:</h3>
+    <pre id="result-content"></pre>
+  </div>
+
+  <script>
+    // Log selection events for debugging
+    document.addEventListener('selectionchange', () => {
+      const selection = window.getSelection();
+      if (selection && selection.toString().trim()) {
+        console.log('[TestPage] Selection:', selection.toString().substring(0, 50));
+      }
+    });
+
+    // Listen for input events to verify replacement worked
+    document.querySelectorAll('input, textarea').forEach(el => {
+      el.addEventListener('input', (e) => {
+        console.log('[TestPage] Input event on', el.id, '- new value:', el.value.substring(0, 50));
+        showResult(`Input changed: ${el.value.substring(0, 100)}...`);
+      });
+    });
+
+    document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+      el.addEventListener('input', (e) => {
+        console.log('[TestPage] Input event on contenteditable', el.id);
+        showResult(`Contenteditable changed: ${el.textContent?.substring(0, 100)}...`);
+      });
+    });
+
+    function showResult(text) {
+      const results = document.getElementById('results');
+      const content = document.getElementById('result-content');
+      results.classList.add('visible');
+      content.textContent = text;
+    }
+  </script>
+</body>
+</html>

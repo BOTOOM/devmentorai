@@ -3,6 +3,7 @@
  * Handles theme changes, language, and other preferences
  */
 import { useState, useEffect, useCallback } from 'react';
+import type { TextReplacementBehavior } from '@devmentorai/shared';
 
 export interface Settings {
   theme: 'light' | 'dark' | 'system';
@@ -10,13 +11,18 @@ export interface Settings {
   showSelectionToolbar: boolean;
   defaultSessionType: 'devops' | 'writing' | 'development' | 'general';
   language: string;
-  translationLanguage: string; // B.3 - Target language for translations
+  translationLanguage: string; // Native language - for reading/understanding content
+  targetTranslationLanguage: string; // Target language - for writing/output in editable fields
   backendUrl: string;
   communicationMode: 'http' | 'native'; // C.3 - HTTP vs Native Messaging
   /** Screenshot capture behavior when context mode is enabled */
   screenshotBehavior: 'disabled' | 'ask' | 'auto';
   /** Whether image attachments (paste/drag) are enabled */
   imageAttachmentsEnabled: boolean;
+  /** Text replacement behavior when AI action is executed from editable field */
+  textReplacementBehavior: TextReplacementBehavior;
+  /** Model to use for quick actions (Writing Assistant) */
+  quickActionModel: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -25,11 +31,14 @@ export const DEFAULT_SETTINGS: Settings = {
   showSelectionToolbar: true,
   defaultSessionType: 'devops',
   language: 'en',
-  translationLanguage: 'es', // Default translation target
+  translationLanguage: 'es', // Native language (for reading)
+  targetTranslationLanguage: 'en', // Target language (for writing)
   backendUrl: 'http://localhost:3847',
   communicationMode: 'http',
   screenshotBehavior: 'ask', // Default: user must explicitly enable
   imageAttachmentsEnabled: true, // Default: enabled
+  textReplacementBehavior: 'ask', // Default: ask before replacing
+  quickActionModel: 'gpt-4.1', // Default: fast model for quick actions
 };
 
 const AVAILABLE_LANGUAGES = [

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, Trash2, MessageSquare } from 'lucide-react';
+import { ChevronDown, Trash2, MessageSquare, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { Session } from '@devmentorai/shared';
 import { SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
+import { isWritingAssistantSession } from '../services/writing-assistant-session';
 
 interface SessionSelectorProps {
   sessions: Session[];
@@ -21,6 +22,7 @@ export function SessionSelector({
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const activeConfig = activeSession ? SESSION_TYPE_CONFIGS[activeSession.type] : null;
+  const isActiveWritingAssistant = activeSession ? isWritingAssistantSession(activeSession) : false;
 
   if (sessions.length === 0) {
     return (
@@ -41,11 +43,14 @@ export function SessionSelector({
         <div className="flex items-center gap-3">
           <span className="text-lg">{activeConfig?.icon || '💬'}</span>
           <div className="text-left">
-            <p className="font-medium text-gray-900 dark:text-white">
+            <p className="font-medium text-gray-900 dark:text-white flex items-center gap-1.5">
               {activeSession?.name || 'Select a session'}
+              {isActiveWritingAssistant && (
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              )}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {activeConfig?.name || 'No session selected'}
+              {isActiveWritingAssistant ? 'Quick Actions History' : (activeConfig?.name || 'No session selected')}
             </p>
           </div>
         </div>
@@ -65,6 +70,7 @@ export function SessionSelector({
             {sessions.map(session => {
               const config = SESSION_TYPE_CONFIGS[session.type];
               const isActive = session.id === activeSessionId;
+              const isWritingAssistant = isWritingAssistantSession(session);
 
               return (
                 <div
@@ -84,14 +90,20 @@ export function SessionSelector({
                     <span className="text-lg">{config?.icon || '💬'}</span>
                     <div>
                       <p className={cn(
-                        'font-medium',
+                        'font-medium flex items-center gap-1.5',
                         isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-900 dark:text-white'
                       )}>
                         {session.name}
+                        {isWritingAssistant && (
+                          <Sparkles className="w-3 h-3 text-amber-500" />
+                        )}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                         <MessageSquare className="w-3 h-3" />
                         {session.messageCount} messages
+                        {isWritingAssistant && (
+                          <span className="ml-1 text-amber-600 dark:text-amber-400">• Quick Actions</span>
+                        )}
                       </p>
                     </div>
                   </button>

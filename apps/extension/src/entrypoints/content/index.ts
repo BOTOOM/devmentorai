@@ -5,6 +5,15 @@
 
 import { createFloatingBubble, removeFloatingBubble } from './FloatingBubble';
 import { createSelectionToolbar, removeSelectionToolbar } from './SelectionToolbar';
+import {
+  createFloatingResponsePopup,
+  updateFloatingResponseContent,
+  showFloatingResponseError,
+  removeFloatingResponsePopup,
+  isFloatingResponsePopupVisible,
+  getCurrentContent,
+  showSuccessNotice,
+} from './FloatingResponsePopup';
 import { 
   extractContext, 
   detectPlatform, 
@@ -13,6 +22,9 @@ import {
   startConsoleCapture,
   startNetworkErrorCapture,
 } from '../../lib/context-extractor';
+import { detectSelection } from '../../lib/selection-detector';
+import { replaceSelectedText, copyTextToClipboard } from '../../lib/text-replacer';
+import type { SelectionContext, TextReplacementBehavior, QuickActionStreamMessage } from '@devmentorai/shared';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -35,6 +47,13 @@ export default defineContentScript({
 
     let isToolbarVisible = false;
     let isBubbleVisible = false;
+    let currentSelectionContext: SelectionContext | null = null;
+    let currentTextReplacementBehavior: TextReplacementBehavior = 'ask';
+    let lastSelectionRect: DOMRect | null = null;
+    
+    // Store pending action context - preserved even when toolbar is dismissed
+    let pendingQuickActionContext: SelectionContext | null = null;
+    let pendingQuickActionRect: DOMRect | null = null;
 
     // Unified message listener for all message types
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -76,11 +95,12 @@ export default defineContentScript({
         return true;
       }
       
-      // Selection retrieval
+      // Selection retrieval (enhanced with editable context)
       if (message.type === 'GET_SELECTION') {
-        const selection = window.getSelection();
+        const selectionContext = detectSelection();
         sendResponse({
-          selectedText: selection?.toString() || null,
+          selectedText: selectionContext?.selectedText || null,
+          selectionContext,
         });
         return true;
       }
@@ -100,17 +120,109 @@ export default defineContentScript({
       
       // Page context (lightweight)
       if (message.type === 'GET_PAGE_CONTEXT') {
+        const selectionContext = detectSelection();
         sendResponse({
           url: window.location.href,
           title: document.title,
-          selectedText: window.getSelection()?.toString() || null,
+          selectedText: selectionContext?.selectedText || null,
+          selectionContext,
         });
+        return true;
+      }
+
+      // Quick action stream messages
+      if (message.type === 'QUICK_ACTION_STREAM_START') {
+        // Use pending context first, fallback to current
+        const contextToUse = pendingQuickActionContext || currentSelectionContext;
+        const rectToUse = pendingQuickActionRect || lastSelectionRect;
+        
+        console.log('[DevMentorAI] Stream START received', { 
+          hasContext: !!contextToUse, 
+          hasRect: !!rectToUse,
+          isReplaceable: contextToUse?.isReplaceable,
+          usedPending: !!pendingQuickActionContext,
+        });
+        
+        const streamMsg = message as QuickActionStreamMessage;
+        if (streamMsg.type === 'QUICK_ACTION_STREAM_START' && contextToUse && rectToUse) {
+          // Show floating popup for streaming response
+          createFloatingResponsePopup(
+            { x: rectToUse.left + rectToUse.width / 2, y: rectToUse.bottom },
+            contextToUse,
+            currentTextReplacementBehavior,
+            () => {
+              // Cleanup on dismiss
+              currentSelectionContext = null;
+              pendingQuickActionContext = null;
+              pendingQuickActionRect = null;
+            }
+          );
+          console.log('[DevMentorAI] Popup created');
+          
+          // Clear pending since we've used it
+          pendingQuickActionContext = null;
+          pendingQuickActionRect = null;
+        } else {
+          console.warn('[DevMentorAI] Cannot create popup - missing context or rect');
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+      
+      if (message.type === 'QUICK_ACTION_STREAM_DELTA') {
+        console.log('[DevMentorAI] Stream DELTA received, length:', message.fullContent?.length);
+        const streamMsg = message as QuickActionStreamMessage;
+        if (streamMsg.type === 'QUICK_ACTION_STREAM_DELTA') {
+          updateFloatingResponseContent(streamMsg.fullContent, true);
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+      
+      if (message.type === 'QUICK_ACTION_STREAM_COMPLETE') {
+        console.log('[DevMentorAI] Stream COMPLETE received, length:', message.finalContent?.length);
+        const streamMsg = message as QuickActionStreamMessage;
+        if (streamMsg.type === 'QUICK_ACTION_STREAM_COMPLETE') {
+          updateFloatingResponseContent(streamMsg.finalContent, false);
+          
+          // Handle auto-replace behavior
+          if (currentTextReplacementBehavior === 'auto' && currentSelectionContext) {
+            handleAutoReplace(streamMsg.finalContent);
+          }
+        }
+        sendResponse({ success: true });
+        return true;
+      }
+      
+      if (message.type === 'QUICK_ACTION_STREAM_ERROR') {
+        console.log('[DevMentorAI] Stream ERROR received:', message.error);
+        const streamMsg = message as QuickActionStreamMessage;
+        if (streamMsg.type === 'QUICK_ACTION_STREAM_ERROR') {
+          showFloatingResponseError(streamMsg.error);
+        }
+        sendResponse({ success: true });
         return true;
       }
 
       // Unknown message type - return false to allow other listeners
       return false;
     });
+
+    // Handle auto-replace when behavior is set to 'auto'
+    async function handleAutoReplace(content: string) {
+      if (!currentSelectionContext) return;
+      
+      const result = await replaceSelectedText(currentSelectionContext, content);
+      
+      if (result.success) {
+        showSuccessNotice('Text replaced ✓');
+      } else if (result.copiedToClipboard) {
+        showSuccessNotice('Copied to clipboard');
+      } else {
+        // Keep popup open with error
+        showFloatingResponseError(result.error || 'Failed to replace');
+      }
+    }
 
     // Track selection changes for toolbar
     document.addEventListener('mouseup', handleMouseUp);
@@ -131,15 +243,29 @@ export default defineContentScript({
           const range = selection?.getRangeAt(0);
           if (range) {
             const rect = range.getBoundingClientRect();
-            showToolbar(rect, selectedText, e);
+            lastSelectionRect = rect;
+            
+            // Detect editable context
+            const selectionContext = detectSelection();
+            currentSelectionContext = selectionContext;
+            
+            showToolbar(rect, selectedText, selectionContext, e);
             isToolbarVisible = true;
           }
         } else if (isToolbarVisible) {
-          // Check if click is outside toolbar
+          // Check if click is outside toolbar and popup
           const toolbar = document.getElementById('devmentorai-selection-toolbar');
-          if (toolbar && !toolbar.contains(e.target as Node)) {
+          const popup = document.getElementById('devmentorai-response-popup');
+          const target = e.target as Node;
+          
+          if (toolbar && !toolbar.contains(target) && (!popup || !popup.contains(target))) {
             removeSelectionToolbar();
             isToolbarVisible = false;
+            
+            // Don't remove popup if it's visible - let user interact with it
+            if (!isFloatingResponsePopupVisible()) {
+              currentSelectionContext = null;
+            }
           }
         }
       }, 10);
@@ -155,7 +281,13 @@ export default defineContentScript({
           const range = selection?.getRangeAt(0);
           if (range) {
             const rect = range.getBoundingClientRect();
-            showToolbar(rect, selectedText);
+            lastSelectionRect = rect;
+            
+            // Detect editable context
+            const selectionContext = detectSelection();
+            currentSelectionContext = selectionContext;
+            
+            showToolbar(rect, selectedText, selectionContext);
             isToolbarVisible = true;
           }
         }
@@ -166,40 +298,63 @@ export default defineContentScript({
       // Hide toolbar when clicking outside
       if (isToolbarVisible) {
         const toolbar = document.getElementById('devmentorai-selection-toolbar');
-        if (toolbar && !toolbar.contains(e.target as Node)) {
+        const popup = document.getElementById('devmentorai-response-popup');
+        const target = e.target as Node;
+        
+        if (toolbar && !toolbar.contains(target) && (!popup || !popup.contains(target))) {
           removeSelectionToolbar();
           isToolbarVisible = false;
         }
       }
     }
 
-    function showToolbar(rect: DOMRect, selectedText: string, e?: MouseEvent) {
+    function showToolbar(rect: DOMRect, selectedText: string, selectionContext: SelectionContext | null, e?: MouseEvent) {
       // Position toolbar above selection
       const x = e ? e.clientX : rect.left + rect.width / 2;
       const y = rect.top - 10;
 
       createSelectionToolbar(x, y, selectedText, (action) => {
         // Handle quick action
-        handleQuickAction(action, selectedText);
+        handleQuickAction(action, selectedText, selectionContext);
         removeSelectionToolbar();
         isToolbarVisible = false;
       });
     }
 
-    function handleQuickAction(action: string, selectedText: string) {
-      // Send to background script
+    function handleQuickAction(action: string, selectedText: string, selectionContext: SelectionContext | null) {
+      // Store the context for the pending quick action BEFORE sending
+      // This ensures we have the context when STREAM_START arrives
+      if (selectionContext?.isReplaceable && lastSelectionRect) {
+        pendingQuickActionContext = selectionContext;
+        pendingQuickActionRect = lastSelectionRect;
+        console.log('[DevMentorAI] Stored pending quick action context');
+      }
+      
+      // Send to background script with editable context
       chrome.runtime.sendMessage({
         type: 'QUICK_ACTION',
         action,
         selectedText,
         pageUrl: window.location.href,
         pageTitle: document.title,
+        selectionContext: selectionContext?.isReplaceable ? selectionContext : null,
+        textReplacementBehavior: currentTextReplacementBehavior,
       });
     }
 
     async function loadPreferences() {
       try {
-        const result = await chrome.storage.local.get(['showSelectionToolbar', 'floatingBubbleEnabled']);
+        const result = await chrome.storage.local.get([
+          'showSelectionToolbar',
+          'floatingBubbleEnabled',
+          'textReplacementBehavior',
+        ]);
+        
+        // Update text replacement behavior
+        if (result.textReplacementBehavior) {
+          currentTextReplacementBehavior = result.textReplacementBehavior;
+        }
+        
         // Preferences loaded - toolbar enabled by default
         if (result.floatingBubbleEnabled) {
           createFloatingBubble();
@@ -209,5 +364,24 @@ export default defineContentScript({
         console.error('[DevMentorAI] Failed to load preferences:', error);
       }
     }
+
+    // Listen for settings changes
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'local') return;
+      
+      if (changes.textReplacementBehavior) {
+        currentTextReplacementBehavior = changes.textReplacementBehavior.newValue || 'ask';
+      }
+      
+      if (changes.floatingBubbleEnabled) {
+        if (changes.floatingBubbleEnabled.newValue) {
+          createFloatingBubble();
+          isBubbleVisible = true;
+        } else {
+          removeFloatingBubble();
+          isBubbleVisible = false;
+        }
+      }
+    });
   },
 });

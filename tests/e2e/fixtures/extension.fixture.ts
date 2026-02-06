@@ -10,6 +10,7 @@ export interface ExtensionFixtures {
   context: BrowserContext;
   extensionId: string;
   sidePanelPage: Page;
+  optionsPage: Page;
 }
 
 export const test = base.extend<ExtensionFixtures>({
@@ -46,6 +47,19 @@ export const test = base.extend<ExtensionFixtures>({
     const sidePanelUrl = `chrome-extension://${extensionId}/sidepanel.html`;
     const page = await context.newPage();
     await page.goto(sidePanelUrl);
+    
+    // Wait for the app to render
+    await page.waitForSelector('#root');
+    
+    await use(page);
+  },
+
+  // Get options page
+  optionsPage: async ({ context, extensionId }, use) => {
+    // Open options page directly via extension URL
+    const optionsUrl = `chrome-extension://${extensionId}/options.html`;
+    const page = await context.newPage();
+    await page.goto(optionsUrl);
     
     // Wait for the app to render
     await page.waitForSelector('#root');

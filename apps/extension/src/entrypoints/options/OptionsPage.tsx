@@ -171,23 +171,55 @@ export function OptionsPage() {
               </p>
             </div>
 
-            {/* B.3 - Translation target language */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Translation Target Language
-              </label>
-              <select
-                value={localSettings.translationLanguage}
-                onChange={(e) => updateLocalSetting('translationLanguage', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                {AVAILABLE_LANGUAGES.map(lang => (
-                  <option key={lang.code} value={lang.code}>{lang.name}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Default language for text translations
-              </p>
+            {/* Smart Translation Languages */}
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                  🌍 Smart Translation
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                  Translation automatically adapts based on context: translates to your native language when reading, 
+                  and to your target language when writing in editable fields.
+                </p>
+              </div>
+              
+              {/* Native Language - for reading/understanding */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  📖 Native Language (for reading)
+                </label>
+                <select
+                  value={localSettings.translationLanguage}
+                  onChange={(e) => updateLocalSetting('translationLanguage', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  {AVAILABLE_LANGUAGES.map(lang => (
+                    <option key={lang.code} value={lang.code}>{lang.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  When you select text to read (non-editable), it translates to this language
+                </p>
+              </div>
+              
+              {/* Target Language - for writing/output */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  ✍️ Target Language (for writing)
+                </label>
+                <select
+                  value={localSettings.targetTranslationLanguage}
+                  onChange={(e) => updateLocalSetting('targetTranslationLanguage', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  {AVAILABLE_LANGUAGES.map(lang => (
+                    <option key={lang.code} value={lang.code}>{lang.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  When you select text in an editable field, it translates to this language for replacement
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -347,6 +379,63 @@ export function OptionsPage() {
                 {localSettings.communicationMode === 'http' 
                   ? 'Uses local HTTP server (requires backend running)'
                   : 'Uses Native Messaging (requires native host installed)'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Text Replacement Behavior
+              </label>
+              <div className="flex gap-2">
+                {(['ask', 'auto', 'never'] as const).map((behavior) => (
+                  <button
+                    key={behavior}
+                    onClick={() => updateLocalSetting('textReplacementBehavior', behavior)}
+                    className={`flex-1 py-2 px-3 rounded-lg border transition-colors text-sm ${
+                      localSettings.textReplacementBehavior === behavior
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary'
+                    }`}
+                  >
+                    {behavior === 'ask' && '❓ Ask'}
+                    {behavior === 'auto' && '⚡ Auto'}
+                    {behavior === 'never' && '📋 Copy Only'}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                {localSettings.textReplacementBehavior === 'ask' 
+                  ? 'Show Replace/Copy options after AI response'
+                  : localSettings.textReplacementBehavior === 'auto'
+                    ? 'Automatically replace text in editable fields'
+                    : 'Only copy AI results to clipboard (no replacement)'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Quick Action Model
+              </label>
+              <select
+                value={localSettings.quickActionModel}
+                onChange={(e) => updateLocalSetting('quickActionModel', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="gpt-4.1">GPT-4.1 (Fast)</option>
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
+                <option value="claude-3-5-haiku">Claude 3.5 Haiku (Fast)</option>
+              </select>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Model used for quick actions like grammar fix, rewrite, translate
               </p>
             </div>
           </div>

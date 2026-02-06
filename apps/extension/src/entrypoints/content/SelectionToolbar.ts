@@ -145,15 +145,35 @@ export function createSelectionToolbar(
       z-index: 100;
     }
     
+    .tone-menu.drop-down {
+      bottom: auto;
+      top: calc(100% + 8px);
+    }
+    
     .tone-menu.visible {
       display: block;
       animation: slideUp 0.15s ease-out;
+    }
+    
+    .tone-menu.drop-down.visible {
+      animation: slideDown 0.15s ease-out;
     }
     
     @keyframes slideUp {
       from {
         opacity: 0;
         transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-8px);
       }
       to {
         opacity: 1;
@@ -250,14 +270,26 @@ export function createSelectionToolbar(
     e.preventDefault();
     e.stopPropagation();
     const isVisible = toneMenu.classList.contains('visible');
+    
+    if (!isVisible) {
+      // Decide direction: check if there's enough space above the toolbar
+      const btnRect = toneBtn.getBoundingClientRect();
+      const menuHeight = 280; // approximate height of 6 tone items
+      const spaceAbove = btnRect.top;
+      
+      if (spaceAbove < menuHeight) {
+        toneMenu.classList.add('drop-down');
+      } else {
+        toneMenu.classList.remove('drop-down');
+      }
+    }
+    
     toneMenu.classList.toggle('visible');
     
     // Only add close handler when opening the menu
     if (!isVisible) {
-      // Use setTimeout to avoid immediate trigger from the same click event
       setTimeout(() => {
         const closeHandler = (event: Event) => {
-          // Check if click is inside the tone menu
           if (!toneMenu.contains(event.target as Node) && !toneBtn.contains(event.target as Node)) {
             toneMenu.classList.remove('visible');
             document.removeEventListener('click', closeHandler);

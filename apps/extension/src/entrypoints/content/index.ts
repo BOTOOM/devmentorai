@@ -233,39 +233,59 @@ export default defineContentScript({
     loadPreferences();
 
     function handleMouseUp(e: MouseEvent) {
+      // IMPORTANT: Capture composedPath synchronously — it returns [] after event dispatch ends
+      const toolbar = document.getElementById('devmentorai-selection-toolbar');
+      const popup = document.getElementById('devmentorai-response-popup');
+      const path = e.composedPath?.() || [];
+      const clickedInsideToolbar = !!(toolbar && path.some(el => el === toolbar));
+      const clickedInsidePopup = !!(popup && path.some(el => el === popup));
+      
       // Small delay to ensure selection is complete
       setTimeout(() => {
+        // If toolbar is visible and click was inside it — don't recreate
+        if (isToolbarVisible && (clickedInsideToolbar || clickedInsidePopup)) {
+          return;
+        }
+        
+        if (isToolbarVisible) {
+          // Click was outside toolbar — check if there's a new selection
+          const selection = window.getSelection();
+          const selectedText = selection?.toString().trim() || '';
+          
+          if (selectedText.length > 3) {
+            // New selection — recreate toolbar at new position
+            const range = selection?.getRangeAt(0);
+            if (range) {
+              const rect = range.getBoundingClientRect();
+              lastSelectionRect = rect;
+              const selectionContext = detectSelection();
+              currentSelectionContext = selectionContext;
+              showToolbar(rect, selectedText, selectionContext, e);
+            }
+          } else {
+            // No selection and click outside — close toolbar
+            removeSelectionToolbar();
+            isToolbarVisible = false;
+            if (!isFloatingResponsePopupVisible()) {
+              currentSelectionContext = null;
+            }
+          }
+          return;
+        }
+        
+        // No toolbar visible yet — check if we should show one
         const selection = window.getSelection();
         const selectedText = selection?.toString().trim() || '';
 
         if (selectedText.length > 3) {
-          // Get selection position
           const range = selection?.getRangeAt(0);
           if (range) {
             const rect = range.getBoundingClientRect();
             lastSelectionRect = rect;
-            
-            // Detect editable context
             const selectionContext = detectSelection();
             currentSelectionContext = selectionContext;
-            
             showToolbar(rect, selectedText, selectionContext, e);
             isToolbarVisible = true;
-          }
-        } else if (isToolbarVisible) {
-          // Check if click is outside toolbar and popup
-          const toolbar = document.getElementById('devmentorai-selection-toolbar');
-          const popup = document.getElementById('devmentorai-response-popup');
-          const target = e.target as Node;
-          
-          if (toolbar && !toolbar.contains(target) && (!popup || !popup.contains(target))) {
-            removeSelectionToolbar();
-            isToolbarVisible = false;
-            
-            // Don't remove popup if it's visible - let user interact with it
-            if (!isFloatingResponsePopupVisible()) {
-              currentSelectionContext = null;
-            }
           }
         }
       }, 10);
@@ -299,9 +319,11 @@ export default defineContentScript({
       if (isToolbarVisible) {
         const toolbar = document.getElementById('devmentorai-selection-toolbar');
         const popup = document.getElementById('devmentorai-response-popup');
-        const target = e.target as Node;
+        const path = e.composedPath?.() || [];
+        const isClickInsideToolbar = toolbar && path.some(el => el === toolbar);
+        const isClickInsidePopup = popup && path.some(el => el === popup);
         
-        if (toolbar && !toolbar.contains(target) && (!popup || !popup.contains(target))) {
+        if (!isClickInsideToolbar && !isClickInsidePopup) {
           removeSelectionToolbar();
           isToolbarVisible = false;
         }

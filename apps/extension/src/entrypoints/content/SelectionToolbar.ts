@@ -249,13 +249,24 @@ export function createSelectionToolbar(
   toneBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    const isVisible = toneMenu.classList.contains('visible');
     toneMenu.classList.toggle('visible');
+    
+    // Only add close handler when opening the menu
+    if (!isVisible) {
+      // Use setTimeout to avoid immediate trigger from the same click event
+      setTimeout(() => {
+        const closeHandler = (event: Event) => {
+          // Check if click is inside the tone menu
+          if (!toneMenu.contains(event.target as Node) && !toneBtn.contains(event.target as Node)) {
+            toneMenu.classList.remove('visible');
+            document.removeEventListener('click', closeHandler);
+          }
+        };
+        document.addEventListener('click', closeHandler);
+      }, 0);
+    }
   });
-
-  // Close menu when clicking outside
-  document.addEventListener('click', () => {
-    toneMenu.classList.remove('visible');
-  }, { once: true });
 
   toneContainer.appendChild(toneBtn);
   toneContainer.appendChild(toneMenu);

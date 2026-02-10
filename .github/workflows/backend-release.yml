@@ -6,6 +6,10 @@ on:
     paths:
       - 'apps/backend/**'
       - 'packages/shared/**'
+  pull_request:
+    paths:
+      - 'apps/backend/**'
+      - 'packages/shared/**'
   workflow_dispatch:
     inputs:
       skip_tests:
@@ -56,7 +60,7 @@ jobs:
   release:
     name: Release & Publish
     needs: test
-    if: ${{ always() && (needs.test.result == 'success' || inputs.skip_tests) }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && (always() && (needs.test.result == 'success' || inputs.skip_tests)) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

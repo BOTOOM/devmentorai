@@ -65,7 +65,7 @@ jobs:
   release:
     name: Release
     needs: test
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && (always() && (needs.test.result == 'success' || inputs.skip_tests)) }}
+    if: ${{ github.event_name != 'pull_request' && (always() && (needs.test.result == 'success' || inputs.skip_tests)) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

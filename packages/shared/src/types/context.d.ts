@@ -10,6 +10,7 @@ export interface PlatformDetection {
     confidence: number;
     indicators: string[];
     specificProduct?: string;
+    specificContext?: Record<string, unknown>;
 }
 export type ErrorType = 'error' | 'warning' | 'info';
 export type ErrorSeverity = 'critical' | 'high' | 'medium' | 'low';
@@ -30,7 +31,7 @@ export interface HTMLElementSnapshot {
     textContent?: string;
     attributes: Record<string, string>;
 }
-export type SectionPurpose = 'error-container' | 'alert' | 'panel' | 'table' | 'form' | 'code-block' | 'generic';
+export type SectionPurpose = 'error-container' | 'alert' | 'panel' | 'table' | 'form' | 'code-block' | 'modal' | 'generic';
 export interface HTMLSection {
     purpose: SectionPurpose;
     outerHTML: string;
@@ -42,6 +43,7 @@ export interface Heading {
     level: 1 | 2 | 3;
     text: string;
     xpath?: string;
+    hierarchy?: string;
 }
 export interface ConsoleLogs {
     errors: string[];
@@ -49,12 +51,34 @@ export interface ConsoleLogs {
     included: boolean;
     truncated: boolean;
 }
+export interface CapturedConsoleLog {
+    level: 'log' | 'warn' | 'error' | 'info' | 'debug';
+    message: string;
+    timestamp: string;
+    stackTrace?: string;
+}
+export interface CapturedNetworkError {
+    url: string;
+    method: string;
+    status?: number;
+    statusText?: string;
+    errorMessage?: string;
+    timestamp: string;
+}
 export interface TextExtractionMetadata {
     totalLength: number;
     truncated: boolean;
     truncationReason?: string;
 }
+/**
+ * @deprecated Phase 3: The agent (LLM) now determines intent autonomously.
+ * This type is kept for backward compatibility but fields are optional.
+ */
 export type IntentType = 'debug' | 'understand' | 'mentor' | 'help' | 'explain' | 'guide';
+/**
+ * @deprecated Phase 3: Intent is no longer computed by the extension.
+ * The agent interprets user intent directly from their message.
+ */
 export interface UserIntent {
     primary: IntentType;
     keywords: string[];
@@ -89,6 +113,8 @@ export interface PrivacyInfo {
     sensitiveDataDetected: boolean;
     consentGiven: boolean;
     dataRetention: 'session' | 'none';
+    privacyMaskingApplied?: boolean;
+    sensitiveDataTypes?: string[];
 }
 export interface ContextPayload {
     metadata: {
@@ -101,6 +127,14 @@ export interface ContextPayload {
                 height: number;
             };
             language: string;
+        };
+        phase2Features?: {
+            consoleLogs: number;
+            networkErrors: number;
+            codeBlocks: number;
+            tables: number;
+            forms: number;
+            hasModal: boolean;
         };
     };
     page: {
@@ -122,11 +156,17 @@ export interface ContextPayload {
         headings: Heading[];
         errors: ExtractedError[];
         logs?: ConsoleLogs;
+        consoleLogs?: CapturedConsoleLog[];
+        networkErrors?: CapturedNetworkError[];
         metadata: TextExtractionMetadata;
     };
     structure: {
         relevantSections: HTMLSection[];
         errorContainers: HTMLSection[];
+        codeBlocks?: HTMLSection[];
+        tables?: HTMLSection[];
+        forms?: HTMLSection[];
+        modal?: HTMLSection;
         activeElements: {
             focusedElement?: HTMLElementSnapshot;
             activeModals?: HTMLSection[];

@@ -24,6 +24,10 @@ export interface HealthResponse {
     copilotConnected: boolean;
     uptime: number;
     timestamp: string;
+    /** Latest available version (if update check has run) */
+    latestVersion?: string;
+    /** Whether a newer version is available */
+    updateAvailable?: boolean;
 }
 export interface ModelInfo {
     id: string;

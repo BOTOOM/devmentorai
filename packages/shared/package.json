@@ -12,6 +12,7 @@
     "./utils": "./src/utils/index.ts"
   },
   "scripts": {
+    "build": "tsc --noEmit false --allowImportingTsExtensions false --outDir src --declaration --declarationMap --sourceMap",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "clean": "rm -rf dist"

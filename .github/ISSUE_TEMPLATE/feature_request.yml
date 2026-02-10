@@ -1,0 +1,51 @@
+name: Feature Request
+description: Suggest a new feature for DevMentorAI
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please fill out the information below.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature related to a problem?
+      description: A clear description of the problem. E.g., I am always frustrated when...
+    validations:
+      required: false
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the Feature
+      description: A clear description of what you want to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe Alternatives
+      description: Any alternative solutions or features you have considered.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project does this relate to?
+      options:
+        - Extension UI
+        - Backend
+        - DevOps Tools
+        - Writing Assistant
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context or screenshots about the feature request.
+    validations:
+      required: false

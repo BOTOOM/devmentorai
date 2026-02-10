@@ -1,5 +1,9 @@
 # DevMentorAI
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink)](https://github.com/sponsors/BOTOOM)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/edwardiazdev)
+
 A Chrome/Chromium browser extension that provides DevOps mentoring, infrastructure guidance, and writing assistance powered by GitHub Copilot CLI via the Copilot SDK for Node.js.
 
 ## Features
@@ -283,8 +287,15 @@ export const myTool: Tool = {
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
-Contributions are welcome! Please read the architecture documentation in `docs/ARCHITECTURE.md` first.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before getting started.
+
+## Support
+
+If you find DevMentorAI useful, consider supporting the project:
+
+- [GitHub Sponsors](https://github.com/sponsors/BOTOOM)
+- [Buy Me a Coffee](https://buymeacoffee.com/edwardiazdev)

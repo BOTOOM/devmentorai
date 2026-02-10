@@ -15,6 +15,18 @@ export const DATA_DIR = path.join(os.homedir(), '.devmentorai');
 /** Images directory: ~/.devmentorai/images */
 export const IMAGES_DIR = path.join(DATA_DIR, 'images');
 
+/** Logs directory: ~/.devmentorai/logs */
+export const LOG_DIR = path.join(DATA_DIR, 'logs');
+
+/** Server log file: ~/.devmentorai/logs/server.log */
+export const LOG_FILE = path.join(LOG_DIR, 'server.log');
+
+/** PID file: ~/.devmentorai/server.pid */
+export const PID_FILE = path.join(DATA_DIR, 'server.pid');
+
+/** Config file: ~/.devmentorai/config.json */
+export const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+
 /**
  * Ensure a directory exists, creating it if necessary
  */
@@ -124,5 +136,6 @@ export function getFileStats(filePath: string): fs.Stats | null {
   }
 }
 
-// Initialize images directory on module load
+// Initialize directories on module load
 ensureDir(IMAGES_DIR);
+ensureDir(LOG_DIR);

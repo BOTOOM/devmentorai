@@ -45,7 +45,7 @@ export default defineConfig({
   ],
   // Run backend before tests
   webServer: {
-    command: 'pnpm --filter @devmentorai/backend dev',
+    command: 'pnpm --filter devmentorai-server dev',
     url: 'http://localhost:3847/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,

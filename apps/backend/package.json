@@ -1,21 +1,54 @@
 {
-  "name": "@devmentorai/backend",
+  "name": "devmentorai-server",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "type": "module",
+  "description": "DevMentorAI backend server — AI-powered DevOps mentoring via GitHub Copilot. Run with: npx devmentorai-server",
+  "license": "MIT",
   "main": "./dist/server.js",
+  "bin": {
+    "devmentorai-server": "./dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "devmentorai",
+    "copilot",
+    "github-copilot",
+    "devops",
+    "ai",
+    "cli",
+    "mentoring"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BOTOOM/devmentorai.git",
+    "directory": "apps/backend"
+  },
+  "homepage": "https://github.com/BOTOOM/devmentorai#readme",
+  "bugs": {
+    "url": "https://github.com/BOTOOM/devmentorai/issues"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "echo 'Backend uses tsx for runtime - no build needed'",
-    "start": "tsx src/server.ts",
+    "build": "tsup",
+    "start": "node dist/server.js",
+    "start:cli": "node dist/cli.js",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm run build",
+    "release": "semantic-release"
   },
   "dependencies": {
-    "@devmentorai/shared": "workspace:*",
     "@fastify/cors": "^10.0.2",
     "@github/copilot-sdk": "^0.1.0",
     "better-sqlite3": "^11.7.0",
@@ -27,10 +60,20 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@devmentorai/shared": "workspace:*",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.5",
+    "@semantic-release/npm": "^13.1.4",
+    "@semantic-release/release-notes-generator": "^14.1.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.5",
     "@types/sharp": "^0.32.0",
+    "conventional-changelog-conventionalcommits": "^9.1.0",
     "drizzle-kit": "^0.30.2",
+    "semantic-release": "^25.0.3",
+    "tsup": "^8.5.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"

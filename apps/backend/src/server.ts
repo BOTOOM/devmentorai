@@ -11,7 +11,7 @@ import { SessionService } from './services/session.service.js';
 import { initDatabase } from './db/index.js';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
 
-const PORT = DEFAULT_CONFIG.DEFAULT_PORT;
+const PORT = parseInt(process.env.DEVMENTORAI_PORT || '', 10) || DEFAULT_CONFIG.DEFAULT_PORT;
 const HOST = '0.0.0.0';
 
 // Observability mode - enable with DEVMENTORAI_DEBUG=true

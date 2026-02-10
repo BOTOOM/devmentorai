@@ -6,6 +6,10 @@ on:
     paths:
       - 'apps/extension/**'
       - 'packages/shared/**'
+  pull_request:
+    paths:
+      - 'apps/extension/**'
+      - 'packages/shared/**'
   workflow_dispatch:
     inputs:
       skip_tests:
@@ -43,6 +47,9 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @devmentorai/shared build
 
+      - name: Prepare WXT types
+        run: pnpm --filter @devmentorai/extension exec wxt prepare
+
       - name: Typecheck extension
         run: pnpm --filter @devmentorai/extension typecheck
 
@@ -58,7 +65,7 @@ jobs:
   release:
     name: Release
     needs: test
-    if: ${{ always() && (needs.test.result == 'success' || inputs.skip_tests) }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && (always() && (needs.test.result == 'success' || inputs.skip_tests)) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

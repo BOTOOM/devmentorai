@@ -85,6 +85,12 @@ jobs:
       - name: Build backend
         run: pnpm --filter devmentorai-server build
 
+      - name: Sync with remote
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin master
+
       - name: Run semantic-release
         working-directory: apps/backend
         run: npx semantic-release

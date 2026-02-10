@@ -41,7 +41,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "node ../../scripts/sync-extension-version.mjs ${nextRelease.version} && pnpm zip && pnpm zip:firefox && mv .output/*-firefox.zip .output/devmentoraiextension-${nextRelease.version}-firefox.xpi || true"
+        "prepareCmd": "node ../../scripts/sync-extension-version.mjs ${nextRelease.version} && pnpm build && pnpm build:firefox && pnpm zip && pnpm zip:firefox && mv .output/*-firefox.zip .output/devmentoraiextension-${nextRelease.version}-firefox.xpi"
       }
     ],
     [

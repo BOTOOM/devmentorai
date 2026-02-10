@@ -136,6 +136,10 @@ pnpm install
 pnpm dev:backend
 ```
 
+## Support
+
+Found a bug or have a feature request? [Open an issue](https://github.com/BOTOOM/devmentorai/issues/new) on GitHub.
+
 ## License
 
 MIT © [BOTOOM](https://github.com/BOTOOM)

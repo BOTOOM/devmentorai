@@ -1,0 +1,31 @@
+# DevMentorAI
+
+> DevMentorAI is a Chrome/Firefox browser extension powered by GitHub Copilot CLI that provides AI-powered DevOps mentoring, writing assistance, and development help directly in your browser. It captures page context (DOM, errors, network logs) and works on authenticated/private pages with a privacy-first local architecture.
+
+- Backend installable via: `npx devmentorai-server`
+- Extension available for Chrome and Firefox on [GitHub Releases](https://github.com/BOTOOM/devmentorai/releases)
+- Powered by GitHub Copilot SDK (local CLI, no cloud storage)
+- MIT Licensed open source project
+
+## Docs
+
+- [Architecture](https://github.com/BOTOOM/devmentorai/blob/master/docs/ARCHITECTURE.md): System architecture, data flow, and design decisions
+- [Context-Aware Mode](https://github.com/BOTOOM/devmentorai/blob/master/docs/CONTEXT_AWARE_MODE.md): How page context extraction works across 10+ platforms
+- [Image Handling](https://github.com/BOTOOM/devmentorai/blob/master/docs/IMAGE_HANDLING.md): Screenshot capture, paste/drag-drop, and thumbnail system
+- [README](https://github.com/BOTOOM/devmentorai/blob/master/README.md): Full project overview, quick start, and API reference
+
+## Features
+
+- [Session Types]: DevOps Mentor, Writing Assistant, Development Helper, General Assistant
+- [DevOps Tools]: Config analysis (Kubernetes, Docker, Terraform, CloudFormation, GitHub Actions), error diagnosis, sandboxed file reading
+- [Context Awareness]: DOM structure, console logs, network errors, code blocks, tables, platform detection (AWS, Azure, GCP, GitHub, GitLab, Kubernetes, Datadog, Grafana, Jenkins)
+- [Privacy]: Local-only processing on localhost:3847, no credential storage, automatic PII redaction (tokens, API keys, passwords), file system sandbox
+- [Image Support]: Screenshot capture, clipboard paste, drag & drop, lightbox viewer, up to 5 images per message
+- [UX]: Side panel chat, floating bubble, selection toolbar, multi-session, SSE streaming, keyboard shortcuts, i18n (English/Spanish)
+- [Communication]: HTTP/SSE adapter + optional Chrome Native Messaging for enhanced security
+
+## Optional
+
+- [Contributing](https://github.com/BOTOOM/devmentorai/blob/master/CONTRIBUTING.md): How to contribute to the project
+- [Security Policy](https://github.com/BOTOOM/devmentorai/blob/master/SECURITY.md): Security vulnerability reporting
+- [Code of Conduct](https://github.com/BOTOOM/devmentorai/blob/master/CODE_OF_CONDUCT.md): Community guidelines

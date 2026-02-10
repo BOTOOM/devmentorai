@@ -1,0 +1,119 @@
+# DevMentorAI — Full Context
+
+> DevMentorAI is a Chrome/Firefox browser extension powered by GitHub Copilot CLI that provides AI-powered DevOps mentoring, writing assistance, and development help directly in your browser. It captures page context (DOM, errors, network logs) and works on authenticated/private pages with a privacy-first local architecture.
+
+- Backend installable via: `npx devmentorai-server` (npm: https://www.npmjs.com/package/devmentorai-server)
+- Extension available for Chrome (.zip) and Firefox (.xpi) on GitHub Releases: https://github.com/BOTOOM/devmentorai/releases
+- Powered by GitHub Copilot SDK via JSON-RPC (local CLI, no cloud storage)
+- MIT Licensed open source project
+- Repository: https://github.com/BOTOOM/devmentorai
+
+## Architecture
+
+DevMentorAI is a monorepo with three packages:
+
+1. **Extension** (`apps/extension/`): WXT-based Chrome/Firefox extension with React + Tailwind CSS
+   - Side Panel (primary chat UI)
+   - Content Scripts (floating bubble, selection toolbar)
+   - Background Service Worker (context menus, message routing, keyboard shortcuts)
+   - Communication Service with dual-protocol support (HTTP adapter + Native Messaging adapter)
+
+2. **Backend** (`apps/backend/`): Fastify server with SQLite persistence
+   - Session management (CRUD, multi-session support)
+   - CopilotService wrapping @github/copilot-sdk
+   - SSE streaming for real-time AI responses
+   - Custom DevOps tools (read_file, list_directory, analyze_config, analyze_error)
+   - Image handling with Sharp-based thumbnail service
+   - Runs on localhost:3847 by default
+
+3. **Shared** (`packages/shared/`): TypeScript types, contracts, and utilities
+
+### Data Flow
+User types message → React hook → CommunicationService → POST /api/sessions/:id/chat/stream → Backend saves to SQLite → CopilotService.streamMessage() → SDK emits events → SSE to client → React updates UI → Save assistant message → Close SSE
+
+### Communication Protocols
+- **HTTP/SSE** (default): REST API + Server-Sent Events for streaming
+- **Native Messaging** (optional): Chrome Native Messaging for enhanced security (stdin/stdout JSON messages)
+
+## Session Types
+
+| Type | Agent | Description |
+|------|-------|-------------|
+| DevOps | devops-mentor | Expert in AWS, Azure, GCP, Kubernetes, CI/CD, Terraform, security |
+| Writing | writing-assistant | Email composition, rewriting, translation, grammar, tone adjustment |
+| Development | dev-helper | Code review, debugging, architecture, testing, refactoring |
+| General | (default Copilot) | General-purpose AI assistant |
+
+## Custom DevOps Tools
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| read_file | Read local file contents (sandboxed) | path, maxLines |
+| list_directory | Browse file system (max depth 3) | path, recursive |
+| analyze_config | Analyze IaC configs for best practices | content, type (kubernetes/docker/terraform/cloudformation/github-actions) |
+| analyze_error | Diagnose error messages with solutions | error, context |
+
+Supported config types: Kubernetes manifests, Dockerfile, Terraform (.tf), CloudFormation (YAML/JSON), GitHub Actions workflows.
+
+## Context-Aware Mode
+
+When enabled, the extension extracts:
+- Page URL, title, visible text (truncated to 5000 chars)
+- Headings (H1-H3)
+- Error messages and alerts (ARIA roles, CSS classes, red text)
+- Console errors and warnings
+- Failed network requests (fetch/XHR)
+- Code blocks with language detection
+- Data tables with structure
+- Platform-specific context (Azure subscription/resource group, AWS region/service, GCP project, GitHub repo/actions)
+
+### Automatic Redaction
+- Bearer tokens, API keys, URL parameters (token, key, secret, password)
+- Password field contents
+- Sensitive form data
+
+### Supported Platforms
+Azure (Portal, DevOps, VMs), AWS (Console, EC2, S3, CloudFormation), GCP (Cloud Console, GKE, Cloud Run), GitHub (Repos, Actions, Issues, PRs), GitLab (Projects, Pipelines, MRs), Kubernetes (Dashboard, Lens), Datadog, Grafana, Jenkins
+
+## Image Handling
+
+- Screenshot capture of visible tab
+- Clipboard paste and drag & drop
+- Max 5 images per message, 5MB each
+- Supported: PNG, JPEG, WebP
+- Thumbnails: 200x200px JPEG at 60% quality, stored in ~/.devmentorai/images/
+- Original images sent to Copilot API, only thumbnails persisted
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/health | Health check |
+| GET/POST | /api/sessions | List/Create sessions |
+| GET/PATCH/DELETE | /api/sessions/:id | Get/Update/Delete session |
+| POST | /api/sessions/:id/chat/stream | Stream message (SSE) |
+| GET | /api/models | List available models |
+| POST | /api/tools/analyze-config | Analyze configuration |
+| POST | /api/tools/analyze-error | Diagnose error |
+
+## Installation
+
+1. Install backend: `npx devmentorai-server`
+2. Download extension from GitHub Releases
+3. Load in Chrome via chrome://extensions (Developer mode → Load unpacked)
+
+Prerequisites: Node.js 20+, GitHub Copilot CLI installed and authenticated
+
+## Security
+
+- No credential storage (relies on Copilot CLI auth)
+- Local-only communication (localhost)
+- Zod schema validation on all API inputs
+- Shadow DOM for content script isolation
+- File system sandbox for DevOps tools
+
+## Optional
+
+- [Contributing](https://github.com/BOTOOM/devmentorai/blob/master/CONTRIBUTING.md): How to contribute
+- [Security Policy](https://github.com/BOTOOM/devmentorai/blob/master/SECURITY.md): Vulnerability reporting
+- [Code of Conduct](https://github.com/BOTOOM/devmentorai/blob/master/CODE_OF_CONDUCT.md): Community guidelines

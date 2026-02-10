@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
 const CLI_PATH = path.resolve(__dirname, '../../dist/cli.js');
+const CLI_EXISTS = fs.existsSync(CLI_PATH);
 
-describe('CLI entry point', () => {
+describe.skipIf(!CLI_EXISTS)('CLI entry point', () => {
   it('should show help with --help flag', () => {
     const output = execSync(`node ${CLI_PATH} --help`, { encoding: 'utf-8' });
     expect(output).toContain('devmentorai-server');

@@ -11,7 +11,7 @@ export async function healthRoutes(fastify: FastifyInstance) {
     
     const healthData: HealthResponse = {
       status: copilotService.isReady() ? 'healthy' : 'degraded',
-      version: '0.1.0',
+      version: '1.0.0',
       copilotConnected: copilotService.isReady() && !copilotService.isMockMode(),
       uptime: Math.floor((Date.now() - startTime) / 1000),
       timestamp: new Date().toISOString(),

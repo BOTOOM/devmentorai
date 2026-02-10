@@ -44,11 +44,11 @@ jobs:
       - name: Typecheck backend
         run: pnpm --filter devmentorai-server typecheck
 
-      - name: Run backend tests
-        run: pnpm --filter devmentorai-server test -- --run
-
       - name: Build backend
         run: pnpm --filter devmentorai-server build
+
+      - name: Run backend tests
+        run: pnpm --filter devmentorai-server test -- --run
 
   release:
     name: Release & Publish

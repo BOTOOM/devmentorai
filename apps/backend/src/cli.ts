@@ -18,7 +18,7 @@ import { statusCommand } from './cli/status.js';
 import { logsCommand } from './cli/logs.js';
 import { doctorCommand } from './cli/doctor.js';
 
-const VERSION = '0.1.0';
+const VERSION = '1.0.0';
 
 const HELP = `
 devmentorai-server v${VERSION}

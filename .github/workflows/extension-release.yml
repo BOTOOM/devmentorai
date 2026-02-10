@@ -89,11 +89,13 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @devmentorai/shared build
 
-      - name: Sync with remote
+      - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin master
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git fetch origin master:master
+          git reset --hard origin/master
 
       - name: Run semantic-release
         working-directory: apps/extension

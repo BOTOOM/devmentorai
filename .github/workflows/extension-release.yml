@@ -40,6 +40,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared package
+        run: pnpm --filter @devmentorai/shared build
+
+      - name: Typecheck extension
+        run: pnpm --filter @devmentorai/extension typecheck
+
       - name: Build extension (Chrome)
         run: pnpm --filter @devmentorai/extension build
 
@@ -72,6 +78,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm --filter @devmentorai/shared build
 
       - name: Build extension (for zip)
         run: pnpm --filter @devmentorai/extension build

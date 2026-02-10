@@ -1,3 +1,3 @@
-export * from './api.contracts.ts';
-export * from './session-types.ts';
+export * from './api.contracts.js';
+export * from './session-types.js';
 //# sourceMappingURL=index.d.ts.map

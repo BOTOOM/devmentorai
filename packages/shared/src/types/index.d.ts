@@ -1,5 +1,5 @@
-export * from './session.ts';
-export * from './message.ts';
-export * from './api.ts';
-export * from './context.ts';
+export * from './session.js';
+export * from './message.js';
+export * from './api.js';
+export * from './context.js';
 //# sourceMappingURL=index.d.ts.map

@@ -2,7 +2,7 @@
  * API contract definitions for DevMentorAI
  * These define the endpoints and their request/response types
  */
-import type { Session, CreateSessionRequest, UpdateSessionRequest, Message, SendMessageRequest, ApiResponse, PaginatedResponse, HealthResponse, ModelInfo } from '../types/index.ts';
+import type { Session, CreateSessionRequest, UpdateSessionRequest, Message, SendMessageRequest, ApiResponse, PaginatedResponse, HealthResponse, ModelInfo } from '../types/index.js';
 /**
  * Backend API endpoints contract
  */

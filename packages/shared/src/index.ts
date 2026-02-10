@@ -1,8 +1,8 @@
 // Types
-export * from './types/index.ts';
+export * from './types/index.js';
 
 // Contracts
-export * from './contracts/index.ts';
+export * from './contracts/index.js';
 
 // Utils
-export * from './utils/index.ts';
+export * from './utils/index.js';

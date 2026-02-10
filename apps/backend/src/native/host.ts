@@ -129,6 +129,7 @@ class NativeMessagingHost {
 
   /**
    * Handle incoming native message by routing to Fastify
+   * TODO: Fix type compatibility with Fastify inject API
    */
   private async handleMessage(message: NativeMessage): Promise<void> {
     if (!this.app) {
@@ -153,25 +154,26 @@ class NativeMessagingHost {
     try {
       // Route the request through Fastify's inject method
       const response = await this.app.inject({
-        method: message.method as 'GET' | 'POST' | 'PUT' | 'DELETE',
+        method: message.method as any,
         url: message.path,
-        payload: message.body,
+        payload: message.body as any,
         headers: {
           'content-type': 'application/json',
         },
       });
 
       // Check if this is a streaming response
-      if (message.type === 'stream' && response.headers['content-type']?.includes('text/event-stream')) {
+      const contentType = (response.headers as any)['content-type'];
+      if (message.type === 'stream' && contentType?.includes('text/event-stream')) {
         // Handle SSE streaming
-        await this.handleStreamResponse(message.id, response.payload);
+        await this.handleStreamResponse(message.id, String(response.payload));
       } else {
         // Regular response
         let data: unknown;
         try {
-          data = JSON.parse(response.payload);
+          data = JSON.parse(String(response.payload));
         } catch {
-          data = response.payload;
+          data = String(response.payload);
         }
 
         this.writeMessage({

@@ -13,7 +13,7 @@ import type {
   PaginatedResponse,
   HealthResponse,
   ModelInfo,
-} from '../types/index.ts';
+} from '../types/index.js';
 
 /**
  * Backend API endpoints contract

@@ -1,4 +1,5 @@
 import { CopilotClient, type SessionEvent } from '@github/copilot-sdk';
+import type { Tool as CopilotTool } from '@github/copilot-sdk';
 import { SessionService } from './session.service.js';
 import { getAgentConfig, SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
 import type { SessionType, MessageContext } from '@devmentorai/shared';
@@ -10,20 +11,13 @@ interface CopilotSession {
   type: SessionType;
 }
 
-interface MCPServerConfig {
-  type: 'http' | 'stdio';
-  url?: string;
-  command?: string;
-  args?: string[];
-}
-
 // MCP server configurations for different integrations
-const MCP_SERVERS: Record<string, MCPServerConfig> = {
+const MCP_SERVERS: Record<string, { type: 'http'; url: string; tools: string[] }> = {
   github: {
     type: 'http',
     url: 'https://api.githubcopilot.com/mcp/',
+    tools: ['*'],
   },
-  // Future: Add more MCP servers like filesystem, database, etc.
 };
 
 export class CopilotService {
@@ -76,8 +70,9 @@ export class CopilotService {
     const agentConfig = getAgentConfig(type);
     const typeConfig = SESSION_TYPE_CONFIGS[type];
 
-    // Build tools for DevOps sessions
-    const tools = type === 'devops' ? this.buildToolDefinitions() : undefined;
+    // Build SDK-compatible tools for DevOps sessions
+    // The SDK calls tool.handler() directly and uses the return value as the result
+    const tools = type === 'devops' ? this.buildSdkTools() : undefined;
 
     // Build MCP server config if enabled
     const mcpServers = enableMcp ? MCP_SERVERS : undefined;
@@ -92,64 +87,29 @@ export class CopilotService {
       mcpServers,
     });
 
-    // Set up tool execution handler
-    if (tools) {
-      session.on((event: SessionEvent) => {
-        if (event.type === 'tool.execution_start') {
-          this.handleToolExecution(sessionId, event);
-        }
-      });
-    }
-
     this.sessions.set(sessionId, { sessionId, session, type });
   }
 
   /**
-   * Build tool definitions from DevOps tools for Copilot SDK
+   * Convert our Tool definitions to Copilot SDK Tool format.
+   * The SDK expects tools with a `handler` function — it calls the handler
+   * directly and uses the return value as the tool result (no sendToolResult needed).
    */
-  private buildToolDefinitions(): Record<string, unknown>[] {
-    return devopsTools.map(tool => ({
+  private buildSdkTools(): CopilotTool<any>[] {
+    return devopsTools.map((tool): CopilotTool<any> => ({
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters,
+      handler: async (args: Record<string, unknown>) => {
+        console.log(`[CopilotService] Executing tool ${tool.name}`);
+        try {
+          return await tool.handler(args);
+        } catch (error) {
+          console.error(`[CopilotService] Tool ${tool.name} failed:`, error);
+          return `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        }
+      },
     }));
-  }
-
-  /**
-   * Handle tool execution requests from Copilot
-   */
-  private async handleToolExecution(sessionId: string, event: SessionEvent): Promise<void> {
-    const { toolName, toolCallId, input } = event.data as {
-      toolName: string;
-      toolCallId: string;
-      input: Record<string, unknown>;
-    };
-
-    const tool = getToolByName(toolName);
-    if (!tool) {
-      console.warn(`[CopilotService] Unknown tool: ${toolName}`);
-      return;
-    }
-
-    try {
-      console.log(`[CopilotService] Executing tool ${toolName} for session ${sessionId}`);
-      const result = await tool.handler(input);
-      
-      // Send tool result back to Copilot
-      const copilotSession = this.sessions.get(sessionId);
-      if (copilotSession?.session) {
-        copilotSession.session.sendToolResult(toolCallId, result);
-      }
-    } catch (error) {
-      console.error(`[CopilotService] Tool ${toolName} failed:`, error);
-      const copilotSession = this.sessions.get(sessionId);
-      if (copilotSession?.session) {
-        copilotSession.session.sendToolResult(
-          toolCallId, 
-          `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-        );
-      }
-    }
   }
 
   async resumeCopilotSession(sessionId: string): Promise<boolean> {
@@ -160,7 +120,9 @@ export class CopilotService {
     // First, try to resume existing session
     try {
       const session = await this.client.resumeSession(sessionId);
-      this.sessions.set(sessionId, { sessionId, session });
+      // Try to get type from DB, fallback to 'general'
+      const dbSession = this.sessionService.getSession(sessionId);
+      this.sessions.set(sessionId, { sessionId, session, type: dbSession?.type || 'general' });
       console.log(`[CopilotService] Session ${sessionId} resumed from disk`);
       return true;
     } catch (resumeError) {

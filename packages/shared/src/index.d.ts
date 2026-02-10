@@ -1,4 +1,4 @@
-export * from './types/index.ts';
-export * from './contracts/index.ts';
-export * from './utils/index.ts';
+export * from './types/index.js';
+export * from './contracts/index.js';
+export * from './utils/index.js';
 //# sourceMappingURL=index.d.ts.map

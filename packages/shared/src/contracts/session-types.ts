@@ -2,7 +2,7 @@
  * Session type configurations with pre-defined agents
  */
 
-import type { SessionType } from '../types/session.ts';
+import type { SessionType } from '../types/session.js';
 
 export interface AgentConfig {
   name: string;

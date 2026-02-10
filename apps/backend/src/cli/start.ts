@@ -6,9 +6,23 @@
 import type { CliOptions } from '../cli.js';
 import { isServerRunning, spawnServer, waitForHealthy } from '../lib/daemon.js';
 import { LOG_FILE } from '../lib/paths.js';
-import { DEFAULT_CONFIG } from '@devmentorai/shared';
+import { DEFAULT_CONFIG, checkForUpdate } from '@devmentorai/shared';
 
 const DEFAULT_PORT = DEFAULT_CONFIG.DEFAULT_PORT;
+const BACKEND_VERSION = '1.0.0';
+
+async function showUpdateNotice(): Promise<void> {
+  try {
+    const info = await checkForUpdate('backend', BACKEND_VERSION);
+    if (info.hasUpdate) {
+      console.log(`\n  ⚠ Update available: ${BACKEND_VERSION} → ${info.latestVersion}`);
+      console.log(`    Run: npm update -g devmentorai-server`);
+      console.log(`    ${info.releaseUrl}\n`);
+    }
+  } catch {
+    // Silent — don't block startup for update check
+  }
+}
 
 export async function startCommand(options: CliOptions): Promise<void> {
   const port = options.port || DEFAULT_PORT;
@@ -44,6 +58,7 @@ export async function startCommand(options: CliOptions): Promise<void> {
     console.log(`✓ Server started successfully`);
     console.log(`  → http://127.0.0.1:${port}`);
     console.log(`  Logs: ${LOG_FILE}\n`);
+    await showUpdateNotice();
   } else {
     console.error(`✗ Server started but healthcheck failed`);
     console.error(`  Check logs: ${LOG_FILE}\n`);

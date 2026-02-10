@@ -8,7 +8,6 @@ import type {
   Message,
   SendMessageRequest,
   StreamEvent,
-  ImagePayload,
 } from '@devmentorai/shared';
 
 interface Model {

@@ -17,12 +17,6 @@ interface PopupPosition {
   y: number;
 }
 
-interface PopupState {
-  status: 'loading' | 'streaming' | 'complete' | 'error';
-  content: string;
-  error?: string;
-}
-
 /**
  * Create and show the floating response popup
  */
@@ -208,7 +202,7 @@ function positionPopup(position: PopupPosition): void {
   popupContainer.style.top = `${top}px`;
 }
 
-function setupKeyboardHandlers(shadow: ShadowRoot): void {
+function setupKeyboardHandlers(_shadow: ShadowRoot): void {
   const handleKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();

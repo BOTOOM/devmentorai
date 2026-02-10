@@ -3,7 +3,7 @@
  * Detects and captures context about text selections in editable fields
  */
 
-import type { SelectionContext, SelectionElementType } from '@devmentorai/shared';
+import type { SelectionContext } from '@devmentorai/shared';
 
 // Attribute used to identify elements for later targeting
 const TARGET_ID_ATTR = 'data-devmentorai-target-id';

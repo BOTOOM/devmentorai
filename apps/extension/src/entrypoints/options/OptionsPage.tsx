@@ -3,7 +3,7 @@ import { useSettings, DEFAULT_SETTINGS, AVAILABLE_LANGUAGES, type Settings } fro
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
 
 export function OptionsPage() {
-  const { settings, isLoaded, updateSetting, saveAllSettings } = useSettings();
+  const { settings, isLoaded, saveAllSettings } = useSettings();
   const { updateState, isChecking, hasAnyUpdate, checkNow } = useUpdateChecker();
   const [localSettings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);

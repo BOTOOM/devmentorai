@@ -284,7 +284,7 @@ export async function getContextFromActiveTab(
             codeBlocks: [],
           },
           errors: [],
-        } as ContextPayload,
+        } as unknown as ContextPayload,
       };
     }
 

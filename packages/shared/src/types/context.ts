@@ -210,6 +210,19 @@ export interface ContextPayload {
       forms: number;
       hasModal: boolean;
     };
+    // Extended features from context-extractor
+    extendedFeatures?: {
+      consoleLogs: number;
+      networkErrors: number;
+      runtimeErrors: number;
+      codeBlocks: number;
+      tables: number;
+      forms: number;
+      hasModal: boolean;
+      uiState: string;
+      privacyMaskingApplied: boolean;
+      sensitiveDataTypesFound: string[];
+    };
   };
 
   // Page Identity
@@ -225,6 +238,7 @@ export interface ContextPayload {
     title: string;
     favicon?: string;
     platform: PlatformDetection;
+    uiState?: Record<string, unknown>;
   };
 
   // Textual Context
@@ -237,6 +251,15 @@ export interface ContextPayload {
     // Phase 2: Console and network error capture
     consoleLogs?: CapturedConsoleLog[];
     networkErrors?: CapturedNetworkError[];
+    runtimeErrors?: Array<{
+      message: string;
+      source?: string;
+      lineno?: number;
+      colno?: number;
+      stack?: string;
+      timestamp: string;
+      type?: string;
+    }>;
     metadata: TextExtractionMetadata;
   };
 

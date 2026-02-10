@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import type { ContextPayload, ContextExtractionResponse, PlatformDetection } from '@devmentorai/shared';
+import type { ContextPayload, PlatformDetection } from '@devmentorai/shared';
 import { 
   getContextFromActiveTab, 
   aggregateContext, 
@@ -55,9 +55,9 @@ async function captureVisibleTabScreenshot(): Promise<ScreenshotData | null> {
     }
     
     // Capture the visible tab
-    const dataUrl = await chrome.tabs.captureVisibleTab(undefined, {
+    const dataUrl = await chrome.tabs.captureVisibleTab({
       format: 'jpeg',
-      quality: 70, // Good balance between quality and size
+      quality: 70,
     });
     
     // Get dimensions from the tab's window

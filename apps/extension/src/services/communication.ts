@@ -6,11 +6,25 @@
  */
 
 import type { 
-  ChatMessage, 
   Session, 
-  SessionEvent,
   ApiResponse 
 } from '@devmentorai/shared';
+
+/** Chat message sent to the backend */
+interface ChatMessage {
+  content: string;
+  role?: 'user' | 'assistant' | 'system';
+  context?: Record<string, unknown>;
+}
+
+/** Event received from the backend during streaming */
+interface SessionEvent {
+  type: string;
+  data?: unknown;
+  content?: string;
+  error?: string;
+  sessionId?: string;
+}
 
 export interface HealthStatus {
   status: 'ok' | 'error';

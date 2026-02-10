@@ -1,4 +1,4 @@
-import { X, Keyboard, MessageCircle, Globe, Palette, HelpCircle } from 'lucide-react';
+import { X, MessageCircle, Globe, Palette, HelpCircle } from 'lucide-react';
 
 interface HelpModalProps {
   onClose: () => void;

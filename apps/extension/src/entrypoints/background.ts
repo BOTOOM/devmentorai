@@ -380,8 +380,8 @@ async function handleStreamingQuickAction(
   tabId: number,
   action: string,
   selectedText: string,
-  pageUrl: string,
-  pageTitle: string,
+  _pageUrl: string,
+  _pageTitle: string,
   isReplaceable: boolean = true
 ): Promise<void> {
   const actionId = `qa-${Date.now()}`;

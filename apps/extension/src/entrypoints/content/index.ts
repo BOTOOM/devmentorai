@@ -9,9 +9,7 @@ import {
   createFloatingResponsePopup,
   updateFloatingResponseContent,
   showFloatingResponseError,
-  removeFloatingResponsePopup,
   isFloatingResponsePopupVisible,
-  getCurrentContent,
   showSuccessNotice,
 } from './FloatingResponsePopup';
 import { 
@@ -23,7 +21,7 @@ import {
   startNetworkErrorCapture,
 } from '../../lib/context-extractor';
 import { detectSelection } from '../../lib/selection-detector';
-import { replaceSelectedText, copyTextToClipboard } from '../../lib/text-replacer';
+import { replaceSelectedText } from '../../lib/text-replacer';
 import type { SelectionContext, TextReplacementBehavior, QuickActionStreamMessage } from '@devmentorai/shared';
 
 export default defineContentScript({

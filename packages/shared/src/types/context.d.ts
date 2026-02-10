@@ -136,6 +136,18 @@ export interface ContextPayload {
             forms: number;
             hasModal: boolean;
         };
+        extendedFeatures?: {
+            consoleLogs: number;
+            networkErrors: number;
+            runtimeErrors: number;
+            codeBlocks: number;
+            tables: number;
+            forms: number;
+            hasModal: boolean;
+            uiState: string;
+            privacyMaskingApplied: boolean;
+            sensitiveDataTypesFound: string[];
+        };
     };
     page: {
         url: string;
@@ -149,6 +161,7 @@ export interface ContextPayload {
         title: string;
         favicon?: string;
         platform: PlatformDetection;
+        uiState?: Record<string, unknown>;
     };
     text: {
         selectedText?: string;
@@ -158,6 +171,15 @@ export interface ContextPayload {
         logs?: ConsoleLogs;
         consoleLogs?: CapturedConsoleLog[];
         networkErrors?: CapturedNetworkError[];
+        runtimeErrors?: Array<{
+            message: string;
+            source?: string;
+            lineno?: number;
+            colno?: number;
+            stack?: string;
+            timestamp: string;
+            type?: string;
+        }>;
         metadata: TextExtractionMetadata;
     };
     structure: {

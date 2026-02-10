@@ -1,4 +1,4 @@
-import { Settings, Plus, Wifi, WifiOff, Loader2, HelpCircle, Globe } from 'lucide-react';
+import { Settings, Plus, Wifi, WifiOff, Loader2, HelpCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface HeaderProps {
@@ -9,7 +9,7 @@ interface HeaderProps {
   onViewPage?: () => void;      // D.1
 }
 
-export function Header({ connectionStatus, onNewSession, onOpenSettings, onOpenHelp, onViewPage }: HeaderProps) {
+export function Header({ connectionStatus, onNewSession, onOpenSettings, onOpenHelp, onViewPage: _onViewPage }: HeaderProps) {
   const statusConfig = {
     connecting: {
       icon: Loader2,

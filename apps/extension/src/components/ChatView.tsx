@@ -3,7 +3,7 @@ import { Send, Square, Loader2, Cpu, ChevronDown, Brain, Sparkles, Globe, AlertT
 import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
-import { useImageAttachments, type DraftImage } from '../hooks/useImageAttachments';
+import { useImageAttachments } from '../hooks/useImageAttachments';
 import type { Session, Message, ContextPayload, PlatformDetection, ImagePayload } from '@devmentorai/shared';
 
 interface ChatViewProps {
@@ -398,7 +398,7 @@ export function ChatView({
               <div className="flex items-center gap-2 text-xs">
                 <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <span className="font-medium text-indigo-700 dark:text-indigo-300">
-                  {platform?.product || platform?.type || 'Page Context'}
+                  {platform?.specificProduct || platform?.type || 'Page Context'}
                 </span>
                 {platform && platform.confidence >= 0.7 && (
                   <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-800/50 text-indigo-600 dark:text-indigo-400 rounded text-[10px]">

@@ -248,7 +248,7 @@ export function ImageAttachmentZone({
       {lightboxIndex !== null && (
         <ImageLightbox
           images={images.map(img => ({
-            src: img.dataUrl,
+            thumbnailSrc: img.dataUrl,
             alt: `Attachment from ${img.source}`,
             source: img.source,
           }))}

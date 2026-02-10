@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronDown, DollarSign } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { SessionType } from '@devmentorai/shared';
 import { SESSION_TYPE_CONFIGS, DEFAULT_CONFIG } from '@devmentorai/shared';

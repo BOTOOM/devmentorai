@@ -60,7 +60,6 @@ export function SidePanel() {
     extractedContext,
     platform,
     isExtracting: isExtractingContext,
-    extractionError,
     extractContext,
     clearContext,
     errorCount,

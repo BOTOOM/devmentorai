@@ -1139,7 +1139,7 @@ export function startNetworkErrorCapture(): void {
   // Capture fetch errors
   originalFetch = window.fetch;
   window.fetch = async (...args: Parameters<typeof fetch>) => {
-    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || 'unknown';
+    const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof Request ? args[0].url : args[0]?.href || 'unknown';
     const method = (args[1]?.method || 'GET').toUpperCase();
     
     try {

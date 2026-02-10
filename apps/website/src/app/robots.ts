@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://devmentorai.dev/sitemap.xml",
+    sitemap: "https://devmentorai.edwardiaz.dev/sitemap.xml",
   };
 }

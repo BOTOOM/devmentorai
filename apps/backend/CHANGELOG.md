@@ -1,3 +1,22 @@
+## [1.2.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.1.0...backend-v1.2.0) (2026-02-10)
+
+### Features
+
+* add ErrorBoundary component and GitHub issue reporting links ([42b636e](https://github.com/BOTOOM/devmentorai/commit/42b636e1f2f149708af383c2634aaf681cbe4b9e))
+* add website app with Next.js landing page and documentation ([359b9d3](https://github.com/BOTOOM/devmentorai/commit/359b9d39eaef9850881f4ba25407acfb2454537f))
+
+### Documentation
+
+* **backend:** add support section to README ([5ee11cc](https://github.com/BOTOOM/devmentorai/commit/5ee11cc66ae2d7e6b22f095fc50b8f4f140f3681))
+
+### Maintenance
+
+* **backend:** bump version to 1.1.0 ([af58fc6](https://github.com/BOTOOM/devmentorai/commit/af58fc6de1e475c9e7d8b66a1daa1c84463c44c2))
+* **release:** extension v1.0.0 [skip ci] ([eb04f08](https://github.com/BOTOOM/devmentorai/commit/eb04f08d59e1797f21ddd1676949381357075e37))
+* remove temporary issues tracking file ([1a36678](https://github.com/BOTOOM/devmentorai/commit/1a366782191a4370586b4dd011f54ceae452e3e6))
+* update dependencies and add website app with Next.js 16 ([5985c02](https://github.com/BOTOOM/devmentorai/commit/5985c02ad4d3d023992b8283afbb7372ca308f59))
+* **website:** add Vercel deployment configuration ([41d74d7](https://github.com/BOTOOM/devmentorai/commit/41d74d77fcf623494c9783304fb186af5d7db6d5))
+
 ## [1.1.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.0.0...backend-v1.1.0) (2026-02-10)
 
 ### Features

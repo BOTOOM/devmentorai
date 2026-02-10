@@ -89,9 +89,6 @@ jobs:
       - name: Build shared package
         run: pnpm --filter @devmentorai/shared build
 
-      - name: Build extension (for zip)
-        run: pnpm --filter @devmentorai/extension build
-
       - name: Run semantic-release
         working-directory: apps/extension
         run: npx semantic-release

@@ -6,6 +6,7 @@
  */
 
 import { useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 
 export interface KeyboardShortcut {
   key: string;
@@ -139,4 +140,3 @@ export function KeyboardShortcutsHelp(): React.ReactElement {
   );
 }
 
-import React from 'react';

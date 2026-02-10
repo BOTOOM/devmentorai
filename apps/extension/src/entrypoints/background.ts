@@ -4,6 +4,7 @@
 
 import type { SelectionContext, TextReplacementBehavior } from '@devmentorai/shared';
 import { streamQuickAction } from '../services/writing-assistant-session';
+import { setupUpdateAlarm, getUpdateState, forceUpdateCheck, dismissUpdateBadge } from '../services/update-checker';
 
 /**
  * Get language name from code
@@ -26,6 +27,9 @@ function getLanguageName(code: string): string {
 
 export default defineBackground(() => {
   console.log('[DevMentorAI] Background service worker started');
+
+  // Set up update checker
+  setupUpdateAlarm();
 
   // Set up side panel behavior
   chrome.sidePanel
@@ -308,6 +312,24 @@ async function handleMessage(
         'quickActionModel',
       ]);
       sendResponse(settings);
+      break;
+    }
+
+    case 'CHECK_UPDATES': {
+      const updateState = await forceUpdateCheck();
+      sendResponse(updateState);
+      break;
+    }
+
+    case 'GET_UPDATE_STATE': {
+      const state = await getUpdateState();
+      sendResponse(state);
+      break;
+    }
+
+    case 'DISMISS_UPDATE_BADGE': {
+      await dismissUpdateBadge();
+      sendResponse({ success: true });
       break;
     }
 

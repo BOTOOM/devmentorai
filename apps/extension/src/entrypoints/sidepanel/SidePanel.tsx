@@ -5,11 +5,13 @@ import { ChatView } from '../../components/ChatView';
 import { NewSessionModal } from '../../components/NewSessionModal';
 import { HelpModal } from '../../components/HelpModal';
 import { PageContextModal } from '../../components/PageContextModal';
+import { UpdateBanner } from '../../components/UpdateBanner';
 import { useBackendConnection } from '../../hooks/useBackendConnection';
 import { useSessions } from '../../hooks/useSessions';
 import { useChat } from '../../hooks/useChat';
 import { useSettings } from '../../hooks/useSettings';
 import { useContextExtraction } from '../../hooks/useContextExtraction';
+import { useUpdateChecker } from '../../hooks/useUpdateChecker';
 import type { Session, QuickAction, MessageContext, ImagePayload } from '@devmentorai/shared';
 
 // Extend QuickAction to include tone variations
@@ -33,6 +35,8 @@ export function SidePanel() {
 
   // B.1 - Apply theme via settings hook
   const { settings } = useSettings();
+
+  const { updateState, dismissBadge } = useUpdateChecker();
 
   const { status: connectionStatus, error: connectionError } = useBackendConnection();
   const {
@@ -255,6 +259,12 @@ export function SidePanel() {
         onOpenSettings={() => chrome.runtime.openOptionsPage()}
         onOpenHelp={() => setShowHelpModal(true)}
         onViewPage={() => setShowPageContextModal(true)}
+      />
+
+      <UpdateBanner
+        extensionUpdate={updateState?.extension || null}
+        backendUpdate={updateState?.backend || null}
+        onDismiss={dismissBadge}
       />
 
       {connectionError && (

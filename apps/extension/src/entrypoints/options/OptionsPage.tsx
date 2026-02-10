@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSettings, DEFAULT_SETTINGS, AVAILABLE_LANGUAGES, type Settings } from '../../hooks/useSettings';
+import { useUpdateChecker } from '../../hooks/useUpdateChecker';
 
 export function OptionsPage() {
   const { settings, isLoaded, updateSetting, saveAllSettings } = useSettings();
+  const { updateState, isChecking, hasAnyUpdate, checkNow } = useUpdateChecker();
   const [localSettings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
@@ -456,10 +458,75 @@ export function OptionsPage() {
           </button>
         </div>
 
-        {/* About */}
+        {/* About & Updates */}
         <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">About & Updates</h2>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700 dark:text-gray-300">Extension version</span>
+                <span className="text-sm font-mono text-gray-900 dark:text-white">1.0.0</span>
+              </div>
+
+              {updateState?.backend && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Backend version</span>
+                  <span className="text-sm font-mono text-gray-900 dark:text-white">
+                    {updateState.backend.currentVersion}
+                  </span>
+                </div>
+              )}
+
+              {updateState?.extension?.hasUpdate && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    🔄 Extension v{updateState.extension.latestVersion} is available
+                  </p>
+                  <a
+                    href={updateState.extension.releaseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-amber-600 dark:text-amber-400 underline hover:text-amber-500"
+                  >
+                    Download from GitHub Releases
+                  </a>
+                </div>
+              )}
+
+              {updateState?.backend?.hasUpdate && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    🔄 Backend v{updateState.backend.latestVersion} is available
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-mono">
+                    npm update -g devmentorai-server
+                  </p>
+                </div>
+              )}
+
+              {!hasAnyUpdate && updateState && (
+                <p className="text-sm text-green-600 dark:text-green-400">✓ Everything is up to date</p>
+              )}
+
+              <button
+                onClick={checkNow}
+                disabled={isChecking}
+                className="text-sm text-primary hover:underline disabled:opacity-50"
+              >
+                {isChecking ? 'Checking...' : 'Check for updates'}
+              </button>
+
+              {updateState?.lastChecked && (
+                <p className="text-xs text-gray-400">
+                  Last checked: {new Date(updateState.lastChecked).toLocaleString()}
+                </p>
+              )}
+            </div>
+          </div>
+
           <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-            DevMentorAI v0.1.0 • Powered by GitHub Copilot
+            DevMentorAI v1.0.0 • Powered by GitHub Copilot
           </p>
         </div>
       </div>

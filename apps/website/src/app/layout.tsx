@@ -22,12 +22,12 @@ export const metadata: Metadata = {
   },
   description:
     "Context-aware AI assistance powered by GitHub Copilot. DevOps mentoring, writing help, and debugging — directly in your browser.",
-  metadataBase: new URL("https://devmentorai.dev"),
+  metadataBase: new URL("https://devmentorai.edwardiaz.dev"),
   openGraph: {
     title: "DevMentorAI — AI Mentor for Your Entire Browser",
     description:
       "Context-aware AI assistance powered by GitHub Copilot. DevOps mentoring, writing help, and debugging — directly in your browser.",
-    url: "https://devmentorai.dev",
+    url: "https://devmentorai.edwardiaz.dev",
     siteName: "DevMentorAI",
     locale: "en_US",
     type: "website",

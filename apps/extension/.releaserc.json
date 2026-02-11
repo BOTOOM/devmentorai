@@ -51,7 +51,9 @@
           { "path": ".output/*-chrome.zip", "label": "DevMentorAI-${nextRelease.version}-chrome.zip" },
           { "path": ".output/*-firefox.xpi", "label": "DevMentorAI-${nextRelease.version}-firefox.xpi" }
         ],
-        "releasedLabels": ["released"]
+        "successComment": false,
+        "failComment": false,
+        "releasedLabels": false
       }
     ],
     [

@@ -1,3 +1,14 @@
+## [1.1.1](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.0...ext-v1.1.1) (2026-02-11)
+
+### Bug Fixes
+
+* **extension:** centralize version management with auto-sync during release ([96cac69](https://github.com/BOTOOM/devmentorai/commit/96cac6957f2aadf69c19a5b8f8ff8905f0195224))
+
+### Maintenance
+
+* automate version synchronization in backend and extension release workflows ([6ad7420](https://github.com/BOTOOM/devmentorai/commit/6ad7420586474774ddd16655182ddb20d1eec6e8))
+* **website:** update domain from devmentorai.dev to devmentorai.edwardiaz.dev ([66232a3](https://github.com/BOTOOM/devmentorai/commit/66232a34db3ad0d03c568845b3d7fa102ee1a21a))
+
 ## [1.1.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.0.0...ext-v1.1.0) (2026-02-10)
 
 ### Features

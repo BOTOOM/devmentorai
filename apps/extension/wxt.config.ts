@@ -6,7 +6,7 @@ export default defineConfig({
   manifest: {
     name: 'DevMentorAI',
     description: 'DevOps mentoring and writing assistant powered by GitHub Copilot',
-    version: '1.1.0',
+    version: '1.1.1',
     permissions: [
       'storage',
       'activeTab',

@@ -1,3 +1,13 @@
+## [1.1.3](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.2...ext-v1.1.3) (2026-02-11)
+
+### Bug Fixes
+
+* **extension:** reload sessions when backend reconnects after disconnection ([89307d6](https://github.com/BOTOOM/devmentorai/commit/89307d6cebf1259b01247f5620082336b1edb5d4))
+
+### Maintenance
+
+* **website:** add commit existence validation to Vercel ignore command ([1b1d09b](https://github.com/BOTOOM/devmentorai/commit/1b1d09b6fe06d713732cc321fba40b2168f445b2))
+
 ## [1.1.2](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.1...ext-v1.1.2) (2026-02-11)
 
 ### Bug Fixes

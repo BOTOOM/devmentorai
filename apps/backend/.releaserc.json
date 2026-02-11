@@ -48,13 +48,15 @@
     [
       "@semantic-release/github",
       {
-        "releasedLabels": ["released"]
+        "successComment": false,
+        "failComment": false,
+        "releasedLabels": false
       }
     ],
     [
       "@semantic-release/git",
       {
-        "assets": ["package.json", "CHANGELOG.md", "src/cli/start.ts"],
+        "assets": ["package.json", "CHANGELOG.md", "src/version.ts"],
         "message": "chore(release): backend v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ]

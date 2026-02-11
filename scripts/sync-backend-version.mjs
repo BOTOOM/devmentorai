@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * Syncs backend version from package.json to hardcoded constant in start.ts
+ * Syncs backend version from package.json to version.ts
+ * This is the single source of truth that all modules import from
+ * 
  * Used by semantic-release during prepare step
  */
 
@@ -17,19 +19,19 @@ if (!version) {
   process.exit(1);
 }
 
-const startTsPath = join(__dirname, '../apps/backend/src/cli/start.ts');
-let content = readFileSync(startTsPath, 'utf-8');
+const versionFilePath = join(__dirname, '../apps/backend/src/version.ts');
+let content = readFileSync(versionFilePath, 'utf-8');
 
 // Replace the BACKEND_VERSION constant
 const updated = content.replace(
-  /const BACKEND_VERSION = ['"][\d.]+['"];/,
-  `const BACKEND_VERSION = '${version}';`
+  /export const BACKEND_VERSION = ['"][\d.]+['"];/,
+  `export const BACKEND_VERSION = '${version}';`
 );
 
 if (content === updated) {
-  console.error('❌ Failed to update BACKEND_VERSION in start.ts');
+  console.error('❌ Failed to update BACKEND_VERSION in version.ts');
   process.exit(1);
 }
 
-writeFileSync(startTsPath, updated, 'utf-8');
-console.log(`✅ Updated start.ts BACKEND_VERSION to ${version}`);
+writeFileSync(versionFilePath, updated, 'utf-8');
+console.log(`✅ Updated version.ts BACKEND_VERSION to ${version}`);

@@ -1,9 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import type { ApiResponse, HealthResponse } from '@devmentorai/shared';
 import { checkForUpdate } from '@devmentorai/shared';
+import { BACKEND_VERSION } from '../version.js';
 
 const startTime = Date.now();
-const BACKEND_VERSION = '1.0.0';
 
 // Cache update info in background
 let cachedUpdateInfo: { latestVersion: string; updateAvailable: boolean } | null = null;

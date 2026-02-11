@@ -46,7 +46,7 @@ export function SidePanel() {
     createSession,
     selectSession,
     deleteSession,
-  } = useSessions();
+  } = useSessions({ connectionStatus });
   
   const {
     messages,

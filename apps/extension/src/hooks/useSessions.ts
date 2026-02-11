@@ -1,12 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ApiClient } from '../services/api-client';
 import type { Session, SessionType, CreateSessionRequest } from '@devmentorai/shared';
 
-export function useSessions() {
+type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
+
+interface UseSessionsOptions {
+  connectionStatus?: ConnectionStatus;
+}
+
+export function useSessions(options?: UseSessionsOptions) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const prevConnectionStatus = useRef<ConnectionStatus | undefined>(options?.connectionStatus);
 
   const apiClient = ApiClient.getInstance();
 
@@ -14,6 +21,20 @@ export function useSessions() {
   useEffect(() => {
     loadSessions();
   }, []);
+
+  // Reload sessions when backend reconnects
+  useEffect(() => {
+    const currentStatus = options?.connectionStatus;
+    const prevStatus = prevConnectionStatus.current;
+    
+    // If backend just connected (was disconnected/connecting, now connected), reload sessions
+    if (currentStatus === 'connected' && prevStatus && prevStatus !== 'connected') {
+      console.log('[useSessions] Backend reconnected, reloading sessions');
+      loadSessions();
+    }
+    
+    prevConnectionStatus.current = currentStatus;
+  }, [options?.connectionStatus]);
 
   // Load active session from storage
   useEffect(() => {

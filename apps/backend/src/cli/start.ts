@@ -9,7 +9,7 @@ import { LOG_FILE } from '../lib/paths.js';
 import { DEFAULT_CONFIG, checkForUpdate } from '@devmentorai/shared';
 
 const DEFAULT_PORT = DEFAULT_CONFIG.DEFAULT_PORT;
-const BACKEND_VERSION = '1.0.0';
+const BACKEND_VERSION = '1.2.0';
 
 async function showUpdateNotice(): Promise<void> {
   try {

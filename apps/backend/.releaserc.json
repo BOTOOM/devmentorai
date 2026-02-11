@@ -38,6 +38,12 @@
         "changelogFile": "CHANGELOG.md"
       }
     ],
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "node ../../scripts/sync-backend-version.mjs ${nextRelease.version}"
+      }
+    ],
     "@semantic-release/npm",
     [
       "@semantic-release/github",
@@ -48,7 +54,7 @@
     [
       "@semantic-release/git",
       {
-        "assets": ["package.json", "CHANGELOG.md"],
+        "assets": ["package.json", "CHANGELOG.md", "src/cli/start.ts"],
         "message": "chore(release): backend v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ]

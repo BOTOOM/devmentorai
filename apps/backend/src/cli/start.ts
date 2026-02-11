@@ -16,7 +16,8 @@ async function showUpdateNotice(): Promise<void> {
     const info = await checkForUpdate('backend', BACKEND_VERSION);
     if (info.hasUpdate) {
       console.log(`\n  ⚠ Update available: ${BACKEND_VERSION} → ${info.latestVersion}`);
-      console.log(`    Run: npm update -g devmentorai-server`);
+      console.log(`    Run: npx devmentorai-server@latest`);
+      console.log(`    Or: npm install -g devmentorai-server@latest`);
       console.log(`    ${info.releaseUrl}\n`);
     }
   } catch {

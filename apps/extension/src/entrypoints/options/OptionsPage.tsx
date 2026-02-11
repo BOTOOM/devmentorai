@@ -502,7 +502,7 @@ export function OptionsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-700 dark:text-gray-300">Extension version</span>
-                <span className="text-sm font-mono text-gray-900 dark:text-white">1.0.0</span>
+                <span className="text-sm font-mono text-gray-900 dark:text-white">{EXTENSION_VERSION}</span>
               </div>
 
               {updateState?.backend && (
@@ -536,7 +536,7 @@ export function OptionsPage() {
                     🔄 Backend v{updateState.backend.latestVersion} is available
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400 font-mono">
-                    npm update -g devmentorai-server
+                    npx devmentorai-server@latest
                   </p>
                 </div>
               )}

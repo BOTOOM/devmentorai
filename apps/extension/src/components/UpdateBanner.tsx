@@ -46,7 +46,7 @@ export function UpdateBanner({ extensionUpdate, backendUpdate, onDismiss }: Upda
           <p className="text-xs text-amber-800 dark:text-amber-300">
             🔄 Backend v{backendUpdate.latestVersion} available
             <span className="ml-1 text-amber-600 dark:text-amber-400">
-              npm update -g devmentorai-server
+              npx devmentorai-server@latest
             </span>
           </p>
         )}

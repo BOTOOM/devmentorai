@@ -72,7 +72,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -88,14 +88,6 @@ jobs:
 
       - name: Build shared package
         run: pnpm --filter @devmentorai/shared build
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git fetch origin master:master
-          git reset --hard origin/master
 
       - name: Run semantic-release
         working-directory: apps/extension

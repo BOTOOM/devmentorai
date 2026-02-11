@@ -1,6 +1,6 @@
 {
   "name": "devmentorai-server",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": false,
   "type": "module",
   "description": "DevMentorAI backend server — AI-powered DevOps mentoring via GitHub Copilot. Run with: npx devmentorai-server",

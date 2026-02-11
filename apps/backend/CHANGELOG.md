@@ -1,3 +1,20 @@
+## [1.2.1](https://github.com/BOTOOM/devmentorai/compare/backend-v1.2.0...backend-v1.2.1) (2026-02-11)
+
+### Bug Fixes
+
+* **backend:** centralize version management with dedicated version.ts file ([417716b](https://github.com/BOTOOM/devmentorai/commit/417716b72728906ff4ec0803fd134f254d150e44))
+* **extension:** centralize version management with auto-sync during release ([96cac69](https://github.com/BOTOOM/devmentorai/commit/96cac6957f2aadf69c19a5b8f8ff8905f0195224))
+
+### Maintenance
+
+* automate version synchronization in backend and extension release workflows ([6ad7420](https://github.com/BOTOOM/devmentorai/commit/6ad7420586474774ddd16655182ddb20d1eec6e8))
+* **extension:** disable GitHub issue comments in release configuration ([63f7401](https://github.com/BOTOOM/devmentorai/commit/63f74015446025ae91581ccd509bfbc82487624b))
+* **release:** extension v1.1.0 [skip ci] ([126d32c](https://github.com/BOTOOM/devmentorai/commit/126d32c330b9177b75351287ecdc25a9d6858226))
+* **release:** extension v1.1.1 [skip ci] ([3a3f4ea](https://github.com/BOTOOM/devmentorai/commit/3a3f4eabddc3bc442a9b79640c50acb0e6894267))
+* **website:** add initial deployment check to Vercel ignore command ([5cbd220](https://github.com/BOTOOM/devmentorai/commit/5cbd220f18b6641d4f00950e7afeced3926d3882))
+* **website:** remove redundant rootDirectory from Vercel config ([bfc4040](https://github.com/BOTOOM/devmentorai/commit/bfc4040fc18343c905576e777de080f622359b11))
+* **website:** update domain from devmentorai.dev to devmentorai.edwardiaz.dev ([66232a3](https://github.com/BOTOOM/devmentorai/commit/66232a34db3ad0d03c568845b3d7fa102ee1a21a))
+
 ## [1.2.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.1.0...backend-v1.2.0) (2026-02-10)
 
 ### Features

@@ -5,8 +5,8 @@
  */
 
 import { checkForUpdate, clearUpdateCache, type UpdateInfo } from '@devmentorai/shared';
+import { EXTENSION_VERSION } from '../version.js';
 
-const EXTENSION_VERSION = '1.0.0';
 const CHECK_INTERVAL_HOURS = 6;
 const ALARM_NAME = 'devmentorai-update-check';
 

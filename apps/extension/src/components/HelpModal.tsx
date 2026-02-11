@@ -1,4 +1,5 @@
 import { X, MessageCircle, Globe, Palette, HelpCircle } from 'lucide-react';
+import { EXTENSION_VERSION } from '../version.js';
 
 interface HelpModalProps {
   onClose: () => void;
@@ -167,7 +168,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
               </a>
             </div>
             <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-              DevMentorAI v0.1.0 • Created by Edwar Diaz • {new Date().getFullYear()}
+              DevMentorAI v{EXTENSION_VERSION} • Created by Edwar Diaz • {new Date().getFullYear()}
             </p>
           </div>
         </div>

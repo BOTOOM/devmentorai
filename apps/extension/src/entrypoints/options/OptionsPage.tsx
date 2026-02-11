@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSettings, DEFAULT_SETTINGS, AVAILABLE_LANGUAGES, type Settings } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
+import { EXTENSION_VERSION } from '../../version.js';
 
 export function OptionsPage() {
   const { settings, isLoaded, saveAllSettings } = useSettings();
@@ -561,7 +562,7 @@ export function OptionsPage() {
           </div>
 
           <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-            DevMentorAI v1.0.0 • Powered by GitHub Copilot
+            DevMentorAI v{EXTENSION_VERSION} • Powered by GitHub Copilot
           </p>
         </div>
       </div>

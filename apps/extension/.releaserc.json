@@ -41,7 +41,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "node ../../scripts/sync-extension-version.mjs ${nextRelease.version} && pnpm build && pnpm build:firefox && pnpm zip && pnpm zip:firefox && mv .output/*-firefox.zip .output/devmentoraiextension-${nextRelease.version}-firefox.xpi"
+        "prepareCmd": "node ../../scripts/sync-extension-version.mjs ${nextRelease.version} && node ../../scripts/sync-extension-version-strings.mjs ${nextRelease.version} && pnpm build && pnpm build:firefox && pnpm zip && pnpm zip:firefox && mv .output/*-firefox.zip .output/devmentoraiextension-${nextRelease.version}-firefox.xpi"
       }
     ],
     [
@@ -57,7 +57,7 @@
     [
       "@semantic-release/git",
       {
-        "assets": ["package.json", "wxt.config.ts", "CHANGELOG.md"],
+        "assets": ["package.json", "wxt.config.ts", "CHANGELOG.md", "src/version.ts"],
         "message": "chore(release): extension v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ]

@@ -1,3 +1,9 @@
+## [1.2.2](https://github.com/BOTOOM/devmentorai/compare/backend-v1.2.1...backend-v1.2.2) (2026-02-11)
+
+### Bug Fixes
+
+* **backend:** improve update instructions with npx command and explicit latest tag ([60ab512](https://github.com/BOTOOM/devmentorai/commit/60ab51260d8426c0d45b00ffa27d75799f197140))
+
 ## [1.2.1](https://github.com/BOTOOM/devmentorai/compare/backend-v1.2.0...backend-v1.2.1) (2026-02-11)
 
 ### Bug Fixes

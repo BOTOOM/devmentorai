@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
+import { EXTENSION_VERSION } from '../version.js';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -37,7 +38,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       `**Stack Trace:**\n\`\`\`\n${this.state.error?.stack || 'No stack trace'}\n\`\`\`\n\n` +
       `**Component Stack:**\n\`\`\`\n${this.state.errorInfo?.componentStack || 'No component stack'}\n\`\`\`\n\n` +
       `**Browser:** ${navigator.userAgent}\n` +
-      `**Extension Version:** 1.0.0`
+      `**Extension Version:** ${EXTENSION_VERSION}`
     );
     
     const issueUrl = `https://github.com/BOTOOM/devmentorai/issues/new?title=${encodeURIComponent('[Bug] Extension Error')}&body=${errorDetails}&labels=bug,extension`;

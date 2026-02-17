@@ -20,12 +20,6 @@ const QUICK_ACTIONS: QuickAction[] = [
   { id: 'summarize', label: '📄', icon: 'summary', tooltip: 'Summarize' },
 ];
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 export function createSelectionToolbar(
   x: number,
   y: number,
@@ -220,10 +214,12 @@ export function createSelectionToolbar(
   QUICK_ACTIONS.forEach((action) => {
     const btn = document.createElement('button');
     btn.className = 'action-btn';
-    btn.innerHTML = `
-      ${escapeHtml(action.label)}
-      <span class="tooltip">${escapeHtml(action.tooltip)}</span>
-    `;
+    btn.textContent = action.label;
+
+    const tooltip = document.createElement('span');
+    tooltip.className = 'tooltip';
+    tooltip.textContent = action.tooltip;
+    btn.appendChild(tooltip);
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -243,10 +239,11 @@ export function createSelectionToolbar(
 
   const toneBtn = document.createElement('button');
   toneBtn.className = 'action-btn';
-  toneBtn.innerHTML = `
-    ${escapeHtml('🎨')}
-    <span class="tooltip">${escapeHtml('Change Tone')}</span>
-  `;
+  toneBtn.textContent = '🎨';
+  const toneTooltip = document.createElement('span');
+  toneTooltip.className = 'tooltip';
+  toneTooltip.textContent = 'Change Tone';
+  toneBtn.appendChild(toneTooltip);
 
   const toneMenu = document.createElement('div');
   toneMenu.className = 'tone-menu';
@@ -263,7 +260,12 @@ export function createSelectionToolbar(
   tones.forEach((tone) => {
     const item = document.createElement('button');
     item.className = 'tone-item';
-    item.innerHTML = `<span class="emoji">${escapeHtml(tone.emoji)}</span> ${escapeHtml(tone.label)}`;
+
+    const emoji = document.createElement('span');
+    emoji.className = 'emoji';
+    emoji.textContent = tone.emoji;
+    item.appendChild(emoji);
+    item.appendChild(document.createTextNode(` ${tone.label}`));
     item.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -313,10 +315,11 @@ export function createSelectionToolbar(
   // Add "Open Chat" button
   const chatBtn = document.createElement('button');
   chatBtn.className = 'action-btn more-btn';
-  chatBtn.innerHTML = `
-    ${escapeHtml('💬')}
-    <span class="tooltip">${escapeHtml('Open Chat')}</span>
-  `;
+  chatBtn.textContent = '💬';
+  const chatTooltip = document.createElement('span');
+  chatTooltip.className = 'tooltip';
+  chatTooltip.textContent = 'Open Chat';
+  chatBtn.appendChild(chatTooltip);
   chatBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();

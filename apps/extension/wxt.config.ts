@@ -12,9 +12,7 @@ export default defineConfig({
         id: 'devmentorai@devmentorai.com',
         // @ts-ignore - data_collection_permissions is required by Firefox but not yet in WXT types
         data_collection_permissions: {
-          includes_sensitive_data: false,
-          includes_account_credentials: false,
-          includes_personal_data: false,
+          required: ['none'],
         },
       },
     },
@@ -25,9 +23,6 @@ export default defineConfig({
       'scripting',
       'tabs',
       'alarms',
-    ],
-    optional_permissions: [
-      'sidePanel',
     ],
     host_permissions: [
       'http://localhost:3847/*',

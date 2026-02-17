@@ -29,7 +29,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   handleReload = () => {
-    window.location.reload();
+    globalThis.location.reload();
   };
 
   handleReportIssue = () => {
@@ -42,7 +42,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     );
     
     const issueUrl = `https://github.com/BOTOOM/devmentorai/issues/new?title=${encodeURIComponent('[Bug] Extension Error')}&body=${errorDetails}&labels=bug,extension`;
-    window.open(issueUrl, '_blank');
+    globalThis.open(issueUrl, '_blank');
   };
 
   render() {

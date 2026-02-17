@@ -20,6 +20,12 @@ const QUICK_ACTIONS: QuickAction[] = [
   { id: 'summarize', label: '📄', icon: 'summary', tooltip: 'Summarize' },
 ];
 
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 export function createSelectionToolbar(
   x: number,
   y: number,
@@ -215,8 +221,8 @@ export function createSelectionToolbar(
     const btn = document.createElement('button');
     btn.className = 'action-btn';
     btn.innerHTML = `
-      ${action.label}
-      <span class="tooltip">${action.tooltip}</span>
+      ${escapeHtml(action.label)}
+      <span class="tooltip">${escapeHtml(action.tooltip)}</span>
     `;
     btn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -238,8 +244,8 @@ export function createSelectionToolbar(
   const toneBtn = document.createElement('button');
   toneBtn.className = 'action-btn';
   toneBtn.innerHTML = `
-    🎨
-    <span class="tooltip">Change Tone</span>
+    ${escapeHtml('🎨')}
+    <span class="tooltip">${escapeHtml('Change Tone')}</span>
   `;
 
   const toneMenu = document.createElement('div');
@@ -257,7 +263,7 @@ export function createSelectionToolbar(
   tones.forEach((tone) => {
     const item = document.createElement('button');
     item.className = 'tone-item';
-    item.innerHTML = `<span class="emoji">${tone.emoji}</span> ${tone.label}`;
+    item.innerHTML = `<span class="emoji">${escapeHtml(tone.emoji)}</span> ${escapeHtml(tone.label)}`;
     item.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -308,8 +314,8 @@ export function createSelectionToolbar(
   const chatBtn = document.createElement('button');
   chatBtn.className = 'action-btn more-btn';
   chatBtn.innerHTML = `
-    💬
-    <span class="tooltip">Open Chat</span>
+    ${escapeHtml('💬')}
+    <span class="tooltip">${escapeHtml('Open Chat')}</span>
   `;
   chatBtn.addEventListener('click', (e) => {
     e.preventDefault();

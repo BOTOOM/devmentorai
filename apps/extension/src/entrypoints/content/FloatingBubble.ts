@@ -105,17 +105,23 @@ export function createFloatingBubble() {
     }
   `;
 
-  // Create bubble element
+function escapeHtml(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Create bubble element
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
   bubble.innerHTML = `
-    <span class="bubble-icon">D</span>
+    <span class="bubble-icon">${escapeHtml('D')}</span>
     <div class="bubble-badge">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
         <polyline points="20 6 9 17 4 12"></polyline>
       </svg>
     </div>
-    <div class="tooltip">DevMentorAI - Click to open</div>
+    <div class="tooltip">${escapeHtml('DevMentorAI - Click to open')}</div>
   `;
 
   // Add event listeners
@@ -238,6 +244,6 @@ async function loadBubblePosition() {
       bubbleContainer.style.bottom = 'auto';
     }
   } catch (error) {
-    // Use default position
+    // Use default position when calculation fails
   }
 }

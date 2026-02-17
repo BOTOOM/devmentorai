@@ -31,9 +31,8 @@ export default defineBackground(() => {
   // Set up update checker
   setupUpdateAlarm();
 
-  // Set up side panel behavior
-  chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: true })
+  // Set up side panel behavior (Chrome only)
+  chrome.sidePanel?.setPanelBehavior({ openPanelOnActionClick: true })
     .catch((error) => console.error('[DevMentorAI] Failed to set panel behavior:', error));
 
   // Create context menus on install
@@ -196,14 +195,14 @@ async function handleMessage(
       sendResponse(result.pendingAction || null);
       // Clear the pending action and badge
       await chrome.storage.local.remove('pendingAction');
-      await chrome.action.setBadgeText({ text: '' });
+      chrome.action?.setBadgeText({ text: '' });
       break;
     }
 
     case 'OPEN_SIDE_PANEL': {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab?.windowId) {
-        await chrome.sidePanel.open({ windowId: tab.windowId });
+        chrome.sidePanel?.open({ windowId: tab.windowId });
       }
       sendResponse({ success: true });
       break;
@@ -266,17 +265,17 @@ async function handleMessage(
           },
         });
 
-        // Show badge to indicate pending action
-        await chrome.action.setBadgeText({ text: '1' });
-        await chrome.action.setBadgeBackgroundColor({ color: '#3b82f6' });
+        // Show badge to indicate pending action (Chrome only)
+        chrome.action?.setBadgeText({ text: '1' });
+        chrome.action?.setBadgeBackgroundColor({ color: '#3b82f6' });
 
         // Try to open side panel, but don't fail if we can't due to user gesture requirement
         try {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
           if (tab?.windowId) {
-            await chrome.sidePanel.open({ windowId: tab.windowId });
+            chrome.sidePanel?.open({ windowId: tab.windowId });
             // Clear badge if we successfully opened
-            await chrome.action.setBadgeText({ text: '' });
+            chrome.action?.setBadgeText({ text: '' });
           }
         } catch (err) {
           // User needs to click the extension icon to see the pending action
@@ -466,18 +465,18 @@ async function handleStreamingQuickAction(
               });
               break;
           }
-        } catch (sendErr) {
-          console.error('[DevMentorAI] Failed to send stream event:', sendErr);
+        } catch (error_) {
+          console.error('[DevMentorAI] Failed to send stream event:', error_);
         }
       }
     );
-  } catch (err) {
-    console.error('[DevMentorAI] Streaming quick action failed:', err);
+  } catch (error_) {
+    console.error('[DevMentorAI] Streaming quick action failed:', error_);
     try {
       await chrome.tabs.sendMessage(tabId, {
         type: 'QUICK_ACTION_STREAM_ERROR',
         actionId,
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error: error_ instanceof Error ? error_.message : 'Unknown error',
       });
     } catch {
       // Content script may not be available

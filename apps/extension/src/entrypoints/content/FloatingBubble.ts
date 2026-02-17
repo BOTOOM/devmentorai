@@ -108,15 +108,30 @@ export function createFloatingBubble() {
   // Create bubble element
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.innerHTML = `
-    <span class="bubble-icon">D</span>
-    <div class="bubble-badge">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
-    </div>
-    <div class="tooltip">DevMentorAI - Click to open</div>
-  `;
+
+  const bubbleIcon = document.createElement('span');
+  bubbleIcon.className = 'bubble-icon';
+  bubbleIcon.textContent = 'D';
+
+  const bubbleBadge = document.createElement('div');
+  bubbleBadge.className = 'bubble-badge';
+  const badgeSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  badgeSvg.setAttribute('viewBox', '0 0 24 24');
+  badgeSvg.setAttribute('fill', 'none');
+  badgeSvg.setAttribute('stroke', 'currentColor');
+  badgeSvg.setAttribute('stroke-width', '3');
+  const badgePolyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  badgePolyline.setAttribute('points', '20 6 9 17 4 12');
+  badgeSvg.appendChild(badgePolyline);
+  bubbleBadge.appendChild(badgeSvg);
+
+  const tooltip = document.createElement('div');
+  tooltip.className = 'tooltip';
+  tooltip.textContent = 'DevMentorAI - Click to open';
+
+  bubble.appendChild(bubbleIcon);
+  bubble.appendChild(bubbleBadge);
+  bubble.appendChild(tooltip);
 
   // Add event listeners
   bubble.addEventListener('click', handleBubbleClick);
@@ -237,7 +252,7 @@ async function loadBubblePosition() {
       bubbleContainer.style.right = 'auto';
       bubbleContainer.style.bottom = 'auto';
     }
-  } catch (error) {
-    // Use default position
+  } catch (error_) {
+    console.debug('[FloatingBubble] Using default position:', error_);
   }
 }

@@ -10,6 +10,30 @@ export function OptionsPage() {
   const [saved, setSaved] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
 
+  const backendStatusClassByState: Record<typeof backendStatus, string> = {
+    connected: 'bg-green-500',
+    disconnected: 'bg-red-500',
+    checking: 'bg-yellow-500 animate-pulse',
+  };
+
+  const backendStatusLabelByState: Record<typeof backendStatus, string> = {
+    connected: 'Connected',
+    disconnected: 'Disconnected',
+    checking: 'Checking...',
+  };
+
+  const screenshotBehaviorDescriptionByState: Record<Settings['screenshotBehavior'], string> = {
+    disabled: 'Screenshots are not captured automatically',
+    ask: 'Ask before capturing screenshot when context mode is enabled',
+    auto: 'Automatically capture screenshot when context mode is enabled',
+  };
+
+  const textReplacementDescriptionByState: Record<Settings['textReplacementBehavior'], string> = {
+    ask: 'Show Replace/Copy options after AI response',
+    auto: 'Automatically replace text in editable fields',
+    never: 'Only copy AI results to clipboard (no replacement)',
+  };
+
   // Sync local settings with loaded settings
   useEffect(() => {
     if (isLoaded) {
@@ -57,7 +81,7 @@ export function OptionsPage() {
   const applyTheme = (theme: Settings['theme']) => {
     const root = document.documentElement;
     if (theme === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const prefersDark = globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
       root.classList.toggle('dark', prefersDark);
     } else {
       root.classList.toggle('dark', theme === 'dark');
@@ -94,15 +118,9 @@ export function OptionsPage() {
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-3 h-3 rounded-full ${
-                backendStatus === 'connected' ? 'bg-green-500' :
-                backendStatus === 'disconnected' ? 'bg-red-500' :
-                'bg-yellow-500 animate-pulse'
-              }`} />
+              <div className={`w-3 h-3 rounded-full ${backendStatusClassByState[backendStatus]}`} />
               <span className="text-gray-700 dark:text-gray-300">
-                {backendStatus === 'connected' ? 'Connected' :
-                 backendStatus === 'disconnected' ? 'Disconnected' :
-                 'Checking...'}
+                {backendStatusLabelByState[backendStatus]}
               </span>
             </div>
             <button
@@ -114,10 +132,11 @@ export function OptionsPage() {
           </div>
 
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="backend-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Backend URL
             </label>
             <input
+              id="backend-url"
               type="text"
               value={localSettings.backendUrl}
               onChange={(e) => updateLocalSetting('backendUrl', e.target.value)}
@@ -133,9 +152,9 @@ export function OptionsPage() {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Theme
-              </label>
+              </p>
               <div className="flex gap-2">
                 {(['light', 'dark', 'system'] as const).map((theme) => (
                   <button
@@ -156,10 +175,11 @@ export function OptionsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="interface-language" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Interface Language
               </label>
               <select
+                id="interface-language"
                 value={localSettings.language}
                 onChange={(e) => updateLocalSetting('language', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -188,10 +208,11 @@ export function OptionsPage() {
               
               {/* Native Language - for reading/understanding */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="native-language" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   📖 Native Language (for reading)
                 </label>
                 <select
+                  id="native-language"
                   value={localSettings.translationLanguage}
                   onChange={(e) => updateLocalSetting('translationLanguage', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -207,10 +228,11 @@ export function OptionsPage() {
               
               {/* Target Language - for writing/output */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="target-language" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   ✍️ Target Language (for writing)
                 </label>
                 <select
+                  id="target-language"
                   value={localSettings.targetTranslationLanguage}
                   onChange={(e) => updateLocalSetting('targetTranslationLanguage', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -254,13 +276,14 @@ export function OptionsPage() {
               </div>
             </label> */}
 
-            <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center justify-between">
               <div>
-                <span className="text-gray-700 dark:text-gray-300">Selection Toolbar</span>
+                <label htmlFor="selection-toolbar-toggle" className="text-gray-700 dark:text-gray-300 cursor-pointer">Selection Toolbar</label>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Show toolbar when selecting text</p>
               </div>
               <div className="relative">
                 <input
+                  id="selection-toolbar-toggle"
                   type="checkbox"
                   checked={localSettings.showSelectionToolbar}
                   onChange={(e) => updateLocalSetting('showSelectionToolbar', e.target.checked)}
@@ -274,13 +297,14 @@ export function OptionsPage() {
                   } mt-0.5`} />
                 </div>
               </div>
-            </label>
+            </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="default-session-type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Default Session Type
               </label>
               <select
+                id="default-session-type"
                 value={localSettings.defaultSessionType}
                 onChange={(e) => updateLocalSetting('defaultSessionType', e.target.value as Settings['defaultSessionType'])}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -299,13 +323,14 @@ export function OptionsPage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Images & Screenshots</h2>
           
           <div className="space-y-4">
-            <label className="flex items-center justify-between cursor-pointer">
+            <div className="flex items-center justify-between">
               <div>
-                <span className="text-gray-700 dark:text-gray-300">Image Attachments</span>
+                <label htmlFor="image-attachments-toggle" className="text-gray-700 dark:text-gray-300 cursor-pointer">Image Attachments</label>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Allow pasting and dragging images into chat</p>
               </div>
               <div className="relative">
                 <input
+                  id="image-attachments-toggle"
                   type="checkbox"
                   checked={localSettings.imageAttachmentsEnabled}
                   onChange={(e) => updateLocalSetting('imageAttachmentsEnabled', e.target.checked)}
@@ -319,12 +344,12 @@ export function OptionsPage() {
                   } mt-0.5`} />
                 </div>
               </div>
-            </label>
+            </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Screenshot Behavior (Context Mode)
-              </label>
+              </p>
               <div className="flex gap-2">
                 {(['disabled', 'ask', 'auto'] as const).map((behavior) => (
                   <button
@@ -343,11 +368,7 @@ export function OptionsPage() {
                 ))}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {localSettings.screenshotBehavior === 'disabled' 
-                  ? 'Screenshots are not captured automatically'
-                  : localSettings.screenshotBehavior === 'ask'
-                    ? 'Ask before capturing screenshot when context mode is enabled'
-                    : 'Automatically capture screenshot when context mode is enabled'}
+                {screenshotBehaviorDescriptionByState[localSettings.screenshotBehavior]}
               </p>
             </div>
           </div>
@@ -359,9 +380,9 @@ export function OptionsPage() {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Communication Mode
-              </label>
+              </p>
               <div className="flex gap-2">
                 {(['http', 'native'] as const).map((mode) => (
                   <button
@@ -393,9 +414,9 @@ export function OptionsPage() {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Text Replacement Behavior
-              </label>
+              </p>
               <div className="flex gap-2">
                 {(['ask', 'auto', 'never'] as const).map((behavior) => (
                   <button
@@ -414,19 +435,16 @@ export function OptionsPage() {
                 ))}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                {localSettings.textReplacementBehavior === 'ask' 
-                  ? 'Show Replace/Copy options after AI response'
-                  : localSettings.textReplacementBehavior === 'auto'
-                    ? 'Automatically replace text in editable fields'
-                    : 'Only copy AI results to clipboard (no replacement)'}
+                {textReplacementDescriptionByState[localSettings.textReplacementBehavior]}
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="quick-action-model" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Quick Action Model
               </label>
               <select
+                id="quick-action-model"
                 value={localSettings.quickActionModel}
                 onChange={(e) => updateLocalSetting('quickActionModel', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"

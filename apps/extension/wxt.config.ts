@@ -7,11 +7,19 @@ export default defineConfig({
     name: 'DevMentorAI',
     description: 'DevOps mentoring and writing assistant powered by GitHub Copilot',
     version: '1.1.3',
+    browser_specific_settings: {
+      gecko: {
+        id: 'devmentorai@devmentorai.com',
+        // @ts-ignore - data_collection_permissions is required by Firefox but not yet in WXT types
+        data_collection_permissions: {
+          required: ['none'],
+        },
+      },
+    },
     permissions: [
       'storage',
       'activeTab',
       'contextMenus',
-      'sidePanel',
       'scripting',
       'tabs',
       'alarms',

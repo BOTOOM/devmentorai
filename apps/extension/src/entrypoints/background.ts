@@ -31,11 +31,6 @@ export default defineBackground(() => {
   // Set up update checker
   setupUpdateAlarm();
 
-  // Set up side panel behavior
-  chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((error) => console.error('[DevMentorAI] Failed to set panel behavior:', error));
-
   // Create context menus on install
   chrome.runtime.onInstalled.addListener(() => {
     console.log('[DevMentorAI] Extension installed, setting up context menus');
@@ -144,10 +139,8 @@ async function handleContextMenuClick(
     },
   });
 
-  // Open the side panel
-  if (tab.windowId) {
-    await chrome.sidePanel.open({ windowId: tab.windowId });
-  }
+  // In Firefox, opening the sidebar programmatically may not be available.
+  // Keep pendingAction so users can open the extension panel manually.
 }
 
 /**
@@ -196,22 +189,17 @@ async function handleMessage(
       sendResponse(result.pendingAction || null);
       // Clear the pending action and badge
       await chrome.storage.local.remove('pendingAction');
-      await chrome.action.setBadgeText({ text: '' });
       break;
     }
 
     case 'OPEN_SIDE_PANEL': {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab?.windowId) {
-        await chrome.sidePanel.open({ windowId: tab.windowId });
-      }
-      sendResponse({ success: true });
+      sendResponse({ success: true, requiresManualOpen: true });
       break;
     }
 
     case 'OPEN_SIDE_PANEL_WITH_TEXT': {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab?.windowId) {
+      if (tab) {
         // Store text to be used in chat
         await chrome.storage.local.set({
           pendingAction: {
@@ -222,9 +210,8 @@ async function handleMessage(
             timestamp: Date.now(),
           },
         });
-        await chrome.sidePanel.open({ windowId: tab.windowId });
       }
-      sendResponse({ success: true });
+      sendResponse({ success: true, requiresManualOpen: true });
       break;
     }
 
@@ -266,22 +253,8 @@ async function handleMessage(
           },
         });
 
-        // Show badge to indicate pending action
-        await chrome.action.setBadgeText({ text: '1' });
-        await chrome.action.setBadgeBackgroundColor({ color: '#3b82f6' });
-
-        // Try to open side panel, but don't fail if we can't due to user gesture requirement
-        try {
-          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          if (tab?.windowId) {
-            await chrome.sidePanel.open({ windowId: tab.windowId });
-            // Clear badge if we successfully opened
-            await chrome.action.setBadgeText({ text: '' });
-          }
-        } catch (err) {
-          // User needs to click the extension icon to see the pending action
-          console.log('[DevMentorAI] Stored pending action, user needs to open side panel');
-        }
+        // User needs to open the extension panel manually to continue.
+        console.log('[DevMentorAI] Stored pending action, user needs to open side panel');
         
         sendResponse({ success: true, streamed: false });
       }
@@ -466,18 +439,18 @@ async function handleStreamingQuickAction(
               });
               break;
           }
-        } catch (sendErr) {
-          console.error('[DevMentorAI] Failed to send stream event:', sendErr);
+        } catch (error_) {
+          console.error('[DevMentorAI] Failed to send stream event:', error_);
         }
       }
     );
-  } catch (err) {
-    console.error('[DevMentorAI] Streaming quick action failed:', err);
+  } catch (error_) {
+    console.error('[DevMentorAI] Streaming quick action failed:', error_);
     try {
       await chrome.tabs.sendMessage(tabId, {
         type: 'QUICK_ACTION_STREAM_ERROR',
         actionId,
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error: error_ instanceof Error ? error_.message : 'Unknown error',
       });
     } catch {
       // Content script may not be available

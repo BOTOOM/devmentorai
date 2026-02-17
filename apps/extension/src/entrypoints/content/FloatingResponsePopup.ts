@@ -53,7 +53,7 @@ export function createFloatingResponsePopup(
   const popup = document.createElement('div');
   popup.className = 'popup';
   popup.id = 'popup-content';
-  popup.innerHTML = getLoadingHTML();
+  renderLoadingState(popup);
   shadow.appendChild(popup);
   
   document.body.appendChild(popupContainer);
@@ -99,7 +99,7 @@ export function updateFloatingResponseContent(content: string, isStreaming: bool
     return;
   }
   
-  popup.innerHTML = getContentHTML(content, isStreaming ? 'streaming' : 'complete');
+  renderContentState(popup, content, isStreaming ? 'streaming' : 'complete');
   
   // Attach button handlers
   attachButtonHandlers(shadow);
@@ -119,7 +119,7 @@ export function showFloatingResponseError(error: string): void {
   const popup = shadow.getElementById('popup-content');
   if (!popup) return;
   
-  popup.innerHTML = getErrorHTML(error);
+  renderErrorState(popup, error);
   
   // Attach button handlers
   attachButtonHandlers(shadow);
@@ -137,7 +137,7 @@ export function showSuccessNotice(message: string): void {
   const popup = shadow.getElementById('popup-content');
   if (!popup) return;
   
-  popup.innerHTML = getSuccessHTML(message);
+  renderSuccessState(popup, message);
   
   // Auto-dismiss after delay
   setTimeout(() => {
@@ -541,67 +541,105 @@ function getStyles(): string {
   `;
 }
 
-function getLoadingHTML(): string {
-  return `
-    <div class="header">
-      <span class="header-title">✨ AI Response</span>
-      <button class="dismiss-btn" id="btn-dismiss" title="Dismiss (Esc)">✕</button>
-    </div>
-    <div class="loading">
-      <div class="spinner"></div>
-      <span>Generating response...</span>
-    </div>
-  `;
+function createHeader(): HTMLDivElement {
+  const header = document.createElement('div');
+  header.className = 'header';
+
+  const title = document.createElement('span');
+  title.className = 'header-title';
+  title.textContent = '✨ AI Response';
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'dismiss-btn';
+  dismissBtn.id = 'btn-dismiss';
+  dismissBtn.title = 'Dismiss (Esc)';
+  dismissBtn.textContent = '✕';
+
+  header.appendChild(title);
+  header.appendChild(dismissBtn);
+
+  return header;
 }
 
-function getContentHTML(content: string, status: 'streaming' | 'complete'): string {
+function renderLoadingState(popup: HTMLElement): void {
+  const loading = document.createElement('div');
+  loading.className = 'loading';
+
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner';
+
+  const text = document.createElement('span');
+  text.textContent = 'Generating response...';
+
+  loading.appendChild(spinner);
+  loading.appendChild(text);
+
+  popup.replaceChildren(createHeader(), loading);
+}
+
+function renderContentState(popup: HTMLElement, content: string, status: 'streaming' | 'complete'): void {
   const isStreaming = status === 'streaming';
-  const escapedContent = escapeHtml(content);
-  
-  return `
-    <div class="header">
-      <span class="header-title">✨ AI Response</span>
-      <button class="dismiss-btn" id="btn-dismiss" title="Dismiss (Esc)">✕</button>
-    </div>
-    <div class="content">
-      <div class="content-text">${escapedContent}${isStreaming ? '<span class="streaming-indicator"></span>' : ''}</div>
-    </div>
-    <div class="actions">
-      <button class="action-btn btn-primary" id="btn-replace" ${isStreaming ? 'disabled' : ''}>
-        ↩️ Replace<span class="kbd">↵</span>
-      </button>
-      <button class="action-btn btn-secondary" id="btn-copy" ${isStreaming ? 'disabled' : ''}>
-        📋 Copy
-      </button>
-    </div>
-  `;
+
+  const contentWrapper = document.createElement('div');
+  contentWrapper.className = 'content';
+
+  const contentText = document.createElement('div');
+  contentText.className = 'content-text';
+  contentText.textContent = content;
+
+  if (isStreaming) {
+    const streamingIndicator = document.createElement('span');
+    streamingIndicator.className = 'streaming-indicator';
+    contentText.appendChild(streamingIndicator);
+  }
+
+  contentWrapper.appendChild(contentText);
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+
+  const replaceBtn = document.createElement('button');
+  replaceBtn.className = 'action-btn btn-primary';
+  replaceBtn.id = 'btn-replace';
+  replaceBtn.disabled = isStreaming;
+  replaceBtn.appendChild(document.createTextNode('↩️ Replace'));
+  const kbd = document.createElement('span');
+  kbd.className = 'kbd';
+  kbd.textContent = '↵';
+  replaceBtn.appendChild(kbd);
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'action-btn btn-secondary';
+  copyBtn.id = 'btn-copy';
+  copyBtn.disabled = isStreaming;
+  copyBtn.textContent = '📋 Copy';
+
+  actions.appendChild(replaceBtn);
+  actions.appendChild(copyBtn);
+
+  popup.replaceChildren(createHeader(), contentWrapper, actions);
 }
 
-function getErrorHTML(error: string): string {
-  return `
-    <div class="header">
-      <span class="header-title">✨ AI Response</span>
-      <button class="dismiss-btn" id="btn-dismiss" title="Dismiss (Esc)">✕</button>
-    </div>
-    <div class="error">
-      ⚠️ ${escapeHtml(error)}
-    </div>
-    <div class="actions">
-      <button class="action-btn btn-secondary" id="btn-dismiss">Dismiss</button>
-    </div>
-  `;
+function renderErrorState(popup: HTMLElement, error: string): void {
+  const errorBlock = document.createElement('div');
+  errorBlock.className = 'error';
+  errorBlock.textContent = `⚠️ ${error}`;
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'action-btn btn-secondary';
+  dismissBtn.id = 'btn-dismiss';
+  dismissBtn.textContent = 'Dismiss';
+  actions.appendChild(dismissBtn);
+
+  popup.replaceChildren(createHeader(), errorBlock, actions);
 }
 
-function getSuccessHTML(message: string): string {
-  return `
-    <div class="success">
-      ${escapeHtml(message)}
-    </div>
-  `;
-}
-
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+function renderSuccessState(popup: HTMLElement, message: string): void {
+  const successBlock = document.createElement('div');
+  successBlock.className = 'success';
+  successBlock.textContent = message;
+  popup.replaceChildren(successBlock);
 }

@@ -64,12 +64,7 @@ export async function performUpdateCheck(): Promise<UpdateState> {
   // Persist to storage
   await chrome.storage.local.set({ updateState: state });
 
-  // Update badge
-  const hasUpdate = state.extension?.hasUpdate || state.backend?.hasUpdate;
-  if (hasUpdate) {
-    await chrome.action.setBadgeText({ text: '!' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#f59e0b' });
-  }
+  // Keep update info in storage; UI can read it from settings/panel.
 
   return state;
 }
@@ -113,7 +108,9 @@ export async function forceUpdateCheck(): Promise<UpdateState> {
  * Dismiss the update notification badge.
  */
 export async function dismissUpdateBadge(): Promise<void> {
-  await chrome.action.setBadgeText({ text: '' });
+  // No-op in Firefox build to avoid unsupported badge API warnings.
 }
 
-export { EXTENSION_VERSION };
+
+
+export {EXTENSION_VERSION} from '../version.js';

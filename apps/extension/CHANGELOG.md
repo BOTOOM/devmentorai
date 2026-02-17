@@ -1,3 +1,27 @@
+## [1.1.3](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.2...ext-v1.1.3) (2026-02-11)
+
+### Bug Fixes
+
+* **extension:** reload sessions when backend reconnects after disconnection ([89307d6](https://github.com/BOTOOM/devmentorai/commit/89307d6cebf1259b01247f5620082336b1edb5d4))
+
+### Maintenance
+
+* **website:** add commit existence validation to Vercel ignore command ([1b1d09b](https://github.com/BOTOOM/devmentorai/commit/1b1d09b6fe06d713732cc321fba40b2168f445b2))
+
+## [1.1.2](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.1...ext-v1.1.2) (2026-02-11)
+
+### Bug Fixes
+
+* **backend:** centralize version management with dedicated version.ts file ([417716b](https://github.com/BOTOOM/devmentorai/commit/417716b72728906ff4ec0803fd134f254d150e44))
+* **backend:** improve update instructions with npx command and explicit latest tag ([60ab512](https://github.com/BOTOOM/devmentorai/commit/60ab51260d8426c0d45b00ffa27d75799f197140))
+* **extension:** update backend update command and use dynamic extension version ([464888a](https://github.com/BOTOOM/devmentorai/commit/464888a105ec625268721226084850fb47970d07))
+
+### Maintenance
+
+* **extension:** disable GitHub issue comments in release configuration ([63f7401](https://github.com/BOTOOM/devmentorai/commit/63f74015446025ae91581ccd509bfbc82487624b))
+* **release:** backend v1.2.1 [skip ci] ([886c3ea](https://github.com/BOTOOM/devmentorai/commit/886c3eabec0de24905695ebcc345f6acdd217792))
+* **release:** backend v1.2.2 [skip ci] ([41f02ae](https://github.com/BOTOOM/devmentorai/commit/41f02ae569246b61315caa7b8f00bbfe8e0a25b8))
+
 ## [1.1.1](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.0...ext-v1.1.1) (2026-02-11)
 
 ### Bug Fixes

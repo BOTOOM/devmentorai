@@ -1,3 +1,23 @@
+## [1.1.4](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.3...ext-v1.1.4) (2026-02-18)
+
+### Bug Fixes
+
+* **extension:** add Firefox compatibility with browser-specific settings and optional sidePanel permission ([78f680e](https://github.com/BOTOOM/devmentorai/commit/78f680e5e1b8d2b1da661e62711585ce7784bfd0))
+* **extension:** add Firefox compatibility with optional chaining for Chrome-specific APIs ([3f4f70c](https://github.com/BOTOOM/devmentorai/commit/3f4f70c4c94ea554a4753bf80ace45d0b017d2e9))
+* **extension:** remove Chrome-specific APIs for Firefox compatibility ([442a5cf](https://github.com/BOTOOM/devmentorai/commit/442a5cf3725331e635378ed7e797a6f6916eb3f4))
+
+### Refactoring
+
+* **extension:** improve accessibility and code quality in UI components ([be6af45](https://github.com/BOTOOM/devmentorai/commit/be6af45710f678aa82eb86a07aaf5498a8c81fbb))
+
+### Documentation
+
+* **extension:** add Firefox source build instructions for reviewers ([1d479fc](https://github.com/BOTOOM/devmentorai/commit/1d479fc05b95ee2b5c197ea70420da6008b619fd))
+
+### Maintenance
+
+* **extension:** revert version from 1.1.4 to 1.1.3 ([d321926](https://github.com/BOTOOM/devmentorai/commit/d32192662d84099150fd9c88a8b087ccdb837509))
+
 ## [1.1.3](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.2...ext-v1.1.3) (2026-02-11)
 
 ### Bug Fixes

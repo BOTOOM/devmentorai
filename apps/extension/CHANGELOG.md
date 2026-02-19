@@ -1,3 +1,14 @@
+## [1.3.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.2.0...ext-v1.3.0) (2026-02-19)
+
+### Features
+
+* **docker:** add Docker Compose setup with Copilot CLI integration and persistence ([4e9b245](https://github.com/BOTOOM/devmentorai/commit/4e9b245077da9ca107f3003836bb7f842cc40de4))
+* **extension:** add dynamic backend URL configuration from storage ([1f22e19](https://github.com/BOTOOM/devmentorai/commit/1f22e19a91129bba361526ef590e57ed006330e8))
+
+### Refactoring
+
+* **tests:** improve E2E test isolation and add accessibility attributes ([5acaef0](https://github.com/BOTOOM/devmentorai/commit/5acaef0027a18e3f67942065e8a47447e01e785a))
+
 ## [1.2.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.5...ext-v1.2.0) (2026-02-19)
 
 ### Features

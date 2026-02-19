@@ -6,7 +6,7 @@ export default defineConfig({
   manifest: {
     name: 'DevMentorAI',
     description: 'DevOps mentoring and writing assistant powered by GitHub Copilot',
-    version: '1.2.0',
+    version: '1.3.0',
     browser_specific_settings: {
       gecko: {
         id: 'devmentorai@devmentorai.com',

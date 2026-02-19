@@ -12,7 +12,7 @@ export function useBackendConnection() {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
 
   const defaultBaseUrl = `http://${DEFAULT_CONFIG.DEFAULT_HOST}:${DEFAULT_CONFIG.DEFAULT_PORT}`;
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);

@@ -45,7 +45,7 @@ export default defineConfig({
   ],
   // Run backend before tests
   webServer: {
-    command: 'pnpm --filter devmentorai-server dev',
+    command: 'rm -rf .e2e-home && mkdir -p .e2e-home && HOME=$PWD/.e2e-home pnpm --filter devmentorai-server dev',
     url: 'http://localhost:3847/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,

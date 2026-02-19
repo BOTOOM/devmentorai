@@ -135,6 +135,8 @@ export function Header({
         <button
           onClick={onNewSession}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
+          aria-label="New session"
+          title={chrome.i18n.getMessage('btn_new_session') || 'New session'}
         >
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">

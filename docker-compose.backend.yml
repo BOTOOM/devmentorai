@@ -1,0 +1,58 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/remote-backend/Dockerfile
+    container_name: devmentorai-backend
+    environment:
+      DEVMENTORAI_PORT: ${BACKEND_PORT:-3847}
+      NODE_ENV: production
+      HTTP_PROXY: ${HTTP_PROXY:-}
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      ALL_PROXY: ${ALL_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,backend}
+    ports:
+      - "${BACKEND_PORT:-3847}:${BACKEND_PORT:-3847}"
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      - ${HOST_DEVMENTOR_CONTAINER_DIR:-/home/botom/devmentor-container}/.copilot:/home/devmentor/.copilot
+      - ${HOST_DEVMENTOR_CONTAINER_DIR:-/home/botom/devmentor-container}/.devmentorai:/home/devmentor/.devmentorai
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    networks:
+      - custom_net
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    command:
+      - "http"
+      - "http://backend:${BACKEND_PORT:-3847}"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
+    ports:
+      - "4040:4040"
+    depends_on:
+      - backend
+    networks:
+      - custom_net
+    profiles:
+      - tunnel-ngrok
+
+  cloudflare:
+    image: cloudflare/cloudflared:latest
+    command:
+      - "tunnel"
+      - "--no-autoupdate"
+      - "--url"
+      - "http://backend:${BACKEND_PORT:-3847}"
+    depends_on:
+      - backend
+    networks:
+      - custom_net
+    profiles:
+      - tunnel-cloudflare
+
+networks:
+  custom_net:
+    name: devmentorai_custom_net

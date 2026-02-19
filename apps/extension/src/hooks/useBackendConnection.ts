@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
 import type { HealthResponse } from '@devmentorai/shared';
+import { storageGet } from '../lib/browser-utils';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -11,13 +12,18 @@ export function useBackendConnection() {
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
 
-  const baseUrl = `http://${DEFAULT_CONFIG.DEFAULT_HOST}:${DEFAULT_CONFIG.DEFAULT_PORT}`;
+  const defaultBaseUrl = `http://${DEFAULT_CONFIG.DEFAULT_HOST}:${DEFAULT_CONFIG.DEFAULT_PORT}`;
+  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
 
   const checkHealth = useCallback(async () => {
     try {
-      const response = await fetch(`${baseUrl}/api/health`, {
+      const { backendUrl } = await storageGet<{ backendUrl?: string }>('backendUrl');
+      const resolvedBaseUrl = backendUrl?.trim() ? backendUrl.trim().replace(/\/+$/, '') : defaultBaseUrl;
+      setBaseUrl(resolvedBaseUrl);
+
+      const response = await fetch(`${resolvedBaseUrl}/api/health`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -44,13 +50,13 @@ export function useBackendConnection() {
         'Failed to connect to backend. Make sure the DevMentorAI server is running.'
       );
     }
-  }, [baseUrl]);
+  }, [defaultBaseUrl]);
 
   // Initial connection and periodic health checks
   useEffect(() => {
     checkHealth();
 
-    intervalRef.current = window.setInterval(() => {
+    intervalRef.current = globalThis.setInterval(() => {
       if (status !== 'connecting') {
         checkHealth();
       }

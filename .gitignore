@@ -45,7 +45,9 @@ coverage/
 playwright-report/
 playwright/.cache/
 test-results/
+tests/e2e/.e2e-home/
 
 # Misc
 *.local
 .cache/
+copilot-docker-container/

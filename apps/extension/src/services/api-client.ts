@@ -1,4 +1,5 @@
 import { DEFAULT_CONFIG, API_ENDPOINTS } from '@devmentorai/shared';
+import { storageGet } from '../lib/browser-utils';
 import type {
   ApiResponse,
   PaginatedResponse,
@@ -21,10 +22,29 @@ interface ModelsResponse {
 
 export class ApiClient {
   private static instance: ApiClient;
-  private readonly baseUrl: string;
+  private baseUrl: string;
 
   constructor(baseUrl?: string) {
-    this.baseUrl = baseUrl || `http://${DEFAULT_CONFIG.DEFAULT_HOST}:${DEFAULT_CONFIG.DEFAULT_PORT}`;
+    this.baseUrl = ApiClient.normalizeBaseUrl(
+      baseUrl || `http://${DEFAULT_CONFIG.DEFAULT_HOST}:${DEFAULT_CONFIG.DEFAULT_PORT}`
+    );
+  }
+
+  private static normalizeBaseUrl(url: string): string {
+    return url.trim().replace(/\/+$/, '');
+  }
+
+  private async resolveBaseUrl(): Promise<string> {
+    try {
+      const { backendUrl } = await storageGet<{ backendUrl?: string }>('backendUrl');
+      if (backendUrl && backendUrl.trim().length > 0) {
+        this.baseUrl = ApiClient.normalizeBaseUrl(backendUrl);
+      }
+    } catch {
+      // Keep current URL if storage is unavailable in this context.
+    }
+
+    return this.baseUrl;
   }
 
   static getInstance(): ApiClient {
@@ -39,7 +59,8 @@ export class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const baseUrl = await this.resolveBaseUrl();
+      const response = await fetch(`${baseUrl}${endpoint}`, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -146,6 +167,7 @@ export class ApiClient {
     onEvent: (event: StreamEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
+    const baseUrl = await this.resolveBaseUrl();
     console.log('[ApiClient] streamChat called for session:', sessionId);
     console.log('[ApiClient] Request data:', { 
       prompt: data.prompt.substring(0, 100), 
@@ -155,7 +177,7 @@ export class ApiClient {
       imageCount: data.images?.length || 0,
     });
     
-    const response = await fetch(`${this.baseUrl}${API_ENDPOINTS.CHAT_STREAM(sessionId)}`, {
+    const response = await fetch(`${baseUrl}${API_ENDPOINTS.CHAT_STREAM(sessionId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

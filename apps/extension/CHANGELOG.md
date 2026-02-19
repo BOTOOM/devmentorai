@@ -1,3 +1,15 @@
+## [1.1.5](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.4...ext-v1.1.5) (2026-02-19)
+
+### Refactoring
+
+* **backend:** add account routes, improve model management, and enhance CLI diagnostics ([18d5845](https://github.com/BOTOOM/devmentorai/commit/18d584516bdb2923d3e64eeda17aac66cb050b6d))
+* **backend:** improve error handling, cleanup, and code quality ([005c534](https://github.com/BOTOOM/devmentorai/commit/005c5348bd25a9d6a52f88c6bf17f34fc7771086))
+* **shared:** add account endpoints and enhance model/session types ([7b51edb](https://github.com/BOTOOM/devmentorai/commit/7b51edb9e6b748a621d5a2295316d0c53752d0b9))
+
+### Maintenance
+
+* **release:** backend v1.2.3 [skip ci] ([dc3476a](https://github.com/BOTOOM/devmentorai/commit/dc3476a5fdbddbf2c1f95fcd30c3d508aac18550))
+
 ## [1.1.4](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.3...ext-v1.1.4) (2026-02-18)
 
 ### Bug Fixes

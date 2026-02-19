@@ -20,6 +20,7 @@ import {
   startConsoleCapture,
   startNetworkErrorCapture,
 } from '../../lib/context-extractor';
+import { storageGet } from '../../lib/browser-utils';
 import { detectSelection } from '../../lib/selection-detector';
 import { replaceSelectedText } from '../../lib/text-replacer';
 import type { SelectionContext, TextReplacementBehavior, QuickActionStreamMessage } from '@devmentorai/shared';
@@ -364,7 +365,11 @@ export default defineContentScript({
 
     async function loadPreferences() {
       try {
-        const result = await chrome.storage.local.get([
+        const result = await storageGet<{
+          showSelectionToolbar?: boolean;
+          floatingBubbleEnabled?: boolean;
+          textReplacementBehavior?: TextReplacementBehavior;
+        }>([
           'showSelectionToolbar',
           'floatingBubbleEnabled',
           'textReplacementBehavior',

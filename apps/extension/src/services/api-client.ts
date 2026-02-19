@@ -3,29 +3,25 @@ import type {
   ApiResponse,
   PaginatedResponse,
   HealthResponse,
+  ModelInfo,
+  CopilotAuthStatus,
+  CopilotQuotaStatus,
   Session,
   CreateSessionRequest,
+  UpdateSessionRequest,
   Message,
   SendMessageRequest,
   StreamEvent,
 } from '@devmentorai/shared';
 
-interface Model {
-  id: string;
-  name: string;
-  description: string;
-  provider: string;
-  isDefault: boolean;
-}
-
 interface ModelsResponse {
-  models: Model[];
+  models: ModelInfo[];
   default: string;
 }
 
 export class ApiClient {
   private static instance: ApiClient;
-  private baseUrl: string;
+  private readonly baseUrl: string;
 
   constructor(baseUrl?: string) {
     this.baseUrl = baseUrl || `http://${DEFAULT_CONFIG.DEFAULT_HOST}:${DEFAULT_CONFIG.DEFAULT_PORT}`;
@@ -77,7 +73,15 @@ export class ApiClient {
 
   // Models
   async getModels(): Promise<ApiResponse<ModelsResponse>> {
-    return this.request<ModelsResponse>('/api/models');
+    return this.request<ModelsResponse>(API_ENDPOINTS.MODELS);
+  }
+
+  async getAccountAuth(): Promise<ApiResponse<CopilotAuthStatus>> {
+    return this.request<CopilotAuthStatus>(API_ENDPOINTS.ACCOUNT_AUTH);
+  }
+
+  async getAccountQuota(): Promise<ApiResponse<CopilotQuotaStatus>> {
+    return this.request<CopilotQuotaStatus>(API_ENDPOINTS.ACCOUNT_QUOTA);
   }
 
   // Sessions
@@ -94,6 +98,13 @@ export class ApiClient {
 
   async getSession(sessionId: string): Promise<ApiResponse<Session>> {
     return this.request<Session>(API_ENDPOINTS.SESSION(sessionId));
+  }
+
+  async updateSession(sessionId: string, data: UpdateSessionRequest): Promise<ApiResponse<Session>> {
+    return this.request<Session>(API_ENDPOINTS.SESSION(sessionId), {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   }
 
   async deleteSession(sessionId: string): Promise<ApiResponse<void>> {

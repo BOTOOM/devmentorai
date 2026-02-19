@@ -1,20 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
-import type { SessionType } from '@devmentorai/shared';
+import type { SessionType, ModelInfo } from '@devmentorai/shared';
 import { SESSION_TYPE_CONFIGS, DEFAULT_CONFIG } from '@devmentorai/shared';
 import { ApiClient } from '../services/api-client';
-
-// D.5 - Extended model interface with pricing
-interface Model {
-  id: string;
-  name: string;
-  description: string;
-  provider: string;
-  isDefault: boolean;
-  pricingTier?: 'free' | 'cheap' | 'standard' | 'premium';
-  pricingMultiplier?: number;
-}
 
 // D.5 - Pricing tier display
 const PRICING_BADGES: Record<string, { label: string; color: string }> = {
@@ -26,15 +15,16 @@ const PRICING_BADGES: Record<string, { label: string; color: string }> = {
 
 interface NewSessionModalProps {
   onClose: () => void;
-  onSubmit: (name: string, type: SessionType, model?: string) => void;
+  onSubmit: (name: string, type: SessionType, model?: string) => Promise<void> | void;
 }
 
-export function NewSessionModal({ onClose, onSubmit }: NewSessionModalProps) {
+export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalProps>) {
   const [name, setName] = useState('');
   const [type, setType] = useState<SessionType>('devops');
   const [model, setModel] = useState<string>('gpt-4.1');
-  const [models, setModels] = useState<Model[]>([]);
+  const [models, setModels] = useState<ModelInfo[]>([]);
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch available models
@@ -68,13 +58,29 @@ export function NewSessionModal({ onClose, onSubmit }: NewSessionModalProps) {
 
   const sessionTypes = Object.entries(SESSION_TYPE_CONFIGS) as [SessionType, typeof SESSION_TYPE_CONFIGS[SessionType]][];
   const selectedModel = models.find(m => m.id === model);
+  const normalizedQuery = modelSearch.trim().toLowerCase();
+  const filteredModels = normalizedQuery
+    ? models.filter((modelItem) => {
+        const searchSource = [
+          modelItem.id,
+          modelItem.name,
+          modelItem.provider,
+          modelItem.description || '',
+        ]
+          .join(' ')
+          .toLowerCase();
+        return searchSource.includes(normalizedQuery);
+      })
+    : models;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div
+      <button
+        type="button"
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
+        aria-label="Close modal"
       />
 
       {/* Modal */}
@@ -115,9 +121,9 @@ export function NewSessionModal({ onClose, onSubmit }: NewSessionModalProps) {
 
           {/* Session type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Session Type
-            </label>
+            </p>
             <div className="grid grid-cols-2 gap-2">
               {sessionTypes.map(([typeKey, config]) => (
                 <button
@@ -149,9 +155,9 @@ export function NewSessionModal({ onClose, onSubmit }: NewSessionModalProps) {
 
           {/* Model selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               AI Model
-            </label>
+            </p>
             <div className="relative">
               <button
                 type="button"
@@ -175,10 +181,24 @@ export function NewSessionModal({ onClose, onSubmit }: NewSessionModalProps) {
               </button>
 
               {showModelPicker && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 max-h-72 overflow-y-auto">
+                  <div className="sticky top-0 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <input
+                      type="text"
+                      value={modelSearch}
+                      onChange={(event) => setModelSearch(event.target.value)}
+                      placeholder="Search models..."
+                      className="w-full px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
+
+                  {filteredModels.length === 0 && (
+                    <p className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">No models found</p>
+                  )}
+
                   {/* D.5 - Group models by pricing tier */}
                   {['free', 'cheap', 'standard', 'premium'].map(tier => {
-                    const tierModels = models.filter(m => m.pricingTier === tier || (!m.pricingTier && tier === 'standard'));
+                    const tierModels = filteredModels.filter(m => m.pricingTier === tier || (!m.pricingTier && tier === 'standard'));
                     if (tierModels.length === 0) return null;
                     
                     return (
@@ -198,6 +218,7 @@ export function NewSessionModal({ onClose, onSubmit }: NewSessionModalProps) {
                             onClick={() => {
                               setModel(m.id);
                               setShowModelPicker(false);
+                              setModelSearch('');
                             }}
                             className={cn(
                               'w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors',

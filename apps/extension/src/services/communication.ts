@@ -7,8 +7,10 @@
 
 import type { 
   Session, 
-  ApiResponse 
+  ApiResponse,
+  ModelInfo,
 } from '@devmentorai/shared';
+import { storageGet, storageSet } from '../lib/browser-utils';
 
 /** Chat message sent to the backend */
 interface ChatMessage {
@@ -55,7 +57,7 @@ export interface CommunicationAdapter {
   ): Promise<void>;
   
   // Models
-  listModels(): Promise<ApiResponse<Array<{ id: string; name: string; description?: string }>>>;
+  listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>>;
 }
 
 /**
@@ -65,7 +67,7 @@ export interface CommunicationAdapter {
 export class HttpAdapter implements CommunicationAdapter {
   readonly mode = 'http' as const;
   
-  constructor(private baseUrl: string) {}
+  constructor(private readonly baseUrl: string) {}
   
   async getHealth(): Promise<HealthStatus> {
     try {
@@ -169,7 +171,7 @@ export class HttpAdapter implements CommunicationAdapter {
     }
   }
   
-  async listModels(): Promise<ApiResponse<Array<{ id: string; name: string; description?: string }>>> {
+  async listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>> {
     const response = await fetch(`${this.baseUrl}/api/models`);
     return response.json();
   }
@@ -182,14 +184,14 @@ export class HttpAdapter implements CommunicationAdapter {
 export class NativeMessagingAdapter implements CommunicationAdapter {
   readonly mode = 'native' as const;
   private port: chrome.runtime.Port | null = null;
-  private pendingRequests = new Map<string, {
+  private readonly pendingRequests = new Map<string, {
     resolve: (value: unknown) => void;
     reject: (error: Error) => void;
     onEvent?: (event: SessionEvent) => void;
   }>();
   private requestId = 0;
   
-  constructor(private hostName: string = 'com.devmentorai.host') {}
+  constructor(private readonly hostName: string = 'com.devmentorai.host') {}
   
   private connect(): chrome.runtime.Port {
     if (this.port) return this.port;
@@ -350,7 +352,7 @@ export class NativeMessagingAdapter implements CommunicationAdapter {
     );
   }
   
-  async listModels(): Promise<ApiResponse<Array<{ id: string; name: string; description?: string }>>> {
+  async listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>> {
     return this.sendNativeMessage({
       id: this.nextId(),
       type: 'request',
@@ -389,7 +391,7 @@ interface NativeResponse {
  */
 export class CommunicationService {
   private adapter: CommunicationAdapter;
-  private httpAdapter: HttpAdapter;
+  private readonly httpAdapter: HttpAdapter;
   private nativeAdapter: NativeMessagingAdapter | null = null;
   
   constructor(httpBaseUrl: string = 'http://localhost:3847') {
@@ -410,7 +412,7 @@ export class CommunicationService {
       this.nativeAdapter.disconnect();
     }
     this.adapter = this.httpAdapter;
-    await chrome.storage.local.set({ communicationMode: 'http' });
+    await storageSet({ communicationMode: 'http' });
   }
   
   async switchToNative(): Promise<void> {
@@ -425,11 +427,11 @@ export class CommunicationService {
     }
     
     this.adapter = this.nativeAdapter;
-    await chrome.storage.local.set({ communicationMode: 'native' });
+    await storageSet({ communicationMode: 'native' });
   }
   
   async initialize(): Promise<void> {
-    const { communicationMode } = await chrome.storage.local.get('communicationMode');
+    const { communicationMode } = await storageGet<{ communicationMode?: 'http' | 'native' }>('communicationMode');
     
     if (communicationMode === 'native') {
       try {

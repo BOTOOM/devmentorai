@@ -4,7 +4,16 @@ import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
 import { useImageAttachments } from '../hooks/useImageAttachments';
-import type { Session, Message, ContextPayload, PlatformDetection, ImagePayload } from '@devmentorai/shared';
+import type { Session, Message, ContextPayload, PlatformDetection, ImagePayload, ModelInfo } from '@devmentorai/shared';
+
+const PRICING_BADGES: Record<string, { label: string; color: string }> = {
+  free: { label: 'Free', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  cheap: { label: 'Cheap', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' },
+  premium: { label: 'Premium', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+};
+
+const MODEL_TIERS = ['free', 'cheap', 'standard', 'premium'] as const;
 
 interface ChatViewProps {
   session: Session | null;
@@ -13,7 +22,7 @@ interface ChatViewProps {
   onSendMessage: (content: string, useContext?: boolean, images?: ImagePayload[]) => void;
   onAbort: () => void;
   onChangeModel?: (model: string) => void;
-  availableModels?: Array<{ id: string; name: string }>;
+  availableModels?: ModelInfo[];
   disabled?: boolean;
   pendingText?: string;
   // Context-aware mode props
@@ -53,9 +62,10 @@ export function ChatView({
   onCaptureScreenshot,
   screenshotBehavior = 'disabled',
   onRegisterAddImage,
-}: ChatViewProps) {
+}: Readonly<ChatViewProps>) {
   const [input, setInput] = useState('');
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const [modelSearch, setModelSearch] = useState('');
   const [showContextPreview, setShowContextPreview] = useState(false);
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -220,6 +230,28 @@ export function ChatView({
     }
   };
 
+  const normalizedQuery = modelSearch.trim().toLowerCase();
+  const filteredModels = normalizedQuery
+    ? availableModels.filter((model) => {
+        const searchSource = [
+          model.id,
+          model.name,
+          model.provider,
+          model.description || '',
+        ]
+          .join(' ')
+          .toLowerCase();
+        return searchSource.includes(normalizedQuery);
+      })
+    : availableModels;
+
+  let placeholderText = chrome.i18n.getMessage('placeholder_message') || 'Type a message...';
+  if (contextEnabled) {
+    placeholderText = chrome.i18n.getMessage('placeholder_context') || 'Ask about this page...';
+  } else if (images.length > 0) {
+    placeholderText = 'Add a message or send images...';
+  }
+
   if (!session) {
     return (
       <div className="flex-1 flex items-center justify-center p-8">
@@ -250,10 +282,10 @@ export function ChatView({
         <div className="relative">
           <button
             onClick={() => onChangeModel && setShowModelPicker(!showModelPicker)}
-            disabled={!onChangeModel || isStreaming}
+            disabled={!onChangeModel || disabled || isStreaming}
             className={cn(
               "flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors",
-              onChangeModel && !isStreaming
+              onChangeModel && !disabled && !isStreaming
                 ? "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
                 : "text-gray-400 dark:text-gray-500 cursor-default"
             )}
@@ -264,22 +296,60 @@ export function ChatView({
           </button>
           
           {showModelPicker && availableModels.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[180px] max-h-60 overflow-y-auto">
-              {availableModels.map((model) => (
-                <button
-                  key={model.id}
-                  onClick={() => {
-                    onChangeModel?.(model.id);
-                    setShowModelPicker(false);
-                  }}
-                  className={cn(
-                    "w-full px-3 py-2 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
-                    model.id === session.model && "bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400"
-                  )}
-                >
-                  {model.name}
-                </button>
-              ))}
+            <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[240px] max-h-72 overflow-y-auto">
+              <div className="sticky top-0 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <input
+                  type="text"
+                  value={modelSearch}
+                  onChange={(event) => setModelSearch(event.target.value)}
+                  placeholder="Search models..."
+                  className="w-full px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                />
+              </div>
+
+              {filteredModels.length === 0 && (
+                <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No models found</p>
+              )}
+
+              {MODEL_TIERS.map((tier) => {
+                const tierModels = filteredModels.filter(
+                  (model) => model.pricingTier === tier || (!model.pricingTier && tier === 'standard')
+                );
+                if (tierModels.length === 0) return null;
+
+                return (
+                  <div key={tier}>
+                    <div className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700">
+                      <span
+                        className={cn(
+                          'text-[10px] font-medium px-2 py-0.5 rounded-full',
+                          PRICING_BADGES[tier]?.color || PRICING_BADGES.standard.color
+                        )}
+                      >
+                        {PRICING_BADGES[tier]?.label || 'Standard'}
+                      </span>
+                    </div>
+
+                    {tierModels.map((model) => (
+                      <button
+                        key={model.id}
+                        onClick={() => {
+                          onChangeModel?.(model.id);
+                          setShowModelPicker(false);
+                          setModelSearch('');
+                        }}
+                        className={cn(
+                          'w-full px-3 py-2 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+                          model.id === session.model && 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                        )}
+                      >
+                        <div className="font-medium">{model.name}</div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400">{model.id}</div>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -385,7 +455,7 @@ export function ChatView({
             error={lastError}
             onClearError={clearError}
             enabled={imageAttachmentsEnabled && !disabled && !isStreaming}
-            onCaptureScreenshot={screenshotBehavior !== 'disabled' ? handleCaptureScreenshot : undefined}
+            onCaptureScreenshot={screenshotBehavior === 'disabled' ? undefined : handleCaptureScreenshot}
             isCapturingScreenshot={isCapturingScreenshot}
             showScreenshotButton={screenshotBehavior !== 'disabled' && !!onCaptureScreenshot}
           />
@@ -474,11 +544,7 @@ export function ChatView({
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onPaste={handleInputPaste}
-              placeholder={contextEnabled 
-                ? (chrome.i18n.getMessage('placeholder_context') || 'Ask about this page...')
-                : images.length > 0
-                  ? 'Add a message or send images...'
-                  : (chrome.i18n.getMessage('placeholder_message') || 'Type a message...')}
+              placeholder={placeholderText}
               disabled={disabled || isStreaming}
               rows={1}
               className={cn(

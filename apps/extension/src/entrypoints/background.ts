@@ -5,6 +5,7 @@
 import type { SelectionContext, TextReplacementBehavior } from '@devmentorai/shared';
 import { streamQuickAction } from '../services/writing-assistant-session';
 import { setupUpdateAlarm, getUpdateState, forceUpdateCheck, dismissUpdateBadge } from '../services/update-checker';
+import { getBestActiveTab, storageGet, storageRemove, storageSet } from '../lib/browser-utils';
 
 /**
  * Get language name from code
@@ -25,11 +26,52 @@ function getLanguageName(code: string): string {
   return languages[code] || 'English';
 }
 
+/**
+ * Try to open the side panel when the API is available.
+ * - Chrome/Chromium: chrome.sidePanel.open({ windowId })
+ * - Firefox: chrome.sidebarAction.open()
+ * Returns true when opened, false when unavailable or blocked.
+ */
+async function tryOpenSidePanel(windowId?: number): Promise<boolean> {
+  try {
+    if (windowId && chrome.sidePanel?.open) {
+      await chrome.sidePanel.open({ windowId });
+      return true;
+    }
+
+    // Firefox fallback (MV2 sidebar_action)
+    const sidebarActionApi = (
+      chrome as typeof chrome & {
+        sidebarAction?: {
+          open?: () => Promise<void> | void;
+        };
+      }
+    ).sidebarAction;
+
+    if (sidebarActionApi?.open) {
+      await Promise.resolve(sidebarActionApi.open());
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.log('[DevMentorAI] Could not open side panel programmatically:', error);
+    return false;
+  }
+}
+
 export default defineBackground(() => {
   console.log('[DevMentorAI] Background service worker started');
 
   // Set up update checker
   setupUpdateAlarm();
+
+  // Enable opening the side panel from extension action click when available (Chrome).
+  if (chrome.sidePanel?.setPanelBehavior) {
+    chrome.sidePanel
+      .setPanelBehavior({ openPanelOnActionClick: true })
+      .catch((error) => console.log('[DevMentorAI] Failed to set side panel behavior:', error));
+  }
 
   // Create context menus on install
   chrome.runtime.onInstalled.addListener(() => {
@@ -39,6 +81,35 @@ export default defineBackground(() => {
 
   // Handle context menu clicks
   chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
+
+  // Fallback for browsers where openPanelOnActionClick is not supported.
+  const actionApi = (
+    chrome as typeof chrome & {
+      browserAction?: {
+        onClicked?: {
+          addListener: (callback: (tab: chrome.tabs.Tab) => void) => void;
+        };
+      };
+    }
+  ).action ?? (
+    chrome as typeof chrome & {
+      browserAction?: {
+        onClicked?: {
+          addListener: (callback: (tab: chrome.tabs.Tab) => void) => void;
+        };
+      };
+    }
+  ).browserAction;
+
+  actionApi?.onClicked?.addListener((tab) => {
+    void (async () => {
+      const activeTab = tab?.id ? tab : await getBestActiveTab();
+      const opened = await tryOpenSidePanel(activeTab?.windowId);
+      if (!opened) {
+        console.log('[DevMentorAI] Extension action clicked, but side panel could not be opened automatically');
+      }
+    })();
+  });
 
   // Handle messages from content scripts and sidepanel
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -129,7 +200,7 @@ async function handleContextMenuClick(
   console.log(`[DevMentorAI] Context menu action: ${action}`, { selectedText: selectedText.substring(0, 100) });
 
   // Store the action context for the sidepanel
-  await chrome.storage.local.set({
+  await storageSet({
     pendingAction: {
       action,
       selectedText,
@@ -139,8 +210,12 @@ async function handleContextMenuClick(
     },
   });
 
-  // In Firefox, opening the sidebar programmatically may not be available.
-  // Keep pendingAction so users can open the extension panel manually.
+  const opened = await tryOpenSidePanel(tab.windowId);
+  if (!opened) {
+    // In Firefox or when blocked by user gesture constraints,
+    // keep pendingAction so users can open the extension panel manually.
+    console.log('[DevMentorAI] Pending action stored; manual side panel open may be required');
+  }
 }
 
 /**
@@ -156,7 +231,7 @@ async function handleMessage(
   switch (message.type) {
     case 'GET_PAGE_CONTEXT': {
       // Get current tab info
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = await getBestActiveTab();
       if (tab) {
         sendResponse({
           url: tab.url,
@@ -170,7 +245,7 @@ async function handleMessage(
 
     case 'GET_SELECTION': {
       // Request selection from content script
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = await getBestActiveTab();
       if (tab?.id) {
         try {
           const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_SELECTION' });
@@ -185,23 +260,25 @@ async function handleMessage(
     }
 
     case 'GET_PENDING_ACTION': {
-      const result = await chrome.storage.local.get('pendingAction');
+      const result = await storageGet<{ pendingAction?: unknown }>('pendingAction');
       sendResponse(result.pendingAction || null);
       // Clear the pending action and badge
-      await chrome.storage.local.remove('pendingAction');
+      await storageRemove('pendingAction');
       break;
     }
 
     case 'OPEN_SIDE_PANEL': {
-      sendResponse({ success: true, requiresManualOpen: true });
+      const tab = await getBestActiveTab();
+      const opened = await tryOpenSidePanel(tab?.windowId);
+      sendResponse({ success: true, opened, requiresManualOpen: !opened });
       break;
     }
 
     case 'OPEN_SIDE_PANEL_WITH_TEXT': {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = await getBestActiveTab();
       if (tab) {
         // Store text to be used in chat
-        await chrome.storage.local.set({
+        await storageSet({
           pendingAction: {
             action: 'chat',
             selectedText: message.selectedText,
@@ -211,7 +288,9 @@ async function handleMessage(
           },
         });
       }
-      sendResponse({ success: true, requiresManualOpen: true });
+
+      const opened = await tryOpenSidePanel(tab?.windowId);
+      sendResponse({ success: true, opened, requiresManualOpen: !opened });
       break;
     }
 
@@ -243,7 +322,7 @@ async function handleMessage(
         sendResponse({ success: true, streamed: true });
       } else {
         // Fallback to traditional sidepanel flow
-        await chrome.storage.local.set({
+        await storageSet({
           pendingAction: {
             action,
             selectedText,
@@ -253,16 +332,19 @@ async function handleMessage(
           },
         });
 
-        // User needs to open the extension panel manually to continue.
-        console.log('[DevMentorAI] Stored pending action, user needs to open side panel');
+        const opened = await tryOpenSidePanel(sender.tab?.windowId);
+        if (!opened) {
+          // User needs to open the extension panel manually to continue.
+          console.log('[DevMentorAI] Stored pending action, user needs to open side panel');
+        }
         
-        sendResponse({ success: true, streamed: false });
+        sendResponse({ success: true, streamed: false, opened, requiresManualOpen: !opened });
       }
       break;
     }
 
     case 'TOGGLE_FLOATING_BUBBLE': {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = await getBestActiveTab();
       if (tab?.id) {
         try {
           const response = await chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_BUBBLE' });
@@ -275,7 +357,7 @@ async function handleMessage(
     }
 
     case 'GET_SETTINGS': {
-      const settings = await chrome.storage.local.get([
+      const settings = await storageGet([
         'theme',
         'floatingBubbleEnabled',
         'showSelectionToolbar',
@@ -308,7 +390,7 @@ async function handleMessage(
 
     case 'SAVE_SETTINGS': {
       const { settings } = message as { type: string; settings: Record<string, unknown> };
-      await chrome.storage.local.set(settings);
+      await storageSet(settings);
       sendResponse({ success: true });
       break;
     }
@@ -360,10 +442,14 @@ async function handleStreamingQuickAction(
   const actionId = `qa-${Date.now()}`;
   
   // Clear any pending action to prevent duplicate processing by SidePanel
-  await chrome.storage.local.remove('pendingAction');
+  await storageRemove('pendingAction');
   
   // Get settings
-  const settings = await chrome.storage.local.get([
+  const settings = await storageGet<{
+    quickActionModel?: string;
+    translationLanguage?: string;
+    targetTranslationLanguage?: string;
+  }>([
     'quickActionModel', 
     'translationLanguage',      // Native language (for reading)
     'targetTranslationLanguage' // Target language (for writing)

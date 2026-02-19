@@ -3,6 +3,8 @@
  * A draggable bubble that opens the DevMentorAI side panel
  */
 
+import { storageGet, storageSet } from '../../lib/browser-utils';
+
 let bubbleContainer: HTMLDivElement | null = null;
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
@@ -235,7 +237,7 @@ function saveBubblePosition() {
   if (!bubbleContainer) return;
   
   const rect = bubbleContainer.getBoundingClientRect();
-  chrome.storage.local.set({
+  void storageSet({
     bubblePosition: {
       x: rect.left,
       y: rect.top,
@@ -245,7 +247,9 @@ function saveBubblePosition() {
 
 async function loadBubblePosition() {
   try {
-    const result = await chrome.storage.local.get(['bubblePosition']);
+    const result = await storageGet<{
+      bubblePosition?: { x: number; y: number };
+    }>(['bubblePosition']);
     if (result.bubblePosition && bubbleContainer) {
       bubbleContainer.style.left = `${result.bubblePosition.x}px`;
       bubbleContainer.style.top = `${result.bubblePosition.y}px`;

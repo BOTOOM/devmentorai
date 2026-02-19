@@ -27,6 +27,7 @@ import type {
   ContextSessionType,
   ContextMessage,
 } from '@devmentorai/shared';
+import { getBestActiveTab, isBrowserInternalUrl } from '../lib/browser-utils';
 
 // ============================================================================
 // Session Type Inference (Platform-based ONLY)
@@ -69,22 +70,7 @@ export function inferSessionTypeFromPlatform(
  * Check if a URL can have content scripts injected
  */
 function canInjectContentScript(url: string | undefined): boolean {
-  if (!url) return false;
-  
-  // Cannot inject into browser internal pages
-  const blockedProtocols = [
-    'chrome://',
-    'chrome-extension://',
-    'about:',
-    'edge://',
-    'brave://',
-    'opera://',
-    'vivaldi://',
-    'moz-extension://',
-    'file://', // May work but often restricted
-  ];
-  
-  return !blockedProtocols.some(protocol => url.startsWith(protocol));
+  return !isBrowserInternalUrl(url);
 }
 
 /**
@@ -114,10 +100,46 @@ async function ensureContentScriptInjected(tabId: number): Promise<boolean> {
     // Content script not loaded, inject it programmatically
     console.log('[context-aggregator] Injecting content script into tab:', tabId);
     
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: ['content-scripts/content.js'],
-    });
+    const scriptingApi = (
+      chrome as typeof chrome & {
+        scripting?: {
+          executeScript?: (options: {
+            target: { tabId: number };
+            files: string[];
+          }) => Promise<unknown>;
+        };
+      }
+    ).scripting;
+
+    if (scriptingApi?.executeScript) {
+      await scriptingApi.executeScript({
+        target: { tabId },
+        files: ['content-scripts/content.js'],
+      });
+    } else {
+      const tabsApi = chrome.tabs as typeof chrome.tabs & {
+        executeScript?: (
+          tabId: number,
+          details: { file: string },
+          callback?: () => void
+        ) => void;
+      };
+
+      if (!tabsApi.executeScript) {
+        console.warn('[context-aggregator] No script injection API available in this browser');
+        return false;
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        tabsApi.executeScript?.(tabId, { file: 'content-scripts/content.js' }, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message || 'Failed to execute content script'));
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
     
     // Wait a bit for the script to initialize
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -241,7 +263,7 @@ export async function getContextFromActiveTab(
 ): Promise<ContextExtractionResponse> {
   try {
     console.log('[context-aggregator] Getting active tab...');
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = await getBestActiveTab();
     
     console.log('[context-aggregator] Active tab:', {
       id: tab?.id,

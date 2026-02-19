@@ -1,4 +1,4 @@
-import { Settings, Plus, Wifi, WifiOff, Loader2, HelpCircle } from 'lucide-react';
+import { Settings, Plus, Wifi, WifiOff, Loader2, HelpCircle, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { CopilotAuthStatus, CopilotQuotaStatus } from '@devmentorai/shared';
 
@@ -65,8 +65,9 @@ export function Header({
   const status = statusConfig[connectionStatus];
   const StatusIcon = status.icon;
   const quotaLabel = formatQuota(quotaStatus);
+  const accountName = authStatus?.login || 'copilot-user';
   const loginLabel = authStatus?.isAuthenticated
-    ? `@${authStatus.login || 'copilot-user'}`
+    ? `@${accountName}`
     : 'Copilot login required';
 
   return (
@@ -85,17 +86,29 @@ export function Header({
 
         {connectionStatus === 'connected' && (
           <div className="flex items-center gap-1.5 min-w-0">
-            <span
-              className={cn(
-                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border whitespace-nowrap max-w-[120px] truncate',
-                authStatus?.isAuthenticated
-                  ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-700/50 dark:bg-green-900/20 dark:text-green-300'
-                  : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300'
-              )}
-              title={authStatus?.reason || loginLabel}
-            >
-              {loginLabel}
-            </span>
+            {authStatus?.isAuthenticated ? (
+              <div className="relative group">
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-green-200 bg-green-50 text-green-700 dark:border-green-700/50 dark:bg-green-900/20 dark:text-green-300"
+                  title={loginLabel}
+                  aria-label={`Copilot account ${loginLabel}`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                </button>
+
+                <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-medium text-gray-700 opacity-0 shadow-sm transition-all group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                  {loginLabel}
+                </span>
+              </div>
+            ) : (
+              <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border whitespace-nowrap max-w-[120px] truncate border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300"
+                title={authStatus?.reason || loginLabel}
+              >
+                {loginLabel}
+              </span>
+            )}
 
             {quotaLabel && (
               <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700/50 dark:bg-blue-900/20 dark:text-blue-300 whitespace-nowrap max-w-[110px] truncate">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getBestActiveTab } from '../lib/browser-utils';
 import { X, Globe, Link2, FileText, ExternalLink, Copy, Check } from 'lucide-react';
 
 interface PageContext {
@@ -25,9 +26,9 @@ export function PageContextModal({ onClose, onUseInChat }: PageContextModalProps
     setIsLoading(true);
     try {
       // Get active tab
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = await getBestActiveTab();
       
-      if (tab.id) {
+      if (tab?.id) {
         // Get page context from content script
         const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTEXT' });
         
@@ -40,10 +41,10 @@ export function PageContextModal({ onClose, onUseInChat }: PageContextModalProps
     } catch (error) {
       console.error('Failed to get page context:', error);
       // Fallback to tab info only
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = await getBestActiveTab();
       setPageContext({
-        url: tab.url || '',
-        title: tab.title || '',
+        url: tab?.url || '',
+        title: tab?.title || '',
       });
     } finally {
       setIsLoading(false);

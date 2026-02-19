@@ -13,6 +13,13 @@ import {
   getQuickContext,
   type AggregatedContext,
 } from '../services/context-aggregator';
+import {
+  captureVisibleTab,
+  getBestActiveTab,
+  getCurrentWindow,
+  getWindowById,
+  isBrowserInternalUrl,
+} from '../lib/browser-utils';
 
 export interface ScreenshotData {
   dataUrl: string;
@@ -42,26 +49,28 @@ export interface UseContextExtractionResult {
 async function captureVisibleTabScreenshot(): Promise<ScreenshotData | null> {
   try {
     // Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = await getBestActiveTab();
     if (!tab?.id) {
       console.warn('[useContextExtraction] No active tab for screenshot');
       return null;
     }
     
     // Check if we can capture this tab
-    if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
+    if (isBrowserInternalUrl(tab.url)) {
       console.warn('[useContextExtraction] Cannot capture screenshot of browser internal page');
       return null;
     }
     
     // Capture the visible tab
-    const dataUrl = await chrome.tabs.captureVisibleTab({
+    const dataUrl = await captureVisibleTab(tab.windowId, {
       format: 'jpeg',
       quality: 70,
     });
     
     // Get dimensions from the tab's window
-    const window = await chrome.windows.getCurrent();
+    const window = typeof tab.windowId === 'number'
+      ? await getWindowById(tab.windowId)
+      : await getCurrentWindow();
     
     return {
       dataUrl,
@@ -229,7 +238,7 @@ export function useQuickContext() {
   const fetchQuickContext = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tab = await getBestActiveTab();
       if (tab?.id) {
         const context = await getQuickContext(tab.id);
         setQuickContext(context);

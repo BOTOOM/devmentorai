@@ -25,11 +25,36 @@ function getLanguageName(code: string): string {
   return languages[code] || 'English';
 }
 
+/**
+ * Try to open the side panel when the API is available (Chrome).
+ * Returns true when opened, false when unavailable or blocked.
+ */
+async function tryOpenSidePanel(windowId?: number): Promise<boolean> {
+  if (!windowId || !chrome.sidePanel?.open) {
+    return false;
+  }
+
+  try {
+    await chrome.sidePanel.open({ windowId });
+    return true;
+  } catch (error) {
+    console.log('[DevMentorAI] Could not open side panel programmatically:', error);
+    return false;
+  }
+}
+
 export default defineBackground(() => {
   console.log('[DevMentorAI] Background service worker started');
 
   // Set up update checker
   setupUpdateAlarm();
+
+  // Enable opening the side panel from extension action click when available (Chrome).
+  if (chrome.sidePanel?.setPanelBehavior) {
+    chrome.sidePanel
+      .setPanelBehavior({ openPanelOnActionClick: true })
+      .catch((error) => console.log('[DevMentorAI] Failed to set side panel behavior:', error));
+  }
 
   // Create context menus on install
   chrome.runtime.onInstalled.addListener(() => {
@@ -39,6 +64,16 @@ export default defineBackground(() => {
 
   // Handle context menu clicks
   chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
+
+  // Fallback for browsers where openPanelOnActionClick is not supported.
+  chrome.action.onClicked.addListener((tab) => {
+    void (async () => {
+      const opened = await tryOpenSidePanel(tab.windowId);
+      if (!opened) {
+        console.log('[DevMentorAI] Extension action clicked, but side panel could not be opened automatically');
+      }
+    })();
+  });
 
   // Handle messages from content scripts and sidepanel
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -139,8 +174,12 @@ async function handleContextMenuClick(
     },
   });
 
-  // In Firefox, opening the sidebar programmatically may not be available.
-  // Keep pendingAction so users can open the extension panel manually.
+  const opened = await tryOpenSidePanel(tab.windowId);
+  if (!opened) {
+    // In Firefox or when blocked by user gesture constraints,
+    // keep pendingAction so users can open the extension panel manually.
+    console.log('[DevMentorAI] Pending action stored; manual side panel open may be required');
+  }
 }
 
 /**
@@ -193,7 +232,9 @@ async function handleMessage(
     }
 
     case 'OPEN_SIDE_PANEL': {
-      sendResponse({ success: true, requiresManualOpen: true });
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const opened = await tryOpenSidePanel(tab?.windowId);
+      sendResponse({ success: true, opened, requiresManualOpen: !opened });
       break;
     }
 
@@ -211,7 +252,9 @@ async function handleMessage(
           },
         });
       }
-      sendResponse({ success: true, requiresManualOpen: true });
+
+      const opened = await tryOpenSidePanel(tab?.windowId);
+      sendResponse({ success: true, opened, requiresManualOpen: !opened });
       break;
     }
 
@@ -253,10 +296,13 @@ async function handleMessage(
           },
         });
 
-        // User needs to open the extension panel manually to continue.
-        console.log('[DevMentorAI] Stored pending action, user needs to open side panel');
+        const opened = await tryOpenSidePanel(sender.tab?.windowId);
+        if (!opened) {
+          // User needs to open the extension panel manually to continue.
+          console.log('[DevMentorAI] Stored pending action, user needs to open side panel');
+        }
         
-        sendResponse({ success: true, streamed: false });
+        sendResponse({ success: true, streamed: false, opened, requiresManualOpen: !opened });
       }
       break;
     }

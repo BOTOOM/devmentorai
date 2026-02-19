@@ -1,3 +1,15 @@
+## [1.2.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.5...ext-v1.2.0) (2026-02-19)
+
+### Features
+
+* **extension:** add model search, pricing tiers, and account status display ([4664751](https://github.com/BOTOOM/devmentorai/commit/4664751b3ef14bf55c8903ae874917a9218b6778))
+* **extension:** replace auth status badge with user avatar icon and tooltip ([613a357](https://github.com/BOTOOM/devmentorai/commit/613a357115dc18a9beca6622ad513893fe47a3f5))
+
+### Refactoring
+
+* **extension:** add browser compatibility layer for Chrome/Firefox API differences ([c1c60ed](https://github.com/BOTOOM/devmentorai/commit/c1c60ed4cd287719de91ecebf71876c0864fdb6e))
+* **extension:** add programmatic side panel opening with fallback for Firefox ([322113a](https://github.com/BOTOOM/devmentorai/commit/322113a9cdc7e5588cb713257d9fce1c304f4100))
+
 ## [1.1.5](https://github.com/BOTOOM/devmentorai/compare/ext-v1.1.4...ext-v1.1.5) (2026-02-19)
 
 ### Refactoring

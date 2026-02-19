@@ -13,6 +13,8 @@ import type {
   PaginatedResponse,
   HealthResponse,
   ModelInfo,
+  CopilotAuthStatus,
+  CopilotQuotaStatus,
 } from '../types/index.js';
 
 /**
@@ -35,6 +37,10 @@ export const API_ENDPOINTS = {
   
   // Models
   MODELS: '/api/models',
+
+  // Account
+  ACCOUNT_AUTH: '/api/account/auth',
+  ACCOUNT_QUOTA: '/api/account/quota',
 } as const;
 
 /**
@@ -110,7 +116,17 @@ export interface ApiEndpoints {
   
   // GET /api/models
   'GET /api/models': {
-    response: ApiResponse<ModelInfo[]>;
+    response: ApiResponse<{ models: ModelInfo[]; default: string }>;
+  };
+
+  // GET /api/account/auth
+  'GET /api/account/auth': {
+    response: ApiResponse<CopilotAuthStatus>;
+  };
+
+  // GET /api/account/quota
+  'GET /api/account/quota': {
+    response: ApiResponse<CopilotQuotaStatus>;
   };
 }
 

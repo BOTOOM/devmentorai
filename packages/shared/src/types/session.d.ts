@@ -30,5 +30,6 @@ export interface CreateSessionRequest {
 export interface UpdateSessionRequest {
     name?: string;
     status?: SessionStatus;
+    model?: string;
 }
 //# sourceMappingURL=session.d.ts.map

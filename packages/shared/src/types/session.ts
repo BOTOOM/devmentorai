@@ -36,4 +36,5 @@ export interface CreateSessionRequest {
 export interface UpdateSessionRequest {
   name?: string;
   status?: SessionStatus;
+  model?: string;
 }

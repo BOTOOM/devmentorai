@@ -12,7 +12,7 @@ import { SessionService } from './services/session.service.js';
 import { initDatabase } from './db/index.js';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
 
-const PORT = parseInt(process.env.DEVMENTORAI_PORT || '', 10) || DEFAULT_CONFIG.DEFAULT_PORT;
+const PORT = Number.parseInt(process.env.DEVMENTORAI_PORT || '', 10) || DEFAULT_CONFIG.DEFAULT_PORT;
 const HOST = '0.0.0.0';
 
 // Observability mode - enable with DEVMENTORAI_DEBUG=true
@@ -140,22 +140,49 @@ export async function createServer() {
 
 async function main() {
   const fastify = await createServer();
+  let shuttingDown = false;
 
   // Graceful shutdown
-  const shutdown = async () => {
-    fastify.log.info('Shutting down...');
+  const shutdown = async (
+    reason: 'SIGINT' | 'SIGTERM' | 'UNCAUGHT_EXCEPTION',
+    error?: unknown,
+  ) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    fastify.log.warn({ reason }, 'Shutting down...');
+    if (error) {
+      fastify.log.error({ err: error }, 'Fatal process error');
+    }
+
+    let exitCode = 0;
     try {
       await fastify.copilotService.shutdown();
       await fastify.close();
-      process.exit(0);
     } catch (err) {
+      exitCode = 1;
       fastify.log.error({ err }, 'Error during shutdown');
-      process.exit(1);
+    } finally {
+      process.exit(exitCode);
     }
   };
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', () => {
+    void shutdown('SIGINT');
+  });
+  process.on('SIGTERM', () => {
+    void shutdown('SIGTERM');
+  });
+
+  // Keep process alive on unhandled promise rejections and log root cause.
+  process.on('unhandledRejection', (reason) => {
+    fastify.log.error({ err: reason }, 'Unhandled promise rejection');
+  });
+
+  // For uncaught exceptions, perform a controlled shutdown.
+  process.on('uncaughtException', (error) => {
+    void shutdown('UNCAUGHT_EXCEPTION', error);
+  });
 
   // Start server
   try {
@@ -167,7 +194,13 @@ async function main() {
   }
 }
 
-main();
+try {
+  await main();
+} catch (error) {
+  // Fallback logger for bootstrap failures before Fastify is fully available
+  console.error('[DevMentorAI] Fatal startup error:', error);
+  process.exit(1);
+}
 
 // Type augmentation for Fastify
 declare module 'fastify' {

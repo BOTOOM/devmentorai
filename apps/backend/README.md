@@ -27,6 +27,29 @@ npm install -g devmentorai-server
 devmentorai-server
 ```
 
+## Long-Running Usage (No Interruptions)
+
+`npx devmentorai-server` is supported and starts the backend in background mode, but for long-running sessions (hours/days) you should use a process supervisor.
+
+### Option 1: Global install + PM2 (recommended)
+
+```bash
+npm install -g devmentorai-server pm2
+pm2 start "devmentorai-server start --foreground" --name devmentorai-server
+pm2 save
+pm2 status
+```
+
+### Option 2: systemd (Linux)
+
+Create a user service that runs:
+
+```bash
+devmentorai-server start --foreground
+```
+
+Then enable restart policies (`Restart=always`) so the backend auto-recovers if it crashes.
+
 ## Commands
 
 | Command | Description |
@@ -99,6 +122,12 @@ The server runs as a background process and stores its data in `~/.devmentorai/`
 1. Run `devmentorai-server doctor` to check requirements
 2. Check logs: `devmentorai-server logs`
 3. Try foreground mode: `devmentorai-server start -f`
+
+### Server stops unexpectedly
+
+1. Check the latest backend logs: `devmentorai-server logs --lines 200`
+2. Re-run in foreground to capture runtime errors directly: `devmentorai-server start -f`
+3. For continuous uptime, run under PM2 or systemd (see **Long-Running Usage**)
 
 ### Port already in use
 

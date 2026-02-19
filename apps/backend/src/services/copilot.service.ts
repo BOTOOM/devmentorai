@@ -1,9 +1,8 @@
-import { CopilotClient, type SessionEvent } from '@github/copilot-sdk';
-import type { Tool as CopilotTool } from '@github/copilot-sdk';
+import { CopilotClient, type SessionEvent, type Tool as CopilotTool } from '@github/copilot-sdk';
 import { SessionService } from './session.service.js';
 import { getAgentConfig, SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
 import type { SessionType, MessageContext } from '@devmentorai/shared';
-import { devopsTools, getToolByName, type Tool } from '../tools/devops-tools.js';
+import { devopsTools, getToolByName } from '../tools/devops-tools.js';
 
 interface CopilotSession {
   sessionId: string;
@@ -22,11 +21,11 @@ const MCP_SERVERS: Record<string, { type: 'http'; url: string; tools: string[] }
 
 export class CopilotService {
   private client: CopilotClient | null = null;
-  private sessions: Map<string, CopilotSession> = new Map();
+  private readonly sessions: Map<string, CopilotSession> = new Map();
   private initialized = false;
   private mockMode = false;
 
-  constructor(private sessionService: SessionService) {}
+  constructor(private readonly sessionService: SessionService) {}
 
   async initialize(): Promise<void> {
     try {
@@ -127,6 +126,7 @@ export class CopilotService {
       return true;
     } catch (resumeError) {
       console.log(`[CopilotService] Could not resume session ${sessionId}, will try to create new`);
+      console.log('[CopilotService] Resume error:', resumeError);
     }
 
     // If resume fails, try to create a new session using DB info
@@ -194,7 +194,7 @@ export class CopilotService {
       // The customAgents from session creation provide the persona/expertise
       const response = await copilotSession.session.sendAndWait({ prompt: fullPrompt });
       console.log(`[CopilotService] Received response for session ${sessionId}`);
-      console.log(`[CopilotService] Response: ${response?.data}...`);
+      console.log('[CopilotService] Response payload:', response?.data);
       console.log(`[CopilotService] responseContent: ${responseContent}...`);
       
       return response?.data.content || responseContent;
@@ -248,9 +248,9 @@ export class CopilotService {
 
     // Send message with attachments if provided
     // The customAgents from session creation provide the persona/expertise
-    copilotSession.session.send({ 
+    await copilotSession.session.send({
       prompt: fullPrompt,
-      attachments: attachments,
+      attachments,
     });
     console.log('[CopilotService] Message sent, waiting for events...');
   }
@@ -273,7 +273,8 @@ export class CopilotService {
         
         // Don't retry on certain errors
         const nonRetryableErrors = ['authentication', 'invalid_session', 'rate_limit'];
-        if (nonRetryableErrors.some(e => lastError!.message.toLowerCase().includes(e))) {
+        const errorMessage = (lastError?.message || '').toLowerCase();
+        if (nonRetryableErrors.some(e => errorMessage.includes(e))) {
           throw lastError;
         }
         
@@ -351,6 +352,7 @@ export class CopilotService {
         console.log(`[CopilotService] Session ${sessionId} files deleted from disk`);
       } catch (error) {
         // Session might not exist on disk, that's OK
+        console.log('[CopilotService] deleteSession error:', error);
         console.log(`[CopilotService] Could not delete session files (may not exist): ${sessionId}`);
       }
     }

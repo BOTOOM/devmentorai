@@ -40,7 +40,7 @@ interface DbMessage {
 }
 
 export class SessionService {
-  constructor(private db: Database) {}
+  constructor(private readonly db: Database) {}
 
   // Sessions
   listSessions(page = 1, pageSize = 50): PaginatedResponse<Session> {
@@ -225,7 +225,7 @@ export class SessionService {
     pageTitle?: string,
     platform?: string
   ): string {
-    const id = `ctx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `ctx_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const now = formatDate();
 
     const stmt = this.db.prepare(`

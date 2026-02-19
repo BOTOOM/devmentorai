@@ -250,6 +250,27 @@ describe('CopilotService', () => {
       const messageEvent = events.find(e => e.type === 'assistant.message');
       expect(messageEvent?.data.content).toContain('Explanation');
     });
+
+    it('should reject when SDK stream send fails (no silent unhandled rejection)', async () => {
+      const send = vi.fn().mockRejectedValue(new Error('Mock send failure'));
+      const on = vi.fn();
+
+      (copilotService as any).mockMode = false;
+      (copilotService as any).sessions.set('real-stream-session', {
+        sessionId: 'real-stream-session',
+        session: { send, on },
+        type: 'general',
+      });
+
+      await expect(
+        copilotService.streamMessage(
+          'real-stream-session',
+          'Trigger stream',
+          undefined,
+          vi.fn()
+        )
+      ).rejects.toThrow('Mock send failure');
+    });
   });
 
   describe('abort and cleanup', () => {

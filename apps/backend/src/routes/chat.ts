@@ -6,8 +6,6 @@ import type {
   Message,
   SendMessageRequest,
   StreamEvent,
-  ContextPayload,
-  ImagePayload,
   ImageAttachment,
 } from '@devmentorai/shared';
 import {
@@ -140,7 +138,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
     // If full context is provided and context-aware mode is enabled
     if (body.fullContext && body.useContextAwareMode !== false) {
       if (validateContext(body.fullContext)) {
-        const sanitizedContext = sanitizeContext(body.fullContext as ContextPayload);
+        const sanitizedContext = sanitizeContext(body.fullContext);
         const { userPrompt } = buildContextAwarePrompt(sanitizedContext, body.prompt);
         return { userPrompt, promptType: 'context-aware' };
       }
@@ -388,9 +386,15 @@ export async function chatRoutes(fastify: FastifyInstance) {
 
       // Create a Promise that resolves when streaming is complete
       const streamComplete = new Promise<void>((resolve) => {
+        const cleanupTimers = () => {
+          clearTimeout(globalTimeout);
+          clearInterval(idleCheckInterval);
+        };
+
         // Set up global timeout
         const globalTimeout = setTimeout(() => {
           console.warn('[ChatRoute] Global stream timeout reached');
+          cleanupTimers();
           endStream('timeout');
           fastify.copilotService.abortRequest(sessionId).catch(() => {});
           resolve();
@@ -401,6 +405,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
           const idleTime = Date.now() - lastActivityTime;
           if (idleTime > IDLE_TIMEOUT_MS && !streamEnded) {
             console.warn(`[ChatRoute] Stream idle for ${idleTime}ms, ending`);
+            cleanupTimers();
             endStream('idle_timeout');
             fastify.copilotService.abortRequest(sessionId).catch(() => {});
             resolve();
@@ -449,8 +454,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
               break;
 
             case 'session.idle':
-              clearTimeout(globalTimeout);
-              clearInterval(idleCheckInterval);
+              cleanupTimers();
               endStream('completed');
               resolve();
               break;
@@ -458,21 +462,40 @@ export async function chatRoutes(fastify: FastifyInstance) {
         };
 
         // Start streaming with attachments (no system prompt - uses customAgents from session)
-        fastify.copilotService.streamMessage(
+        const streamStart = fastify.copilotService.streamMessage(
           sessionId,
           userPrompt,
           body.context,
           handleEvent,
           copilotAttachments.length > 0 ? copilotAttachments : undefined
         );
+
+        streamStart.catch((streamError) => {
+          console.error('[ChatRoute] Failed to start Copilot stream:', streamError);
+          cleanupTimers();
+
+          if (!streamEnded) {
+            sendSSE({
+              type: 'error',
+              data: {
+                error: streamError instanceof Error ? streamError.message : 'Failed to start stream',
+              },
+            });
+            endStream('copilot_error');
+          }
+
+          resolve();
+        });
       });
 
       // Handle client disconnect
-      request.raw.on('close', async () => {
+      request.raw.on('close', () => {
         if (!streamEnded) {
           console.log('[ChatRoute] Client disconnected, aborting');
           streamEnded = true;
-          await fastify.copilotService.abortRequest(sessionId);
+          fastify.copilotService.abortRequest(sessionId).catch((abortError) => {
+            console.error('[ChatRoute] Failed to abort request after disconnect:', abortError);
+          });
           reply.raw.end();
         }
       });

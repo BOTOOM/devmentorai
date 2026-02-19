@@ -20,28 +20,17 @@ interface CheckResult {
 export async function doctorCommand(): Promise<void> {
   console.log('\n🔍 DevMentorAI Server Doctor\n');
 
-  const checks: CheckResult[] = [];
-
-  // 1. Node.js version
-  checks.push(checkNodeVersion());
-
-  // 2. Data directory
-  checks.push(checkDataDirectory());
-
-  // 3. Port availability
-  checks.push(await checkPort(DEFAULT_PORT));
-
-  // 4. Copilot CLI
-  checks.push(checkCopilotCli());
-
-  // 5. Native dependencies
-  checks.push(checkNativeDep('better-sqlite3'));
-  checks.push(checkNativeDep('sharp'));
+  const checks: CheckResult[] = [
+    checkNodeVersion(),
+    checkDataDirectory(),
+    await checkPort(DEFAULT_PORT),
+    checkCopilotCli(),
+  ];
 
   // Display results
   let hasFailure = false;
   for (const check of checks) {
-    const icon = check.status === 'pass' ? '✓' : check.status === 'warn' ? '⚠' : '✗';
+    const icon = getStatusIcon(check.status);
     console.log(`  ${icon} ${check.name}: ${check.message}`);
     if (check.status === 'fail') hasFailure = true;
   }
@@ -55,9 +44,15 @@ export async function doctorCommand(): Promise<void> {
   }
 }
 
+function getStatusIcon(status: CheckResult['status']): string {
+  if (status === 'pass') return '✓';
+  if (status === 'warn') return '⚠';
+  return '✗';
+}
+
 function checkNodeVersion(): CheckResult {
   const version = process.version;
-  const major = parseInt(version.slice(1).split('.')[0], 10);
+  const major = Number.parseInt(version.slice(1).split('.')[0], 10);
 
   if (major >= 20) {
     return { name: 'Node.js', status: 'pass', message: `${version} (>= 20 required)` };
@@ -118,24 +113,5 @@ function checkCopilotCli(): CheckResult {
     return { name: 'Copilot CLI', status: 'pass', message: version || 'installed' };
   } catch {
     return { name: 'Copilot CLI', status: 'warn', message: 'Not found — server will run in mock mode' };
-  }
-}
-
-function checkNativeDep(name: string): CheckResult {
-  try {
-    require.resolve(name);
-    return { name, status: 'pass', message: 'installed' };
-  } catch {
-    // In ESM context, require.resolve may not work; try dynamic import
-    try {
-      // Check if the module exists in node_modules
-      const modulePath = `${process.cwd()}/node_modules/${name}`;
-      if (fs.existsSync(modulePath)) {
-        return { name, status: 'pass', message: 'installed' };
-      }
-      return { name, status: 'fail', message: 'not found — run npm install' };
-    } catch {
-      return { name, status: 'fail', message: 'not found — run npm install' };
-    }
   }
 }

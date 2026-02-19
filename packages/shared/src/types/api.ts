@@ -34,9 +34,33 @@ export interface HealthResponse {
   updateAvailable?: boolean;
 }
 
+export type ModelPricingTier = 'free' | 'cheap' | 'standard' | 'premium';
+
 export interface ModelInfo {
   id: string;
   name: string;
   provider: string;
   available: boolean;
+  description?: string;
+  isDefault?: boolean;
+  pricingTier?: ModelPricingTier;
+  pricingMultiplier?: number;
+  supportedReasoningEfforts?: string[];
+}
+
+export interface CopilotAuthStatus {
+  isAuthenticated: boolean;
+  login?: string | null;
+  reason?: string;
+}
+
+export interface CopilotQuotaStatus {
+  used?: number | null;
+  included?: number | null;
+  remaining?: number | null;
+  percentageUsed?: number | null;
+  percentageRemaining?: number | null;
+  periodStart?: string | null;
+  periodEnd?: string | null;
+  raw?: Record<string, unknown>;
 }

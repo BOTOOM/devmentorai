@@ -19,6 +19,9 @@ export const API_ENDPOINTS = {
     CHAT_STREAM: (sessionId) => `/api/sessions/${sessionId}/chat/stream`,
     // Models
     MODELS: '/api/models',
+    // Account
+    ACCOUNT_AUTH: '/api/account/auth',
+    ACCOUNT_QUOTA: '/api/account/quota',
 };
 /**
  * Default configuration values

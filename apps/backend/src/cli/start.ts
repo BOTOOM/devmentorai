@@ -25,6 +25,33 @@ async function showUpdateNotice(): Promise<void> {
   }
 }
 
+async function showAuthNotice(port: number): Promise<void> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/account/auth`);
+    if (!response.ok) return;
+
+    const payload = await response.json() as {
+      success?: boolean;
+      data?: { isAuthenticated?: boolean; login?: string | null };
+    };
+
+    if (!payload.success) return;
+
+    if (payload.data?.isAuthenticated) {
+      if (payload.data.login) {
+        console.log(`  Copilot authenticated as @${payload.data.login}`);
+      }
+      return;
+    }
+
+    console.log('  ⚠ Copilot login required for real responses.');
+    console.log('    Run: github-copilot auth login');
+    console.log('    Or:  copilot auth login\n');
+  } catch {
+    // Do not block startup when auth check is unavailable.
+  }
+}
+
 export async function startCommand(options: CliOptions): Promise<void> {
   const port = options.port || DEFAULT_PORT;
 
@@ -34,6 +61,8 @@ export async function startCommand(options: CliOptions): Promise<void> {
     console.log(`\n✓ DevMentorAI server is already running (PID: ${status.pid || 'unknown'})`);
     console.log(`  → http://127.0.0.1:${port}`);
     console.log(`  Health: ${status.healthy ? '✓ healthy' : '✗ unhealthy'}\n`);
+    await showAuthNotice(port);
+    await showUpdateNotice();
     return;
   }
 
@@ -59,6 +88,7 @@ export async function startCommand(options: CliOptions): Promise<void> {
     console.log(`✓ Server started successfully`);
     console.log(`  → http://127.0.0.1:${port}`);
     console.log(`  Logs: ${LOG_FILE}\n`);
+    await showAuthNotice(port);
     await showUpdateNotice();
   } else {
     console.error(`✗ Server started but healthcheck failed`);

@@ -29,6 +29,10 @@ A Chrome/Chromium browser extension that provides DevOps mentoring, infrastructu
 
 ## Quick Start
 
+If you want to run the backend in Docker with Copilot CLI auth/session persistence, see:
+
+- [Docker Backend + Copilot CLI Setup](docs/DOCKER_COPILOT_SETUP.md)
+
 ### 1. Install Dependencies
 
 ```bash
@@ -98,7 +102,8 @@ devmentorai/
 │   └── e2e/                # Playwright E2E tests
 │
 └── docs/
-    └── ARCHITECTURE.md     # Detailed architecture docs
+    ├── ARCHITECTURE.md         # Detailed architecture docs
+    └── DOCKER_COPILOT_SETUP.md # Docker backend + Copilot CLI guide
 ```
 
 ## Architecture

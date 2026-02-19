@@ -49,3 +49,4 @@ test-results/
 # Misc
 *.local
 .cache/
+copilot-docker-container/

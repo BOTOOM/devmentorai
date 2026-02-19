@@ -1,3 +1,32 @@
+## [1.2.3](https://github.com/BOTOOM/devmentorai/compare/backend-v1.2.2...backend-v1.2.3) (2026-02-19)
+
+### Bug Fixes
+
+* **extension:** add Firefox compatibility with browser-specific settings and optional sidePanel permission ([78f680e](https://github.com/BOTOOM/devmentorai/commit/78f680e5e1b8d2b1da661e62711585ce7784bfd0))
+* **extension:** add Firefox compatibility with optional chaining for Chrome-specific APIs ([3f4f70c](https://github.com/BOTOOM/devmentorai/commit/3f4f70c4c94ea554a4753bf80ace45d0b017d2e9))
+* **extension:** reload sessions when backend reconnects after disconnection ([89307d6](https://github.com/BOTOOM/devmentorai/commit/89307d6cebf1259b01247f5620082336b1edb5d4))
+* **extension:** remove Chrome-specific APIs for Firefox compatibility ([442a5cf](https://github.com/BOTOOM/devmentorai/commit/442a5cf3725331e635378ed7e797a6f6916eb3f4))
+* **extension:** update backend update command and use dynamic extension version ([464888a](https://github.com/BOTOOM/devmentorai/commit/464888a105ec625268721226084850fb47970d07))
+
+### Refactoring
+
+* **backend:** add account routes, improve model management, and enhance CLI diagnostics ([18d5845](https://github.com/BOTOOM/devmentorai/commit/18d584516bdb2923d3e64eeda17aac66cb050b6d))
+* **backend:** improve error handling, cleanup, and code quality ([005c534](https://github.com/BOTOOM/devmentorai/commit/005c5348bd25a9d6a52f88c6bf17f34fc7771086))
+* **extension:** improve accessibility and code quality in UI components ([be6af45](https://github.com/BOTOOM/devmentorai/commit/be6af45710f678aa82eb86a07aaf5498a8c81fbb))
+* **shared:** add account endpoints and enhance model/session types ([7b51edb](https://github.com/BOTOOM/devmentorai/commit/7b51edb9e6b748a621d5a2295316d0c53752d0b9))
+
+### Documentation
+
+* **extension:** add Firefox source build instructions for reviewers ([1d479fc](https://github.com/BOTOOM/devmentorai/commit/1d479fc05b95ee2b5c197ea70420da6008b619fd))
+
+### Maintenance
+
+* **extension:** revert version from 1.1.4 to 1.1.3 ([d321926](https://github.com/BOTOOM/devmentorai/commit/d32192662d84099150fd9c88a8b087ccdb837509))
+* **release:** extension v1.1.2 [skip ci] ([c4e15e7](https://github.com/BOTOOM/devmentorai/commit/c4e15e7751342ab549a9b7eef57a0ab50beb0a5d))
+* **release:** extension v1.1.3 [skip ci] ([8e114e3](https://github.com/BOTOOM/devmentorai/commit/8e114e36c78ab2db41c0567372b0ed573eafd0b4))
+* **release:** extension v1.1.4 [skip ci] ([a2154b8](https://github.com/BOTOOM/devmentorai/commit/a2154b89bf4c3e00aab7e653e0a9375e4a2b65de))
+* **website:** add commit existence validation to Vercel ignore command ([1b1d09b](https://github.com/BOTOOM/devmentorai/commit/1b1d09b6fe06d713732cc321fba40b2168f445b2))
+
 ## [1.2.2](https://github.com/BOTOOM/devmentorai/compare/backend-v1.2.1...backend-v1.2.2) (2026-02-11)
 
 ### Bug Fixes

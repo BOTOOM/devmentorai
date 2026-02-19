@@ -4,6 +4,7 @@ import { healthRoutes } from './routes/health.js';
 import { sessionRoutes } from './routes/sessions.js';
 import { chatRoutes } from './routes/chat.js';
 import { modelsRoutes } from './routes/models.js';
+import { accountRoutes } from './routes/account.js';
 import { imagesRoutes } from './routes/images.js';
 import { updatesRoutes } from './routes/updates.js';
 import { registerToolsRoutes } from './routes/tools.js';
@@ -17,7 +18,6 @@ const HOST = '0.0.0.0';
 
 // Observability mode - enable with DEVMENTORAI_DEBUG=true
 const DEBUG_MODE = true;
-// const DEBUG_MODE = process.env.DEVMENTORAI_DEBUG === 'true';
 
 /**
  * Truncate long strings for logging
@@ -129,6 +129,7 @@ export async function createServer() {
   await fastify.register(sessionRoutes, { prefix: '/api' });
   await fastify.register(chatRoutes, { prefix: '/api' });
   await fastify.register(modelsRoutes, { prefix: '/api' });
+  await fastify.register(accountRoutes, { prefix: '/api' });
   await fastify.register(updatesRoutes, { prefix: '/api' });
   await fastify.register(imagesRoutes, { prefix: '/api/images' });
   

@@ -166,6 +166,16 @@ describe('SessionService', () => {
       expect(updated!.status).toBe('paused');
     });
 
+    it('should update session model', () => {
+      const session = service.createSession({
+        name: 'Model Switch',
+        type: 'devops',
+      });
+
+      const updated = service.updateSession(session.id, { model: 'gpt-5-mini' });
+      expect(updated!.model).toBe('gpt-5-mini');
+    });
+
     it('should return null for non-existent session', () => {
       const result = service.updateSession('non-existent', { name: 'New' });
       expect(result).toBeNull();
@@ -243,7 +253,7 @@ describe('SessionService', () => {
         type: 'devops',
       });
 
-      const message = service.addMessage(session.id, 'user', 'Explain this', {
+      service.addMessage(session.id, 'user', 'Explain this', {
         pageUrl: 'https://example.com',
         selectedText: 'some code',
         action: 'explain',

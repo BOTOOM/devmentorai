@@ -111,6 +111,10 @@ export class SessionService {
       updates.push('status = ?');
       values.push(request.status);
     }
+    if (request.model !== undefined) {
+      updates.push('model = ?');
+      values.push(request.model);
+    }
 
     if (updates.length === 0) return session;
 

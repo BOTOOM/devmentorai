@@ -20,6 +20,7 @@ const createSessionSchema = z.object({
 const updateSessionSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   status: z.enum(['active', 'paused', 'closed']).optional(),
+  model: z.string().min(1).optional(),
 });
 
 export async function sessionRoutes(fastify: FastifyInstance) {
@@ -28,8 +29,8 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     Querystring: { page?: string; pageSize?: string };
     Reply: ApiResponse<PaginatedResponse<Session>>;
   }>('/sessions', async (request, reply) => {
-    const page = parseInt(request.query.page || '1', 10);
-    const pageSize = parseInt(request.query.pageSize || '50', 10);
+    const page = Number.parseInt(request.query.page || '1', 10);
+    const pageSize = Number.parseInt(request.query.pageSize || '50', 10);
 
     const sessions = fastify.sessionService.listSessions(page, pageSize);
 
@@ -109,6 +110,27 @@ export async function sessionRoutes(fastify: FastifyInstance) {
   }>('/sessions/:id', async (request, reply) => {
     try {
       const body = updateSessionSchema.parse(request.body);
+      const currentSession = fastify.sessionService.getSession(request.params.id);
+
+      if (!currentSession) {
+        return reply.code(404).send({
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Session not found',
+          },
+        });
+      }
+
+      if (body.model && body.model !== currentSession.model) {
+        await fastify.copilotService.switchSessionModel(
+          currentSession.id,
+          currentSession.type,
+          body.model,
+          currentSession.systemPrompt
+        );
+      }
+
       const session = fastify.sessionService.updateSession(request.params.id, body);
 
       if (!session) {
@@ -258,8 +280,8 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const page = parseInt(request.query.page || '1', 10);
-    const pageSize = parseInt(request.query.pageSize || '100', 10);
+    const page = Number.parseInt(request.query.page || '1', 10);
+    const pageSize = Number.parseInt(request.query.pageSize || '100', 10);
 
     const messages = fastify.sessionService.listMessages(request.params.id, page, pageSize);
 

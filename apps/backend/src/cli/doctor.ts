@@ -20,24 +20,17 @@ interface CheckResult {
 export async function doctorCommand(): Promise<void> {
   console.log('\n🔍 DevMentorAI Server Doctor\n');
 
-  const checks: CheckResult[] = [];
-
-  // 1. Node.js version
-  checks.push(checkNodeVersion());
-
-  // 2. Data directory
-  checks.push(checkDataDirectory());
-
-  // 3. Port availability
-  checks.push(await checkPort(DEFAULT_PORT));
-
-  // 4. Copilot CLI
-  checks.push(checkCopilotCli());
+  const checks: CheckResult[] = [
+    checkNodeVersion(),
+    checkDataDirectory(),
+    await checkPort(DEFAULT_PORT),
+    checkCopilotCli(),
+  ];
 
   // Display results
   let hasFailure = false;
   for (const check of checks) {
-    const icon = check.status === 'pass' ? '✓' : check.status === 'warn' ? '⚠' : '✗';
+    const icon = getStatusIcon(check.status);
     console.log(`  ${icon} ${check.name}: ${check.message}`);
     if (check.status === 'fail') hasFailure = true;
   }
@@ -49,6 +42,12 @@ export async function doctorCommand(): Promise<void> {
   } else {
     console.log('  All checks passed! The server is ready to run.\n');
   }
+}
+
+function getStatusIcon(status: CheckResult['status']): string {
+  if (status === 'pass') return '✓';
+  if (status === 'warn') return '⚠';
+  return '✗';
 }
 
 function checkNodeVersion(): CheckResult {

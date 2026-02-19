@@ -1,7 +1,14 @@
 import { CopilotClient, type SessionEvent, type Tool as CopilotTool } from '@github/copilot-sdk';
 import { SessionService } from './session.service.js';
 import { getAgentConfig, SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
-import type { SessionType, MessageContext } from '@devmentorai/shared';
+import type {
+  SessionType,
+  MessageContext,
+  ModelInfo,
+  CopilotAuthStatus,
+  CopilotQuotaStatus,
+  ModelPricingTier,
+} from '@devmentorai/shared';
 import { devopsTools, getToolByName } from '../tools/devops-tools.js';
 
 interface CopilotSession {
@@ -18,6 +25,20 @@ const MCP_SERVERS: Record<string, { type: 'http'; url: string; tools: string[] }
     tools: ['*'],
   },
 };
+
+const RECOMMENDED_DEFAULT_MODEL = 'gpt-4.1';
+
+interface RawSdkModel {
+  id?: unknown;
+  name?: unknown;
+  description?: unknown;
+  provider?: unknown;
+  isDefault?: unknown;
+  billing?: {
+    multiplier?: unknown;
+  };
+  supportedReasoningEfforts?: unknown;
+}
 
 export class CopilotService {
   private client: CopilotClient | null = null;
@@ -47,6 +68,261 @@ export class CopilotService {
 
   isMockMode(): boolean {
     return this.mockMode;
+  }
+
+  async getAuthStatus(): Promise<CopilotAuthStatus> {
+    if (this.mockMode || !this.client) {
+      return {
+        isAuthenticated: false,
+        login: null,
+        reason: 'Copilot SDK unavailable (mock mode)',
+      };
+    }
+
+    try {
+      const client = this.client as unknown as {
+        getAuthStatus?: () => Promise<{ isAuthenticated?: unknown; login?: unknown }>;
+      };
+
+      if (!client.getAuthStatus) {
+        return {
+          isAuthenticated: false,
+          login: null,
+          reason: 'Copilot auth API not available in this SDK version',
+        };
+      }
+
+      const auth = await client.getAuthStatus();
+      return {
+        isAuthenticated: Boolean(auth?.isAuthenticated),
+        login: typeof auth?.login === 'string' ? auth.login : null,
+      };
+    } catch (error) {
+      return {
+        isAuthenticated: false,
+        login: null,
+        reason: error instanceof Error ? error.message : 'Failed to get auth status',
+      };
+    }
+  }
+
+  async listModels(): Promise<{ models: ModelInfo[]; default: string }> {
+    if (this.mockMode || !this.client) {
+      return { models: [], default: RECOMMENDED_DEFAULT_MODEL };
+    }
+
+    try {
+      const client = this.client as unknown as {
+        listModels?: () => Promise<RawSdkModel[]>;
+      };
+
+      if (!client.listModels) {
+        return { models: [], default: RECOMMENDED_DEFAULT_MODEL };
+      }
+
+      const rawModels = await client.listModels();
+      if (!Array.isArray(rawModels)) {
+        return { models: [], default: RECOMMENDED_DEFAULT_MODEL };
+      }
+
+      const models = rawModels
+        .map((raw) => this.normalizeModel(raw))
+        .filter((model): model is ModelInfo => Boolean(model?.id));
+
+      const recommendedAvailable = models.some((model) => model.id === RECOMMENDED_DEFAULT_MODEL);
+      const sdkDefault = models.find((model) => model.isDefault)?.id;
+      const fallbackFirst = models[0]?.id;
+
+      const defaultModel =
+        (recommendedAvailable && RECOMMENDED_DEFAULT_MODEL) ||
+        sdkDefault ||
+        fallbackFirst ||
+        RECOMMENDED_DEFAULT_MODEL;
+
+      const modelsWithDefaultFlag = models.map((model) => ({
+        ...model,
+        isDefault: model.id === defaultModel,
+      }));
+
+      return { models: modelsWithDefaultFlag, default: defaultModel };
+    } catch (error) {
+      console.error('[CopilotService] Failed to list models:', error);
+      return { models: [], default: RECOMMENDED_DEFAULT_MODEL };
+    }
+  }
+
+  async getQuota(): Promise<CopilotQuotaStatus> {
+    if (this.mockMode || !this.client) {
+      return {
+        used: null,
+        included: null,
+        remaining: null,
+        percentageUsed: null,
+        percentageRemaining: null,
+        raw: {},
+      };
+    }
+
+    try {
+      const client = this.client as unknown as {
+        rpc?: {
+          account?: {
+            getQuota?: () => Promise<unknown>;
+          };
+        };
+      };
+
+      const quotaData = await client.rpc?.account?.getQuota?.();
+      if (!quotaData || typeof quotaData !== 'object') {
+        return {
+          used: null,
+          included: null,
+          remaining: null,
+          percentageUsed: null,
+          percentageRemaining: null,
+          raw: {},
+        };
+      }
+
+      return this.normalizeQuota(quotaData as Record<string, unknown>);
+    } catch (error) {
+      return {
+        used: null,
+        included: null,
+        remaining: null,
+        percentageUsed: null,
+        percentageRemaining: null,
+        raw: {
+          error: error instanceof Error ? error.message : 'Failed to get quota',
+        },
+      };
+    }
+  }
+
+  async switchSessionModel(
+    sessionId: string,
+    type: SessionType,
+    model: string,
+    systemPrompt?: string
+  ): Promise<void> {
+    const existing = this.sessions.get(sessionId);
+
+    if (existing?.session && !this.mockMode) {
+      try {
+        await existing.session.abort().catch(() => undefined);
+        await existing.session.destroy();
+      } catch (error) {
+        console.warn(`[CopilotService] Failed to destroy previous session before model switch: ${sessionId}`, error);
+      }
+    }
+
+    this.sessions.delete(sessionId);
+
+    if (this.client && !this.mockMode) {
+      try {
+        await this.client.deleteSession(sessionId);
+      } catch {
+        // Ignore when session files don't exist yet.
+      }
+    }
+
+    await this.createCopilotSession(sessionId, type, model, systemPrompt);
+  }
+
+  private normalizeModel(raw: RawSdkModel): ModelInfo {
+    const id = typeof raw.id === 'string' ? raw.id : '';
+    const name = typeof raw.name === 'string' ? raw.name : id;
+    const description =
+      typeof raw.description === 'string' && raw.description.trim().length > 0
+        ? raw.description
+        : `AI model ${id}`;
+    const provider =
+      typeof raw.provider === 'string' && raw.provider.trim().length > 0
+        ? raw.provider
+        : this.inferProviderFromModelId(id);
+    const multiplier =
+      typeof raw.billing?.multiplier === 'number' && Number.isFinite(raw.billing.multiplier)
+        ? raw.billing.multiplier
+        : undefined;
+    const supportedReasoningEfforts = Array.isArray(raw.supportedReasoningEfforts)
+      ? raw.supportedReasoningEfforts.filter((effort): effort is string => typeof effort === 'string')
+      : undefined;
+
+    return {
+      id,
+      name,
+      description,
+      provider,
+      available: true,
+      isDefault: Boolean(raw.isDefault),
+      pricingMultiplier: multiplier,
+      pricingTier: this.mapPricingTier(multiplier),
+      supportedReasoningEfforts,
+    };
+  }
+
+  private inferProviderFromModelId(modelId: string): string {
+    const normalized = modelId.toLowerCase();
+    if (normalized.startsWith('gpt')) return 'openai';
+    if (normalized.startsWith('claude')) return 'anthropic';
+    if (normalized.startsWith('gemini')) return 'google';
+    return 'unknown';
+  }
+
+  private mapPricingTier(multiplier?: number): ModelPricingTier {
+    if (multiplier === 0) return 'free';
+    if (typeof multiplier === 'number' && multiplier > 0 && multiplier < 1) return 'cheap';
+    if (typeof multiplier === 'number' && multiplier > 1) return 'premium';
+    return 'standard';
+  }
+
+  private normalizeQuota(raw: Record<string, unknown>): CopilotQuotaStatus {
+    const used = this.readNumber(raw, ['used', 'consumed', 'usage', 'quotaUsed', 'totalUsed']);
+    const included = this.readNumber(raw, ['included', 'limit', 'quota', 'total', 'quotaTotal', 'allowed']);
+    const computedRemaining =
+      typeof included === 'number' && typeof used === 'number' ? Math.max(included - used, 0) : null;
+    const remaining = this.readNumber(raw, ['remaining', 'left', 'available']) ?? computedRemaining;
+
+    const computedPercentageUsed =
+      typeof included === 'number' && included > 0 && typeof used === 'number'
+        ? Math.min(100, (used / included) * 100)
+        : null;
+    const percentageUsed =
+      this.readNumber(raw, ['percentageUsed', 'usedPercent', 'percentUsed']) ?? computedPercentageUsed;
+    const percentageRemaining =
+      this.readNumber(raw, ['percentageRemaining', 'remainingPercent', 'percentRemaining']) ??
+      (typeof percentageUsed === 'number' ? Math.max(0, 100 - percentageUsed) : null);
+
+    return {
+      used,
+      included,
+      remaining,
+      percentageUsed,
+      percentageRemaining,
+      periodStart: this.readString(raw, ['periodStart', 'startAt', 'windowStart']),
+      periodEnd: this.readString(raw, ['periodEnd', 'endAt', 'windowEnd']),
+      raw,
+    };
+  }
+
+  private readNumber(source: Record<string, unknown>, keys: string[]): number | null {
+    for (const key of keys) {
+      const value = source[key];
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string') {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+    }
+    return null;
+  }
+
+  private readString(source: Record<string, unknown>, keys: string[]): string | null {
+    for (const key of keys) {
+      const value = source[key];
+      if (typeof value === 'string' && value.trim().length > 0) return value;
+    }
+    return null;
   }
 
   async createCopilotSession(

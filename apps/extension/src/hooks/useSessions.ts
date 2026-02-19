@@ -135,6 +135,20 @@ export function useSessions(options?: UseSessionsOptions) {
     }
   }, [activeSessionId, sessions]);
 
+  const updateSessionModel = useCallback(async (sessionId: string, model: string) => {
+    const response = await apiClient.updateSession(sessionId, { model });
+
+    if (!response.success || !response.data) {
+      throw new Error(response.error?.message || 'Failed to update session model');
+    }
+
+    setSessions((prev) =>
+      prev.map((session) => (session.id === sessionId ? response.data! : session))
+    );
+
+    return response.data;
+  }, [apiClient]);
+
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
 
   return {
@@ -144,6 +158,7 @@ export function useSessions(options?: UseSessionsOptions) {
     isLoading,
     error,
     createSession,
+    updateSessionModel,
     selectSession,
     deleteSession,
     refreshSessions: loadSessions,

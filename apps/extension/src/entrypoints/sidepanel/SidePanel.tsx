@@ -12,17 +12,32 @@ import { useChat } from '../../hooks/useChat';
 import { useSettings } from '../../hooks/useSettings';
 import { useContextExtraction } from '../../hooks/useContextExtraction';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
-import type { Session, QuickAction, MessageContext, ImagePayload } from '@devmentorai/shared';
+import { ApiClient } from '../../services/api-client';
+import type {
+  Session,
+  QuickAction,
+  MessageContext,
+  ImagePayload,
+  ModelInfo,
+  CopilotAuthStatus,
+  CopilotQuotaStatus,
+} from '@devmentorai/shared';
 
 // Extend QuickAction to include tone variations
 type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
 
 export function SidePanel() {
+  const apiClient = ApiClient.getInstance();
+
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);         // D.2
   const [showPageContextModal, setShowPageContextModal] = useState(false); // D.1
   const [showScreenshotConfirm, setShowScreenshotConfirm] = useState(false);
   const [contextModeEnabled, setContextModeEnabled] = useState(false);
+  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
+  const [authStatus, setAuthStatus] = useState<CopilotAuthStatus | null>(null);
+  const [quotaStatus, setQuotaStatus] = useState<CopilotQuotaStatus | null>(null);
+  const [isChangingModel, setIsChangingModel] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     action: ExtendedAction;
     selectedText: string;
@@ -44,6 +59,7 @@ export function SidePanel() {
     activeSession,
     isLoading: sessionsLoading,
     createSession,
+    updateSessionModel,
     selectSession,
     deleteSession,
   } = useSessions({ connectionStatus });
@@ -65,6 +81,51 @@ export function SidePanel() {
     errorCount,
     captureVisibleTabScreenshot,
   } = useContextExtraction();
+
+  useEffect(() => {
+    if (connectionStatus !== 'connected') {
+      setAuthStatus(null);
+      setQuotaStatus(null);
+      setAvailableModels([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSidebarData = async () => {
+      try {
+        const [modelsResponse, authResponse, quotaResponse] = await Promise.all([
+          apiClient.getModels(),
+          apiClient.getAccountAuth(),
+          apiClient.getAccountQuota(),
+        ]);
+
+        if (cancelled) return;
+
+        if (modelsResponse.success && modelsResponse.data) {
+          setAvailableModels(modelsResponse.data.models);
+        }
+
+        if (authResponse.success && authResponse.data) {
+          setAuthStatus(authResponse.data);
+        }
+
+        if (quotaResponse.success && quotaResponse.data) {
+          setQuotaStatus(quotaResponse.data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[SidePanel] Failed to load models/auth/quota:', error);
+        }
+      }
+    };
+
+    loadSidebarData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connectionStatus, apiClient]);
 
   // Check for pending actions from context menu
   useEffect(() => {
@@ -223,6 +284,19 @@ export function SidePanel() {
     setShowNewSessionModal(false);
   }, [createSession]);
 
+  const handleChangeSessionModel = useCallback(async (model: string) => {
+    if (!activeSession?.id || activeSession.model === model) return;
+
+    setIsChangingModel(true);
+    try {
+      await updateSessionModel(activeSession.id, model);
+    } catch (error) {
+      console.error('[SidePanel] Failed to change session model:', error);
+    } finally {
+      setIsChangingModel(false);
+    }
+  }, [activeSession?.id, activeSession?.model, updateSessionModel]);
+
   // D.1 - Handle using page context in chat
   const handleUsePageContext = useCallback((context: { url: string; title: string; selectedText?: string }) => {
     const contextText = context.selectedText 
@@ -254,11 +328,21 @@ export function SidePanel() {
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       <Header
         connectionStatus={connectionStatus}
+        authStatus={authStatus}
+        quotaStatus={quotaStatus}
         onNewSession={() => setShowNewSessionModal(true)}
         onOpenSettings={() => chrome.runtime.openOptionsPage()}
         onOpenHelp={() => setShowHelpModal(true)}
         onViewPage={() => setShowPageContextModal(true)}
       />
+
+      {connectionStatus === 'connected' && authStatus && !authStatus.isAuthenticated && (
+        <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            Copilot login required. Run <code className="font-mono">github-copilot auth login</code> (or <code className="font-mono">copilot auth login</code>) and restart backend.
+          </p>
+        </div>
+      )}
 
       <UpdateBanner
         extensionUpdate={updateState?.extension || null}
@@ -285,7 +369,9 @@ export function SidePanel() {
         isStreaming={isStreaming}
         onSendMessage={handleSendMessage}
         onAbort={abortMessage}
-        disabled={connectionStatus !== 'connected'}
+        onChangeModel={handleChangeSessionModel}
+        availableModels={availableModels}
+        disabled={connectionStatus !== 'connected' || isChangingModel}
         pendingText={pendingAction?.action === 'chat' ? pendingAction.selectedText : undefined}
         // Context-aware mode props
         contextEnabled={contextModeEnabled}

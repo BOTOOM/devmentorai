@@ -10,6 +10,7 @@ import type {
   ApiResponse,
   ModelInfo,
 } from '@devmentorai/shared';
+import { storageGet, storageSet } from '../lib/browser-utils';
 
 /** Chat message sent to the backend */
 interface ChatMessage {
@@ -411,7 +412,7 @@ export class CommunicationService {
       this.nativeAdapter.disconnect();
     }
     this.adapter = this.httpAdapter;
-    await chrome.storage.local.set({ communicationMode: 'http' });
+    await storageSet({ communicationMode: 'http' });
   }
   
   async switchToNative(): Promise<void> {
@@ -426,11 +427,11 @@ export class CommunicationService {
     }
     
     this.adapter = this.nativeAdapter;
-    await chrome.storage.local.set({ communicationMode: 'native' });
+    await storageSet({ communicationMode: 'native' });
   }
   
   async initialize(): Promise<void> {
-    const { communicationMode } = await chrome.storage.local.get('communicationMode');
+    const { communicationMode } = await storageGet<{ communicationMode?: 'http' | 'native' }>('communicationMode');
     
     if (communicationMode === 'native') {
       try {

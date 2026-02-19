@@ -6,6 +6,7 @@
 
 import { checkForUpdate, clearUpdateCache, type UpdateInfo } from '@devmentorai/shared';
 import { EXTENSION_VERSION } from '../version.js';
+import { storageGet, storageSet } from '../lib/browser-utils';
 
 const CHECK_INTERVAL_HOURS = 6;
 const ALARM_NAME = 'devmentorai-update-check';
@@ -21,7 +22,7 @@ export interface UpdateState {
  */
 async function getBackendVersion(): Promise<string | null> {
   try {
-    const result = await chrome.storage.local.get('backendUrl');
+    const result = await storageGet<{ backendUrl?: string }>('backendUrl');
     const baseUrl = result.backendUrl || 'http://localhost:3847';
     const response = await fetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(3000) });
     if (response.ok) {
@@ -62,7 +63,7 @@ export async function performUpdateCheck(): Promise<UpdateState> {
   }
 
   // Persist to storage
-  await chrome.storage.local.set({ updateState: state });
+  await storageSet({ updateState: state });
 
   // Keep update info in storage; UI can read it from settings/panel.
 
@@ -73,7 +74,7 @@ export async function performUpdateCheck(): Promise<UpdateState> {
  * Get the cached update state from chrome.storage.local.
  */
 export async function getUpdateState(): Promise<UpdateState | null> {
-  const result = await chrome.storage.local.get('updateState');
+  const result = await storageGet<{ updateState?: UpdateState }>('updateState');
   return result.updateState || null;
 }
 

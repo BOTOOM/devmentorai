@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import type { TextReplacementBehavior } from '@devmentorai/shared';
+import { storageGet, storageSet } from '../lib/browser-utils';
 
 export interface Settings {
   theme: 'light' | 'dark' | 'system';
@@ -93,7 +94,7 @@ export function useSettings() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const result = await chrome.storage.local.get(Object.keys(DEFAULT_SETTINGS));
+        const result = await storageGet<Partial<Settings>>(Object.keys(DEFAULT_SETTINGS));
         const loadedSettings = { ...DEFAULT_SETTINGS, ...result };
         setSettings(loadedSettings);
         
@@ -155,12 +156,12 @@ export function useSettings() {
     value: Settings[K]
   ) => {
     setSettings(prev => ({ ...prev, [key]: value }));
-    await chrome.storage.local.set({ [key]: value });
+    await storageSet({ [key]: value });
   }, []);
 
   const saveAllSettings = useCallback(async (newSettings: Settings) => {
     setSettings(newSettings);
-    await chrome.storage.local.set(newSettings);
+    await storageSet(newSettings);
   }, []);
 
   return {

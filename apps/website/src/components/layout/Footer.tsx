@@ -39,6 +39,18 @@ export function Footer() {
               >
                 Trust & Privacy
               </Link>
+              <Link
+                href="/faq"
+                className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-primary"
+              >
+                FAQ
+              </Link>
+              <Link
+                href="/support"
+                className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-primary"
+              >
+                Support
+              </Link>
             </nav>
 
             <div className="flex items-center gap-4">

@@ -80,28 +80,110 @@ function replaceInInputOrTextarea(
   }
 }
 
+function isRangeInsideElement(range: Range, element: HTMLElement): boolean {
+  const container = range.commonAncestorContainer;
+  return container === element || element.contains(container);
+}
+
+function findTextPositionByOffset(
+  root: HTMLElement,
+  targetOffset: number
+): { node: Text; offset: number } | null {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let currentOffset = 0;
+  let lastNode: Text | null = null;
+
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    lastNode = node;
+    const nextOffset = currentOffset + node.data.length;
+
+    if (targetOffset <= nextOffset) {
+      return {
+        node,
+        offset: Math.max(0, targetOffset - currentOffset),
+      };
+    }
+
+    currentOffset = nextOffset;
+  }
+
+  if (lastNode && targetOffset === currentOffset) {
+    return { node: lastNode, offset: lastNode.data.length };
+  }
+
+  return null;
+}
+
+function findRangeBySelectedText(element: HTMLElement, selectedText: string): Range | null {
+  const fullText = element.textContent || '';
+  if (!fullText || !selectedText) {
+    return null;
+  }
+
+  const candidates = Array.from(
+    new Set([selectedText, selectedText.trim()].filter((value) => value.length > 0))
+  );
+
+  let matchedText = '';
+  let startIndex = -1;
+
+  for (const candidate of candidates) {
+    const index = fullText.indexOf(candidate);
+    if (index !== -1) {
+      matchedText = candidate;
+      startIndex = index;
+      break;
+    }
+  }
+
+  if (startIndex === -1 || !matchedText) {
+    return null;
+  }
+
+  const endIndex = startIndex + matchedText.length;
+  const start = findTextPositionByOffset(element, startIndex);
+  const end = findTextPositionByOffset(element, endIndex);
+
+  if (!start || !end) {
+    return null;
+  }
+
+  const range = document.createRange();
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  return range;
+}
+
 /**
  * Replace text in a contenteditable element
  */
 function replaceInContentEditable(
   element: HTMLElement,
-  newText: string
+  newText: string,
+  originalSelectedText?: string
 ): TextReplacementResult {
   try {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return {
-        success: false,
-        error: 'No selection available',
-      };
+    const selection = globalThis.getSelection?.() ?? null;
+    let range: Range | null = null;
+
+    if (selection && selection.rangeCount > 0) {
+      const selectionRange = selection.getRangeAt(0);
+      if (!selectionRange.collapsed && isRangeInsideElement(selectionRange, element)) {
+        range = selectionRange;
+      }
     }
-    
-    const range = selection.getRangeAt(0);
-    
-    if (range.collapsed) {
+
+    // Some editors (e.g. Teams) lose selection when user clicks Replace button.
+    // Fallback: reconstruct a range by locating the originally selected text.
+    if (!range && originalSelectedText) {
+      range = findRangeBySelectedText(element, originalSelectedText);
+    }
+
+    if (!range || range.collapsed) {
       return {
         success: false,
-        error: 'No text selected',
+        error: 'No selection available for replacement',
       };
     }
     
@@ -114,15 +196,19 @@ function replaceInContentEditable(
     // Create a text node with the new content
     const textNode = document.createTextNode(newText);
     range.insertNode(textNode);
+
+    // Move cursor to end of inserted text
+    const nextSelection = globalThis.getSelection?.() ?? null;
+    if (nextSelection) {
+      const caretRange = document.createRange();
+      caretRange.setStartAfter(textNode);
+      caretRange.setEndAfter(textNode);
+      nextSelection.removeAllRanges();
+      nextSelection.addRange(caretRange);
+    }
     
     // Normalize to merge adjacent text nodes
     element.normalize();
-    
-    // Move cursor to end of inserted text
-    range.setStartAfter(textNode);
-    range.setEndAfter(textNode);
-    selection.removeAllRanges();
-    selection.addRange(range);
     
     // Dispatch events
     dispatchInputEvents(element);
@@ -154,7 +240,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
       document.body.appendChild(textarea);
       textarea.select();
       document.execCommand('copy');
-      document.body.removeChild(textarea);
+      textarea.remove();
       return true;
     } catch {
       return false;
@@ -171,7 +257,7 @@ export async function replaceSelectedText(
   newText: string
 ): Promise<TextReplacementResult> {
   // Validate the selection is still valid
-  if (!validateSelectionForReplacement(context)) {
+  if (context.elementType !== 'contenteditable' && !validateSelectionForReplacement(context)) {
     // Try fallback to clipboard
     const copied = await copyToClipboard(newText);
     return {
@@ -230,7 +316,7 @@ export async function replaceSelectedText(
       break;
       
     case 'contenteditable':
-      result = replaceInContentEditable(element, newText);
+      result = replaceInContentEditable(element, newText, context.selectedText);
       break;
       
     default:

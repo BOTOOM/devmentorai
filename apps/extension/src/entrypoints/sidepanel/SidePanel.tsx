@@ -284,8 +284,10 @@ export function SidePanel() {
     setShowNewSessionModal(false);
   }, [createSession]);
 
+  const canChangeSessionModel = messages.length === 0;
+
   const handleChangeSessionModel = useCallback(async (model: string) => {
-    if (!activeSession?.id || activeSession.model === model) return;
+    if (!activeSession?.id || activeSession.model === model || !canChangeSessionModel) return;
 
     setIsChangingModel(true);
     try {
@@ -295,7 +297,7 @@ export function SidePanel() {
     } finally {
       setIsChangingModel(false);
     }
-  }, [activeSession?.id, activeSession?.model, updateSessionModel]);
+  }, [activeSession?.id, activeSession?.model, canChangeSessionModel, updateSessionModel]);
 
   // D.1 - Handle using page context in chat
   const handleUsePageContext = useCallback((context: { url: string; title: string; selectedText?: string }) => {
@@ -369,7 +371,7 @@ export function SidePanel() {
         isStreaming={isStreaming}
         onSendMessage={handleSendMessage}
         onAbort={abortMessage}
-        onChangeModel={handleChangeSessionModel}
+        onChangeModel={canChangeSessionModel ? handleChangeSessionModel : undefined}
         availableModels={availableModels}
         disabled={connectionStatus !== 'connected' || isChangingModel}
         pendingText={pendingAction?.action === 'chat' ? pendingAction.selectedText : undefined}

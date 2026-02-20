@@ -10,6 +10,23 @@ export interface SendMessageOptions {
   images?: ImagePayload[];
 }
 
+function isLikelySessionRecoveryError(message: string): boolean {
+  const normalized = message.toLowerCase();
+
+  return [
+    'session not found',
+    'stream request failed: 404',
+    'stream request failed: 410',
+    'invalid session',
+    'session does not exist',
+  ].some((token) => normalized.includes(token));
+}
+
+function isRecoverableSessionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return isLikelySessionRecoveryError(message);
+}
+
 export function useChat(sessionId: string | undefined) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -166,105 +183,148 @@ export function useChat(sessionId: string | undefined) {
         console.log(`[useChat] Attaching ${sendOptions.images.length} images to message`);
       }
 
-      console.log('[useChat] Starting streamChat...');
-      await apiClient.streamChat(
-        requestSessionId,
-        requestBody,
-        (event: StreamEvent) => {
-          console.log('[useChat] Received SSE event:', event.type);
-          
-          // A.4 fix: Only update if we're still on the same session
-          if (currentSessionRef.current !== requestSessionId) {
-            return;
-          }
+      const streamOnce = async () => {
+        let deferredSessionError: string | null = null;
 
-          switch (event.type) {
-            case 'message_delta':
-              if (event.data.deltaContent) {
-                currentMessageRef.current += event.data.deltaContent;
-                setMessages(prev => 
-                  prev.map(m => 
-                    m.id === assistantMessageId 
-                      ? { ...m, content: currentMessageRef.current }
+        console.log('[useChat] Starting streamChat...');
+        await apiClient.streamChat(
+          requestSessionId,
+          requestBody,
+          (event: StreamEvent) => {
+            console.log('[useChat] Received SSE event:', event.type);
+            
+            // A.4 fix: Only update if we're still on the same session
+            if (currentSessionRef.current !== requestSessionId) {
+              return;
+            }
+
+            switch (event.type) {
+              case 'message_delta':
+                if (event.data.deltaContent) {
+                  currentMessageRef.current += event.data.deltaContent;
+                  setMessages(prev => 
+                    prev.map(m => 
+                      m.id === assistantMessageId 
+                        ? { ...m, content: currentMessageRef.current }
+                        : m
+                    )
+                  );
+                }
+                break;
+
+              case 'message_complete':
+                // Update content if provided (for cases where no deltas were sent)
+                if (event.data.content) {
+                  currentMessageRef.current = event.data.content;
+                }
+                
+                setMessages(prev =>
+                  prev.map(m =>
+                    m.id === assistantMessageId
+                      ? { 
+                          ...m, 
+                          content: currentMessageRef.current,
+                          metadata: { ...m.metadata, streamComplete: true } 
+                        }
                       : m
                   )
                 );
+                break;
+
+              case 'tool_start':
+                setMessages(prev =>
+                  prev.map(m =>
+                    m.id === assistantMessageId
+                      ? {
+                          ...m,
+                          metadata: {
+                            ...m.metadata,
+                            toolCalls: [
+                              ...(m.metadata?.toolCalls || []),
+                              {
+                                toolName: event.data.toolName || '',
+                                toolCallId: event.data.toolCallId || '',
+                                status: 'running' as const,
+                              },
+                            ],
+                          },
+                        }
+                      : m
+                  )
+                );
+                break;
+
+              case 'tool_complete':
+                setMessages(prev =>
+                  prev.map(m =>
+                    m.id === assistantMessageId
+                      ? {
+                          ...m,
+                          metadata: {
+                            ...m.metadata,
+                            toolCalls: m.metadata?.toolCalls?.map(tc =>
+                              tc.toolCallId === event.data.toolCallId
+                                ? { ...tc, status: 'completed' as const }
+                                : tc
+                            ),
+                          },
+                        }
+                      : m
+                  )
+                );
+                break;
+
+              case 'error': {
+                const streamError = event.data.error || 'An error occurred';
+                if (isLikelySessionRecoveryError(streamError)) {
+                  deferredSessionError = streamError;
+                } else {
+                  setError(streamError);
+                }
+                break;
               }
-              break;
 
-            case 'message_complete':
-              // Update content if provided (for cases where no deltas were sent)
-              if (event.data.content) {
-                currentMessageRef.current = event.data.content;
-              }
-              
-              setMessages(prev =>
-                prev.map(m =>
-                  m.id === assistantMessageId
-                    ? { 
-                        ...m, 
-                        content: currentMessageRef.current,
-                        metadata: { ...m.metadata, streamComplete: true } 
-                      }
-                    : m
-                )
-              );
-              break;
+              case 'done':
+                setIsStreaming(false);
+                break;
+            }
+          },
+          abortControllerRef.current?.signal
+        );
 
-            case 'tool_start':
-              setMessages(prev =>
-                prev.map(m =>
-                  m.id === assistantMessageId
-                    ? {
-                        ...m,
-                        metadata: {
-                          ...m.metadata,
-                          toolCalls: [
-                            ...(m.metadata?.toolCalls || []),
-                            {
-                              toolName: event.data.toolName || '',
-                              toolCallId: event.data.toolCallId || '',
-                              status: 'running' as const,
-                            },
-                          ],
-                        },
-                      }
-                    : m
-                )
-              );
-              break;
+        if (deferredSessionError) {
+          throw new Error(deferredSessionError);
+        }
+      };
 
-            case 'tool_complete':
-              setMessages(prev =>
-                prev.map(m =>
-                  m.id === assistantMessageId
-                    ? {
-                        ...m,
-                        metadata: {
-                          ...m.metadata,
-                          toolCalls: m.metadata?.toolCalls?.map(tc =>
-                            tc.toolCallId === event.data.toolCallId
-                              ? { ...tc, status: 'completed' as const }
-                              : tc
-                          ),
-                        },
-                      }
-                    : m
-                )
-              );
-              break;
+      try {
+        await streamOnce();
+      } catch (error) {
+        if (!isRecoverableSessionError(error)) {
+          throw error;
+        }
 
-            case 'error':
-              setError(event.data.error || 'An error occurred');
-              break;
+        console.warn('[useChat] Recoverable session error detected, attempting one resume retry:', error);
+        const resumeResponse = await apiClient.resumeSession(requestSessionId);
+        if (!resumeResponse.success) {
+          throw error;
+        }
 
-            case 'done':
-              setIsStreaming(false);
-              break;
-          }
-        },
-        abortControllerRef.current.signal
-      );
+        currentMessageRef.current = '';
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === assistantMessageId
+              ? {
+                  ...m,
+                  content: '',
+                  metadata: sendOptions.useContextAwareMode ? { contextAware: true } : undefined,
+                }
+              : m
+          )
+        );
+
+        await streamOnce();
+      }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         console.log('[useChat] Request aborted');

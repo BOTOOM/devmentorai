@@ -25,13 +25,47 @@ import { detectSelection } from '../../lib/selection-detector';
 import { replaceSelectedText } from '../../lib/text-replacer';
 import type { SelectionContext, TextReplacementBehavior, QuickActionStreamMessage } from '@devmentorai/shared';
 
+const QUICK_ACTION_CONNECTION_HINT = 'Please check if the local DevMentorAI server is running.';
+
+function isLikelyQuickActionConnectionError(error: string): boolean {
+  const normalized = error.toLowerCase();
+
+  return [
+    'failed to fetch',
+    'networkerror',
+    'network error',
+    'econnrefused',
+    'connection refused',
+    'stream request failed',
+    'failed to get writing assistant session',
+  ].some((token) => normalized.includes(token));
+}
+
+function formatQuickActionError(error: string): string {
+  const normalized = error.trim() || 'Connection error';
+
+  if (!isLikelyQuickActionConnectionError(normalized)) {
+    return normalized;
+  }
+
+  if (normalized.toLowerCase().includes('server is running')) {
+    return normalized;
+  }
+
+  if (normalized.endsWith('.')) {
+    return `${normalized} ${QUICK_ACTION_CONNECTION_HINT}`;
+  }
+
+  return `${normalized}. ${QUICK_ACTION_CONNECTION_HINT}`;
+}
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
   cssInjectionMode: 'ui',
   
   main() {
-    console.log('[DevMentorAI] Content script loaded on:', window.location.href);
+    console.log('[DevMentorAI] Content script loaded on:', globalThis.location.href);
 
     // Start capturing runtime errors, console logs, and network errors
     // These run passively and collect data for context extraction
@@ -121,7 +155,7 @@ export default defineContentScript({
       if (message.type === 'GET_PAGE_CONTEXT') {
         const selectionContext = detectSelection();
         sendResponse({
-          url: window.location.href,
+          url: globalThis.location.href,
           title: document.title,
           selectedText: selectionContext?.selectedText || null,
           selectionContext,
@@ -197,7 +231,7 @@ export default defineContentScript({
         console.log('[DevMentorAI] Stream ERROR received:', message.error);
         const streamMsg = message as QuickActionStreamMessage;
         if (streamMsg.type === 'QUICK_ACTION_STREAM_ERROR') {
-          showFloatingResponseError(streamMsg.error);
+          showFloatingResponseError(formatQuickActionError(streamMsg.error));
         }
         sendResponse({ success: true });
         return true;
@@ -236,8 +270,8 @@ export default defineContentScript({
       const toolbar = document.getElementById('devmentorai-selection-toolbar');
       const popup = document.getElementById('devmentorai-response-popup');
       const path = e.composedPath?.() || [];
-      const clickedInsideToolbar = !!(toolbar && path.some(el => el === toolbar));
-      const clickedInsidePopup = !!(popup && path.some(el => el === popup));
+      const clickedInsideToolbar = !!toolbar && path.includes(toolbar);
+      const clickedInsidePopup = !!popup && path.includes(popup);
       
       // Small delay to ensure selection is complete
       setTimeout(() => {
@@ -248,7 +282,7 @@ export default defineContentScript({
         
         if (isToolbarVisible) {
           // Click was outside toolbar — check if there's a new selection
-          const selection = window.getSelection();
+          const selection = globalThis.getSelection?.() ?? null;
           const selectedText = selection?.toString().trim() || '';
           
           if (selectedText.length > 3) {
@@ -273,7 +307,7 @@ export default defineContentScript({
         }
         
         // No toolbar visible yet — check if we should show one
-        const selection = window.getSelection();
+        const selection = globalThis.getSelection?.() ?? null;
         const selectedText = selection?.toString().trim() || '';
 
         if (selectedText.length > 3) {
@@ -293,7 +327,7 @@ export default defineContentScript({
     function handleKeyUp(e: KeyboardEvent) {
       // Handle selection via keyboard (Shift+Arrow keys)
       if (e.shiftKey) {
-        const selection = window.getSelection();
+        const selection = globalThis.getSelection?.() ?? null;
         const selectedText = selection?.toString().trim() || '';
 
         if (selectedText.length > 3) {
@@ -319,8 +353,8 @@ export default defineContentScript({
         const toolbar = document.getElementById('devmentorai-selection-toolbar');
         const popup = document.getElementById('devmentorai-response-popup');
         const path = e.composedPath?.() || [];
-        const isClickInsideToolbar = toolbar && path.some(el => el === toolbar);
-        const isClickInsidePopup = popup && path.some(el => el === popup);
+        const isClickInsideToolbar = !!toolbar && path.includes(toolbar);
+        const isClickInsidePopup = !!popup && path.includes(popup);
         
         if (!isClickInsideToolbar && !isClickInsidePopup) {
           removeSelectionToolbar();
@@ -356,7 +390,7 @@ export default defineContentScript({
         type: 'QUICK_ACTION',
         action,
         selectedText,
-        pageUrl: window.location.href,
+        pageUrl: globalThis.location.href,
         pageTitle: document.title,
         selectionContext: selectionContext?.isReplaceable ? selectionContext : null,
         textReplacementBehavior: currentTextReplacementBehavior,

@@ -71,6 +71,8 @@ export function ChatView({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const cursorSelectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const pendingCursorPositionRef = useRef<number | null>(null);
 
   // Image attachments hook
   const {
@@ -109,16 +111,56 @@ export function ChatView({
     }
   }, [onRegisterAddImage, addImage]);
 
-  // Set pending text when provided (A.3 fix: increased limit to 5000 chars)
+  const updateCursorSelection = useCallback((textarea: HTMLTextAreaElement | null) => {
+    if (!textarea) return;
+
+    cursorSelectionRef.current = {
+      start: textarea.selectionStart,
+      end: textarea.selectionEnd,
+    };
+  }, []);
+
+  // Insert pending text when provided (without replacing existing draft)
   useEffect(() => {
     if (pendingText) {
       const maxLength = 5000;
-      const truncated = pendingText.length > maxLength;
-      const text = truncated ? pendingText.substring(0, maxLength) : pendingText;
-      setInput(`Regarding this text:\n"${text}${truncated ? '...' : ''}"\n\n`);
-      inputRef.current?.focus();
+      setInput((prev) => {
+        const textToInsert = pendingText.length > maxLength ? pendingText.substring(0, maxLength) : pendingText;
+
+        if (!prev) {
+          pendingCursorPositionRef.current = textToInsert.length;
+          return textToInsert;
+        }
+
+        const currentSelection = cursorSelectionRef.current;
+        const safePosition = Math.max(0, Math.min(currentSelection.start, prev.length));
+        const before = prev.slice(0, safePosition);
+        const after = prev.slice(safePosition);
+        const availableSpace = maxLength - before.length - after.length;
+        const clippedText = availableSpace > 0 ? textToInsert.slice(0, availableSpace) : '';
+        const nextValue = `${before}${clippedText}${after}`;
+
+        pendingCursorPositionRef.current = before.length + clippedText.length;
+        return nextValue;
+      });
+
+      requestAnimationFrame(() => {
+        const textarea = inputRef.current;
+        if (!textarea) return;
+
+        textarea.focus();
+        const cursorPosition = pendingCursorPositionRef.current ?? textarea.value.length;
+        textarea.setSelectionRange(cursorPosition, cursorPosition);
+        updateCursorSelection(textarea);
+        pendingCursorPositionRef.current = null;
+      });
     }
-  }, [pendingText]);
+  }, [pendingText, updateCursorSelection]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    updateCursorSelection(e.currentTarget);
+  };
 
   // Handle paste event for images
   const handleInputPaste = useCallback(async (e: React.ClipboardEvent) => {
@@ -245,6 +287,16 @@ export function ChatView({
       })
     : availableModels;
 
+  const hasStartedChat = messages.length > 0;
+  const canUseModelPicker = Boolean(onChangeModel) && !disabled && !isStreaming && !hasStartedChat;
+
+  useEffect(() => {
+    if (hasStartedChat && showModelPicker) {
+      setShowModelPicker(false);
+      setModelSearch('');
+    }
+  }, [hasStartedChat, showModelPicker]);
+
   let placeholderText = chrome.i18n.getMessage('placeholder_message') || 'Type a message...';
   if (contextEnabled) {
     placeholderText = chrome.i18n.getMessage('placeholder_context') || 'Ask about this page...';
@@ -281,21 +333,25 @@ export function ChatView({
         {/* Model selector */}
         <div className="relative">
           <button
-            onClick={() => onChangeModel && setShowModelPicker(!showModelPicker)}
-            disabled={!onChangeModel || disabled || isStreaming}
+            onClick={() => {
+              if (canUseModelPicker) {
+                setShowModelPicker(!showModelPicker);
+              }
+            }}
+            disabled={!canUseModelPicker}
             className={cn(
               "flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors",
-              onChangeModel && !disabled && !isStreaming
+              canUseModelPicker
                 ? "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
                 : "text-gray-400 dark:text-gray-500 cursor-default"
             )}
           >
-            <Cpu className="w-3.5 h-3.5" />
+            {!hasStartedChat && <Cpu className="w-3.5 h-3.5" />}
             <span>{session.model}</span>
-            {onChangeModel && <ChevronDown className="w-3 h-3" />}
+            {!hasStartedChat && onChangeModel && <ChevronDown className="w-3 h-3" />}
           </button>
           
-          {showModelPicker && availableModels.length > 0 && (
+          {showModelPicker && canUseModelPicker && availableModels.length > 0 && (
             <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[240px] max-h-72 overflow-y-auto">
               <div className="sticky top-0 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <input
@@ -541,8 +597,12 @@ export function ChatView({
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onKeyUp={(e) => updateCursorSelection(e.currentTarget)}
+              onSelect={(e) => updateCursorSelection(e.currentTarget)}
+              onClick={(e) => updateCursorSelection(e.currentTarget)}
+              onBlur={(e) => updateCursorSelection(e.currentTarget)}
               onPaste={handleInputPaste}
               placeholder={placeholderText}
               disabled={disabled || isStreaming}

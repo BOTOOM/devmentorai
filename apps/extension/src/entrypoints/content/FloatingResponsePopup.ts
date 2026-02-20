@@ -11,6 +11,7 @@ let currentContent = '';
 let isComplete = false;
 let currentContext: SelectionContext | null = null;
 let onDismissCallback: (() => void) | null = null;
+let anchorPosition: PopupPosition | null = null;
 
 interface PopupPosition {
   x: number;
@@ -28,6 +29,7 @@ export function createFloatingResponsePopup(
 ): void {
   removeFloatingResponsePopup();
   
+  anchorPosition = position;
   currentContext = context;
   currentContent = '';
   isComplete = false;
@@ -60,6 +62,7 @@ export function createFloatingResponsePopup(
   
   // Position popup
   positionPopup(position);
+  requestAnimationFrame(() => positionPopup());
   
   // Setup keyboard handlers
   setupKeyboardHandlers(shadow);
@@ -103,6 +106,9 @@ export function updateFloatingResponseContent(content: string, isStreaming: bool
   
   // Attach button handlers
   attachButtonHandlers(shadow);
+
+  // Reposition with updated dimensions after render
+  requestAnimationFrame(() => positionPopup());
 }
 
 /**
@@ -123,6 +129,9 @@ export function showFloatingResponseError(error: string): void {
   
   // Attach button handlers
   attachButtonHandlers(shadow);
+
+  // Reposition with updated dimensions after render
+  requestAnimationFrame(() => positionPopup());
 }
 
 /**
@@ -150,12 +159,17 @@ export function showSuccessNotice(message: string): void {
  */
 export function removeFloatingResponsePopup(): void {
   if (popupContainer) {
+    const keydownHandler = (popupContainer as { __keydownHandler?: (e: KeyboardEvent) => void }).__keydownHandler;
+    if (keydownHandler) {
+      document.removeEventListener('keydown', keydownHandler);
+    }
     popupContainer.remove();
     popupContainer = null;
   }
   currentContent = '';
   isComplete = false;
   currentContext = null;
+  anchorPosition = null;
   if (onDismissCallback) {
     onDismissCallback();
     onDismissCallback = null;
@@ -180,22 +194,35 @@ export function getCurrentContent(): string {
 // Private Helpers
 // ============================================================================
 
-function positionPopup(position: PopupPosition): void {
+function positionPopup(position?: PopupPosition): void {
   if (!popupContainer) return;
+
+  const referencePosition = position || anchorPosition;
+  if (!referencePosition) return;
+
+  const popupElement = popupContainer.shadowRoot?.getElementById('popup-content');
+  const popupRect = popupElement?.getBoundingClientRect();
   
-  const popupWidth = 360;
-  const popupHeight = 200;
+  const popupWidth = popupRect?.width || 360;
+  const popupHeight = popupRect?.height || 260;
   const padding = 10;
-  const toolbarHeight = 60; // Avoid collision with selection toolbar
+  const toolbarOffset = 60; // Avoid collision with selection toolbar
   
-  let left = position.x - popupWidth / 2;
-  let top = position.y + toolbarHeight; // Position below toolbar
+  let left = referencePosition.x - popupWidth / 2;
+  let top = referencePosition.y + toolbarOffset; // Prefer below toolbar
   
   // Ensure popup stays within viewport
-  const maxX = window.innerWidth - popupWidth - padding;
-  const maxY = window.innerHeight - popupHeight - padding;
+  const maxX = Math.max(padding, window.innerWidth - popupWidth - padding);
+  const maxY = Math.max(padding, window.innerHeight - popupHeight - padding);
   
   left = Math.max(padding, Math.min(left, maxX));
+
+  // If it does not fit below, try placing above the anchor
+  if (top > maxY) {
+    const topAboveSelection = referencePosition.y - popupHeight - 12;
+    top = topAboveSelection >= padding ? topAboveSelection : maxY;
+  }
+
   top = Math.max(padding, Math.min(top, maxY));
   
   popupContainer.style.left = `${left}px`;

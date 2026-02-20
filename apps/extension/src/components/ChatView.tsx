@@ -245,6 +245,16 @@ export function ChatView({
       })
     : availableModels;
 
+  const hasStartedChat = messages.length > 0;
+  const canUseModelPicker = Boolean(onChangeModel) && !disabled && !isStreaming && !hasStartedChat;
+
+  useEffect(() => {
+    if (hasStartedChat && showModelPicker) {
+      setShowModelPicker(false);
+      setModelSearch('');
+    }
+  }, [hasStartedChat, showModelPicker]);
+
   let placeholderText = chrome.i18n.getMessage('placeholder_message') || 'Type a message...';
   if (contextEnabled) {
     placeholderText = chrome.i18n.getMessage('placeholder_context') || 'Ask about this page...';
@@ -281,21 +291,25 @@ export function ChatView({
         {/* Model selector */}
         <div className="relative">
           <button
-            onClick={() => onChangeModel && setShowModelPicker(!showModelPicker)}
-            disabled={!onChangeModel || disabled || isStreaming}
+            onClick={() => {
+              if (canUseModelPicker) {
+                setShowModelPicker(!showModelPicker);
+              }
+            }}
+            disabled={!canUseModelPicker}
             className={cn(
               "flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors",
-              onChangeModel && !disabled && !isStreaming
+              canUseModelPicker
                 ? "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
                 : "text-gray-400 dark:text-gray-500 cursor-default"
             )}
           >
-            <Cpu className="w-3.5 h-3.5" />
+            {!hasStartedChat && <Cpu className="w-3.5 h-3.5" />}
             <span>{session.model}</span>
-            {onChangeModel && <ChevronDown className="w-3 h-3" />}
+            {!hasStartedChat && onChangeModel && <ChevronDown className="w-3 h-3" />}
           </button>
           
-          {showModelPicker && availableModels.length > 0 && (
+          {showModelPicker && canUseModelPicker && availableModels.length > 0 && (
             <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[240px] max-h-72 overflow-y-auto">
               <div className="sticky top-0 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
                 <input

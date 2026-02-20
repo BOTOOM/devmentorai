@@ -14,6 +14,85 @@ let cachedSession: Session | null = null;
 let lastFetchTime = 0;
 const CACHE_TTL_MS = 30000; // 30 seconds
 
+function isLikelySessionRecoveryError(message: string): boolean {
+  const normalized = message.toLowerCase();
+
+  return [
+    'session not found',
+    'stream request failed: 404',
+    'stream request failed: 410',
+    'invalid session',
+    'session does not exist',
+    'failed to get writing assistant session',
+  ].some((token) => normalized.includes(token));
+}
+
+function isRecoverableSessionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return isLikelySessionRecoveryError(message);
+}
+
+async function streamQuickActionOnce(
+  apiClient: ApiClient,
+  sessionId: string,
+  prompt: string,
+  onEvent: (event: { type: string; content?: string; error?: string }) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  let fullContent = '';
+  let deferredSessionError: string | null = null;
+
+  await apiClient.streamChat(
+    sessionId,
+    { prompt },
+    (event) => {
+      console.log('[WritingAssistant] Stream event:', event.type, {
+        deltaContent: event.data.deltaContent?.substring(0, 30),
+        content: event.data.content?.substring(0, 30),
+        fullContent: fullContent.substring(0, 30),
+      });
+
+      switch (event.type) {
+        case 'message_start':
+          onEvent({ type: 'start' });
+          break;
+
+        case 'message_delta':
+          if (event.data.deltaContent) {
+            fullContent += event.data.deltaContent;
+            onEvent({ type: 'delta', content: fullContent });
+          }
+          break;
+
+        case 'message_complete': {
+          const finalContent = event.data.content || fullContent;
+          console.log('[WritingAssistant] Complete event, finalContent length:', finalContent.length);
+          onEvent({ type: 'complete', content: finalContent });
+          break;
+        }
+
+        case 'error': {
+          const streamError = event.data.error || 'Unknown error';
+          if (isLikelySessionRecoveryError(streamError)) {
+            deferredSessionError = streamError;
+          } else {
+            onEvent({ type: 'error', error: streamError });
+          }
+          break;
+        }
+
+        case 'done':
+          break;
+      }
+    },
+    signal
+  );
+
+  if (deferredSessionError) {
+    throw new Error(deferredSessionError);
+  }
+}
+
 /**
  * Get or create the Writing Assistant session
  * This session is used for all quick actions to provide fast AI responses
@@ -108,7 +187,7 @@ export async function streamQuickAction(
   onEvent: (event: { type: string; content?: string; error?: string }) => void,
   signal?: AbortSignal
 ): Promise<void> {
-  const session = await getOrCreateWritingAssistantSession(model);
+  let session = await getOrCreateWritingAssistantSession(model);
   
   if (!session) {
     onEvent({ type: 'error', error: 'Failed to get Writing Assistant session' });
@@ -116,49 +195,37 @@ export async function streamQuickAction(
   }
   
   const apiClient = ApiClient.getInstance();
-  let fullContent = '';
   
   try {
-    await apiClient.streamChat(
-      session.id,
-      { prompt },
-      (event) => {
-        console.log('[WritingAssistant] Stream event:', event.type, { 
-          deltaContent: event.data.deltaContent?.substring(0, 30),
-          content: event.data.content?.substring(0, 30),
-          fullContent: fullContent.substring(0, 30) 
-        });
-        
-        switch (event.type) {
-          case 'message_start':
-            onEvent({ type: 'start' });
-            break;
-            
-          case 'message_delta':
-            if (event.data.deltaContent) {
-              fullContent += event.data.deltaContent;
-              onEvent({ type: 'delta', content: fullContent });
-            }
-            break;
-            
-          case 'message_complete':
-            // Use the complete content from the event if available, fallback to accumulated
-            const finalContent = event.data.content || fullContent;
-            console.log('[WritingAssistant] Complete event, finalContent length:', finalContent.length);
-            onEvent({ type: 'complete', content: finalContent });
-            break;
-            
-          case 'error':
-            onEvent({ type: 'error', error: event.data.error || 'Unknown error' });
-            break;
-            
-          case 'done':
-            // Stream finished
-            break;
+    try {
+      await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
+      return;
+    } catch (error) {
+      if (!isRecoverableSessionError(error)) {
+        throw error;
+      }
+
+      console.warn('[WritingAssistant] Recoverable session error detected, attempting one recovery cycle:', error);
+
+      let resumeSucceeded = false;
+      try {
+        const resumeResponse = await apiClient.resumeSession(session.id);
+        resumeSucceeded = resumeResponse.success;
+      } catch (resumeError) {
+        console.warn('[WritingAssistant] Resume attempt failed during recovery:', resumeError);
+      }
+
+      if (!resumeSucceeded) {
+        clearWritingAssistantCache();
+        const recoveredSession = await getOrCreateWritingAssistantSession(model);
+        if (!recoveredSession) {
+          throw error;
         }
-      },
-      signal
-    );
+        session = recoveredSession;
+      }
+
+      await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
+    }
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       onEvent({ type: 'error', error: 'Request cancelled' });

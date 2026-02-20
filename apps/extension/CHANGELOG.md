@@ -1,3 +1,13 @@
+## [1.4.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.3.0...ext-v1.4.0) (2026-02-20)
+
+### Features
+
+* **extension:** disable model picker after chat starts and add session recovery retry logic ([c5e7b73](https://github.com/BOTOOM/devmentorai/commit/c5e7b73ffe0eeaedabd7741e85bd02c86b6d37e6))
+* **extension:** insert pending text at cursor position instead of replacing draft ([18cc61b](https://github.com/BOTOOM/devmentorai/commit/18cc61b5710417fc49fb3a4aa9c49859d9fe8576))
+* **website:** add dynamic OG images and favicon with gradient branding ([ade1cac](https://github.com/BOTOOM/devmentorai/commit/ade1cac575fab1889b1b4a99504dcd7392d1ee18))
+* **website:** add FAQ and support pages with YouTube demo embed and responsive improvements ([6f53b6a](https://github.com/BOTOOM/devmentorai/commit/6f53b6a2d9283a1c9101404a6afa494f04e2524c))
+* **website:** add static OG image and dynamic metadata with request-based URL resolution ([8fcb7a0](https://github.com/BOTOOM/devmentorai/commit/8fcb7a03c8aefe88a0aeace58712ba64a4d34a6c))
+
 ## [1.3.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.2.0...ext-v1.3.0) (2026-02-19)
 
 ### Features

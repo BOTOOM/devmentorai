@@ -97,6 +97,7 @@ export default function FAQPage() {
               support page
             </Link>{" "}
             to open an issue or request a feature.
+            
           </p>
         </div>
       </section>

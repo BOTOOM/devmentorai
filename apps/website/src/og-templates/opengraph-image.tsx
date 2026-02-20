@@ -55,7 +55,7 @@ export default function OpenGraphImage() {
             Context-Aware AI Browser Mentor
           </div>
           <div style={{ fontSize: "34px", color: "#c4b5fd", fontWeight: 600 }}>
-            Powered by GitHub Copilot CLI
+            Powered by GitHub Copilot CLI and Copilot SDK
           </div>
         </div>
 

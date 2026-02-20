@@ -12,7 +12,7 @@ export function DownloadButtons({ release }: DownloadButtonsProps) {
         href={release.chromeUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex cursor-pointer items-center justify-center gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--card)] px-6 py-4 transition-all hover:border-primary"
+        className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--card)] px-4 py-4 transition-all hover:border-primary sm:px-6"
       >
         <div className="flex h-8 w-8 items-center justify-center rounded bg-primary-light">
           <MonitorSmartphone className="h-5 w-5 text-primary" />
@@ -28,7 +28,7 @@ export function DownloadButtons({ release }: DownloadButtonsProps) {
         href={release.firefoxUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex cursor-pointer items-center justify-center gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--card)] px-6 py-4 transition-all hover:border-primary"
+        className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--card-border)] bg-[var(--card)] px-4 py-4 transition-all hover:border-primary sm:px-6"
       >
         <div className="flex h-8 w-8 items-center justify-center rounded bg-primary-light">
           <Globe className="h-5 w-5 text-primary" />

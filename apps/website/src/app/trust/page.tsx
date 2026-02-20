@@ -42,9 +42,9 @@ export default function TrustPage() {
       />
 
       {/* Architecture Diagram */}
-      <section className="mx-auto max-w-6xl px-4 pb-24">
+      <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 md:pb-24">
         <div className="mb-12 text-center">
-          <h2 className="mb-4 text-2xl font-bold md:text-3xl">
+          <h2 className="mb-4 text-2xl font-bold sm:text-3xl">
             How Your Data Flows
           </h2>
           <p className="mx-auto max-w-xl text-[var(--muted)]">
@@ -53,7 +53,7 @@ export default function TrustPage() {
           </p>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-8 shadow-lg backdrop-blur-xl md:p-12">
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 shadow-lg backdrop-blur-xl sm:p-8 md:p-12">
           <div className="absolute inset-0 -z-10 bg-primary/5" />
 
           {/* 4-node flow: Extension → Server → Copilot CLI → LLM */}
@@ -100,7 +100,7 @@ export default function TrustPage() {
             </div>
 
             {/* 3. Copilot CLI — central secure boundary */}
-            <div className="relative flex flex-col items-center gap-4 rounded-2xl border-2 border-primary/40 bg-primary-light p-6 shadow-xl shadow-primary/10">
+            <div className="relative flex flex-col items-center gap-4 rounded-2xl border-2 border-primary/40 bg-primary-light p-5 shadow-xl shadow-primary/10 sm:p-6">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-white">
                 Secure Boundary
               </div>
@@ -136,7 +136,7 @@ export default function TrustPage() {
           </div>
 
           {/* Mobile flow (visible on small screens) */}
-          <div className="mt-6 flex items-center justify-center gap-2 text-xs font-bold text-[var(--muted)] md:hidden">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-bold text-[var(--muted)] md:hidden">
             <span>Extension</span>
             <span className="text-primary">→</span>
             <span>Server</span>
@@ -165,7 +165,7 @@ export default function TrustPage() {
       </section>
 
       {/* Trust Cards Grid */}
-      <section className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 pb-24 md:grid-cols-2">
+      <section className="mx-auto grid max-w-6xl grid-cols-1 gap-5 px-4 pb-20 sm:px-6 md:grid-cols-2 md:gap-6 md:pb-24">
         <TrustCard
           icon={<Cpu className="h-6 w-6" />}
           title="Powered by your local Copilot CLI"
@@ -189,9 +189,9 @@ export default function TrustPage() {
       </section>
 
       {/* Transparency Section */}
-      <section className="mx-auto flex max-w-6xl flex-col items-center gap-12 px-4 pb-24 md:flex-row">
+      <section className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 pb-20 sm:px-6 md:flex-row md:gap-12 md:pb-24">
         <div className="flex-1">
-          <h2 className="mb-6 text-3xl font-bold">
+          <h2 className="mb-6 text-2xl font-bold sm:text-3xl">
             Engineered for Transparency
           </h2>
           <p className="mb-6 leading-relaxed text-[var(--muted)]">
@@ -256,12 +256,12 @@ function TrustCard({
   description: string;
 }>) {
   return (
-    <div className="flex gap-6 rounded-xl border border-[var(--card-border)] border-l-4 border-l-primary bg-[var(--card)] p-8 backdrop-blur-xl">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary">
+    <div className="flex flex-col gap-4 rounded-xl border border-[var(--card-border)] border-l-4 border-l-primary bg-[var(--card)] p-5 backdrop-blur-xl sm:flex-row sm:gap-6 sm:p-8">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary sm:h-12 sm:w-12">
         {icon}
       </div>
       <div>
-        <h3 className="mb-2 text-xl font-bold">{title}</h3>
+        <h3 className="mb-2 text-lg font-bold sm:text-xl">{title}</h3>
         <p className="leading-relaxed text-[var(--muted)]">{description}</p>
       </div>
     </div>

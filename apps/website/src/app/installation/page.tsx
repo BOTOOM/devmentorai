@@ -30,7 +30,7 @@ export default async function InstallationPage() {
         subtitle="Follow these three simple steps to set up your AI-powered developer mentoring environment."
       />
 
-      <section className="mx-auto max-w-[800px] px-6 pb-24">
+      <section className="mx-auto max-w-[800px] px-4 pb-20 sm:px-6 md:pb-24">
         <div className="space-y-12">
           {/* Step 1: Install Backend */}
           <StepCard
@@ -93,12 +93,12 @@ export default async function InstallationPage() {
             description="Click the DevMentorAI icon in your toolbar to start your mentoring session."
             isLast
           >
-            <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-8">
+            <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-8">
               <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent" />
               {/* Toolbar mockup */}
               <div className="relative z-10 mb-4 flex w-full max-w-sm items-center justify-between rounded-lg border border-[var(--card-border)] bg-[var(--code-bg)] p-2 shadow-2xl">
                 <div className="flex items-center gap-2">
-                  <div className="h-4 w-48 rounded-full bg-slate-700" />
+                  <div className="h-4 w-28 rounded-full bg-slate-700 sm:w-48" />
                 </div>
                 <div className="flex gap-2">
                   <div className="h-6 w-6 rounded-full bg-slate-700" />
@@ -124,6 +124,20 @@ export default async function InstallationPage() {
 
         {/* Help footer */}
         <div className="mt-24 border-t border-[var(--card-border)] pt-12 text-center">
+          <div className="mb-5 flex flex-wrap items-center justify-center gap-2">
+            <a
+              href="/faq"
+              className="rounded-full border border-[var(--card-border)] bg-[var(--card)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)] transition-colors hover:text-primary"
+            >
+              Read FAQ
+            </a>
+            <a
+              href="/support"
+              className="rounded-full border border-[var(--card-border)] bg-[var(--card)] px-3 py-1.5 text-xs font-semibold text-[var(--muted)] transition-colors hover:text-primary"
+            >
+              Help & Feature Requests
+            </a>
+          </div>
           <p className="text-sm text-[var(--muted)]">
             Need help?{" "}
             <a

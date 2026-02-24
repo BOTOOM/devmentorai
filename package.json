@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "pnpm --filter @devmentorai/extension dev",
     "dev:backend": "pnpm --filter devmentorai-server dev",
+    "dev:web": "pnpm --filter @devmentorai/website dev",
     "dev:all": "pnpm run --parallel dev dev:backend",
     "build": "pnpm -r build",
     "build:extension": "pnpm --filter @devmentorai/extension build",

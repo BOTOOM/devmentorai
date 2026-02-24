@@ -34,6 +34,12 @@ export function Footer() {
                 Installation
               </Link>
               <Link
+                href="/docs"
+                className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-primary"
+              >
+                Docs
+              </Link>
+              <Link
                 href="/trust"
                 className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-primary"
               >

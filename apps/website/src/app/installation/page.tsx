@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { HeroSection } from "@/components/sections/HeroSection";
 import { StepCard } from "@/components/ui/StepCard";
 import { CodeBlock } from "@/components/ui/CodeBlock";
@@ -39,6 +40,30 @@ export default async function InstallationPage() {
             description="This starts the local server that connects to your GitHub Copilot CLI."
           >
             <CodeBlock code="npx devmentorai-server" language="bash" />
+            <div className="mt-4 rounded-xl border border-amber-300/40 bg-amber-100/40 p-4 sm:p-5">
+              <p className="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                Before you run this command
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--foreground)] sm:text-base">
+                The backend command works after Copilot CLI is installed and logged in.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Link
+                  href="/docs/get-started/copilot-cli"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
+                >
+                  Install &amp; Login Copilot CLI
+                </Link>
+                <a
+                  href="https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/installing-github-copilot-in-the-cli"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--card-border)] bg-[var(--card)] px-4 py-2.5 text-sm font-semibold text-[var(--muted)] transition-colors hover:text-primary"
+                >
+                  Official Copilot CLI docs
+                </a>
+              </div>
+            </div>
             <p className="mt-4 text-sm text-[var(--muted)]">
               Requires{" "}
               <a
@@ -49,16 +74,7 @@ export default async function InstallationPage() {
               >
                 Node.js 20+
               </a>{" "}
-              and{" "}
-              <a
-                href="https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/installing-github-copilot-in-the-cli"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary hover:underline"
-              >
-                GitHub Copilot CLI
-              </a>{" "}
-              authenticated. Available on{" "}
+              installed locally. Backend package is available on{" "}
               <a
                 href="https://www.npmjs.com/package/devmentorai-server"
                 target="_blank"

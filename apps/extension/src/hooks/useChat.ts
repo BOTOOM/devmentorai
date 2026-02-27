@@ -30,6 +30,7 @@ function isRecoverableSessionError(error: unknown): boolean {
 export function useChat(sessionId: string | undefined) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExtractingContext, setIsExtractingContext] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -52,6 +53,7 @@ export function useChat(sessionId: string | undefined) {
         abortControllerRef.current = null;
       }
       setIsStreaming(false);
+      setIsSending(false);
       loadMessages(sessionId);
     } else {
       setMessages([]);
@@ -72,8 +74,8 @@ export function useChat(sessionId: string | undefined) {
   const sendMessage = useCallback(async (content: string, options?: SendMessageOptions | MessageContext) => {
     console.log('[useChat] sendMessage called:', { sessionId, isStreaming, contentLength: content.length });
     
-    if (!sessionId || isStreaming) {
-      console.log('[useChat] Blocked - no sessionId or already streaming');
+    if (!sessionId || isStreaming || isSending) {
+      console.log('[useChat] Blocked - no sessionId, already streaming, or already sending');
       return;
     }
 
@@ -100,7 +102,7 @@ export function useChat(sessionId: string | undefined) {
     const requestSessionId = sessionId;
 
     setError(null);
-    setIsStreaming(true);
+    setIsSending(true);
     currentMessageRef.current = '';
 
     // Build images for metadata (convert to ImageAttachment-like format for display)
@@ -159,13 +161,71 @@ export function useChat(sessionId: string | undefined) {
     try {
       abortControllerRef.current = new AbortController();
 
-      // Build request body with optional full context and images
+      // ----------------------------------------------------------------
+      // Phase 1: Pre-upload images (if any) before sending the chat request
+      // This sends each image individually to the backend so the chat
+      // request body stays small and avoids payload-too-large crashes.
+      // ----------------------------------------------------------------
+      let preUploadedImages: Array<{
+        id: string;
+        thumbnailUrl: string;
+        fullImageUrl: string;
+        fullImagePath: string;
+        mimeType: string;
+        dimensions: { width: number; height: number };
+        fileSize: number;
+      }> | undefined;
+
+      if (sendOptions.images && sendOptions.images.length > 0) {
+        console.log(`[useChat] Pre-uploading ${sendOptions.images.length} images...`);
+        try {
+          const uploadResult = await apiClient.uploadImages(
+            requestSessionId,
+            userMessage.id,
+            sendOptions.images.map(img => ({
+              id: img.id,
+              dataUrl: img.dataUrl,
+              mimeType: img.mimeType,
+              source: img.source,
+            }))
+          );
+          if (uploadResult.success && uploadResult.data?.images) {
+            preUploadedImages = uploadResult.data.images;
+            console.log(`[useChat] Pre-upload complete: ${preUploadedImages.length} images`);
+          } else {
+            console.error('[useChat] Pre-upload failed:', uploadResult.error);
+            throw new Error(uploadResult.error?.message || 'Failed to upload images');
+          }
+        } catch (uploadErr) {
+          console.error('[useChat] Image upload error:', uploadErr);
+          const uploadErrMsg = uploadErr instanceof Error ? uploadErr.message : 'Failed to upload images';
+          setError(uploadErrMsg);
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === assistantMessageId
+                ? { ...m, metadata: { ...m.metadata, error: `⚠️ Image upload failed: ${uploadErrMsg}` } }
+                : m
+            )
+          );
+          setIsSending(false);
+          setIsStreaming(false);
+          abortControllerRef.current = null;
+          return;
+        }
+      }
+
+      // ----------------------------------------------------------------
+      // Phase 2: Send the chat request (images are now just references)
+      // ----------------------------------------------------------------
+      setIsStreaming(true);
+
+      // Build request body with optional full context and pre-uploaded image refs
       const requestBody: {
         prompt: string;
         context?: MessageContext;
         fullContext?: ContextPayload;
         useContextAwareMode?: boolean;
-        images?: ImagePayload[];
+        preUploadedImages?: typeof preUploadedImages;
       } = {
         prompt: content,
         context: sendOptions.context,
@@ -177,10 +237,10 @@ export function useChat(sessionId: string | undefined) {
         console.log('[useChat] Using context-aware mode with full context');
       }
 
-      // Add images if provided
-      if (sendOptions.images && sendOptions.images.length > 0) {
-        requestBody.images = sendOptions.images;
-        console.log(`[useChat] Attaching ${sendOptions.images.length} images to message`);
+      // Attach pre-uploaded image references (NOT base64 data)
+      if (preUploadedImages && preUploadedImages.length > 0) {
+        requestBody.preUploadedImages = preUploadedImages;
+        console.log(`[useChat] Attaching ${preUploadedImages.length} pre-uploaded image refs to message`);
       }
 
       const streamOnce = async () => {
@@ -280,6 +340,19 @@ export function useChat(sessionId: string | undefined) {
                   deferredSessionError = streamError;
                 } else {
                   setError(streamError);
+                  setMessages(prev =>
+                    prev.map(m =>
+                      m.id === assistantMessageId
+                        ? {
+                            ...m,
+                            metadata: {
+                              ...m.metadata,
+                              error: streamError,
+                            },
+                          }
+                        : m
+                    )
+                  );
                 }
                 break;
               }
@@ -330,13 +403,28 @@ export function useChat(sessionId: string | undefined) {
         console.log('[useChat] Request aborted');
       } else {
         console.error('[useChat] Failed to send message:', err);
-        setError(err instanceof Error ? err.message : 'Failed to send message');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
+        setError(errorMessage);
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === assistantMessageId
+              ? {
+                  ...m,
+                  metadata: {
+                    ...m.metadata,
+                    error: errorMessage,
+                  },
+                }
+              : m
+          )
+        );
       }
     } finally {
       setIsStreaming(false);
+      setIsSending(false);
       abortControllerRef.current = null;
     }
-  }, [sessionId, isStreaming]);
+  }, [sessionId, isStreaming, isSending]);
 
   const abortMessage = useCallback(async () => {
     if (abortControllerRef.current) {
@@ -352,11 +440,13 @@ export function useChat(sessionId: string | undefined) {
     }
     
     setIsStreaming(false);
+    setIsSending(false);
   }, [sessionId]);
 
   return {
     messages,
     isStreaming,
+    isSending,
     isExtractingContext,
     error,
     sendMessage,

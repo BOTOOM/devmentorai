@@ -35,7 +35,7 @@ interface ChatViewProps {
   errorCount?: number;
   // Image attachment props
   imageAttachmentsEnabled?: boolean;
-  onCaptureScreenshot?: (mode: 'visible' | 'full') => Promise<string | null>;
+  onCaptureScreenshot?: (mode: 'visible') => Promise<string | null>;
   screenshotBehavior?: 'disabled' | 'ask' | 'auto';
   /** Callback to register the addImage function for external use */
   onRegisterAddImage?: (addImage: (dataUrl: string, source: 'screenshot') => Promise<void>) => void;

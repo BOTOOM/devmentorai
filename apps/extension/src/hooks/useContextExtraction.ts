@@ -38,6 +38,7 @@ export interface UseContextExtractionResult {
   extractContext: (sessionId: string, userMessage?: string, captureScreenshot?: boolean) => Promise<AggregatedContext | null>;
   captureScreenshot: () => Promise<ScreenshotData | null>;
   captureVisibleTabScreenshot: () => Promise<string | null>;
+  captureFullPageScreenshot: () => Promise<ScreenshotData | null>;
   clearContext: () => void;
   hasErrors: boolean;
   errorCount: number;
@@ -64,7 +65,7 @@ async function captureVisibleTabScreenshot(): Promise<ScreenshotData | null> {
     // Capture the visible tab
     const dataUrl = await captureVisibleTab(tab.windowId, {
       format: 'jpeg',
-      quality: 70,
+      quality: 90,
     });
     
     // Get dimensions from the tab's window
@@ -82,6 +83,15 @@ async function captureVisibleTabScreenshot(): Promise<ScreenshotData | null> {
     console.error('[useContextExtraction] Screenshot capture failed:', error);
     return null;
   }
+}
+
+/**
+ * Capture a full page screenshot by scrolling and stitching
+ */
+async function captureFullPageScreenshot(): Promise<ScreenshotData | null> {
+  // The full page screenshot functionality has been removed due to quality and compression issues.
+  // We only keep the definition to avoid breaking existing imports/types if any, but it returns null.
+  return null;
 }
 
 export function useContextExtraction(): UseContextExtractionResult {
@@ -217,6 +227,7 @@ export function useContextExtraction(): UseContextExtractionResult {
     extractContext,
     captureScreenshot,
     captureVisibleTabScreenshot: captureVisibleTabScreenshotSimple,
+    captureFullPageScreenshot,
     clearContext,
     hasErrors: (extractedContext?.text.errors.length ?? 0) > 0,
     errorCount: extractedContext?.text.errors.length ?? 0,

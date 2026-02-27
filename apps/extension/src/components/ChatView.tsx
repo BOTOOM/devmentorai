@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Loader2, Cpu, ChevronDown, Brain, Sparkles, Globe, AlertTriangle, ImagePlus } from 'lucide-react';
+import { Send, Square, Loader2, Cpu, ChevronDown, Brain, Sparkles, Globe, AlertTriangle, ImagePlus, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
@@ -19,6 +19,7 @@ interface ChatViewProps {
   session: Session | null;
   messages: Message[];
   isStreaming: boolean;
+  isSending?: boolean;
   onSendMessage: (content: string, useContext?: boolean, images?: ImagePayload[]) => void;
   onAbort: () => void;
   onChangeModel?: (model: string) => void;
@@ -34,7 +35,7 @@ interface ChatViewProps {
   errorCount?: number;
   // Image attachment props
   imageAttachmentsEnabled?: boolean;
-  onCaptureScreenshot?: () => Promise<string | null>;
+  onCaptureScreenshot?: (mode: 'visible' | 'full') => Promise<string | null>;
   screenshotBehavior?: 'disabled' | 'ask' | 'auto';
   /** Callback to register the addImage function for external use */
   onRegisterAddImage?: (addImage: (dataUrl: string, source: 'screenshot') => Promise<void>) => void;
@@ -44,6 +45,7 @@ export function ChatView({
   session,
   messages,
   isStreaming,
+  isSending = false,
   onSendMessage,
   onAbort,
   onChangeModel,
@@ -123,7 +125,7 @@ export function ChatView({
   // Insert pending text when provided (without replacing existing draft)
   useEffect(() => {
     if (pendingText) {
-      const maxLength = 5000;
+      const maxLength = 50000;
       setInput((prev) => {
         const textToInsert = pendingText.length > maxLength ? pendingText.substring(0, maxLength) : pendingText;
 
@@ -181,12 +183,12 @@ export function ChatView({
   }, [imageAttachmentsEnabled, handlePaste]);
 
   // Handle screenshot capture
-  const handleCaptureScreenshot = useCallback(async () => {
+  const handleCaptureScreenshot = useCallback(async (mode: 'visible') => {
     if (!onCaptureScreenshot || isAtLimit) return;
     
     setIsCapturingScreenshot(true);
     try {
-      const dataUrl = await onCaptureScreenshot();
+      const dataUrl = await onCaptureScreenshot(mode);
       if (dataUrl) {
         await addImage(dataUrl, 'screenshot');
       }
@@ -242,7 +244,7 @@ export function ChatView({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (disabled || isStreaming) return;
+    if (disabled || isStreaming || isSending) return;
     
     // Allow sending with images even without text
     const hasContent = input.trim() || images.length > 0;
@@ -457,6 +459,19 @@ export function ChatView({
           ))
         )}
         
+        {/* Sending indicator - shown when uploading images / initiating request */}
+        {isSending && !isStreaming && (
+          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg border border-amber-100 dark:border-amber-800/50">
+            <div className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-pulse" />
+              <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
+            </div>
+            <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+              Sending your message...
+            </span>
+          </div>
+        )}
+
         {/* C.4 - Enhanced thinking indicator */}
         {isStreaming && (
           <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-50 to-indigo-50 dark:from-primary-900/20 dark:to-indigo-900/20 rounded-lg border border-primary-100 dark:border-primary-800/50">
@@ -605,7 +620,7 @@ export function ChatView({
               onBlur={(e) => updateCursorSelection(e.currentTarget)}
               onPaste={handleInputPaste}
               placeholder={placeholderText}
-              disabled={disabled || isStreaming}
+              disabled={disabled || isStreaming || isSending}
               rows={1}
               className={cn(
                 'w-full px-4 text-sm rounded-xl border resize-none',
@@ -667,14 +682,21 @@ export function ChatView({
             </button>
           )}
 
-          {isStreaming ? (
+          {isStreaming || isSending ? (
             <button
               type="button"
               onClick={onAbort}
-              className="flex items-center justify-center w-12 h-12 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors shrink-0"
-              title="Stop"
+              className={cn(
+                "flex items-center justify-center w-12 h-12 rounded-xl text-white transition-colors shrink-0",
+                isStreaming ? "bg-red-500 hover:bg-red-600" : "bg-amber-500 hover:bg-amber-600"
+              )}
+              title={isStreaming ? "Stop" : "Cancel"}
             >
-              <Square className="w-5 h-5" />
+              {isSending && !isStreaming ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Square className="w-5 h-5" />
+              )}
             </button>
           ) : (
             <button

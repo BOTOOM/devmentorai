@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Bot, Wrench, Copy, Check, Replace, Image as ImageIcon } from 'lucide-react';
+import { User, Bot, Wrench, Copy, Check, Replace, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { ImageThumbnail } from './ImageThumbnail';
 import { ImageLightbox } from './ImageLightbox';
@@ -122,6 +122,14 @@ export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
           {message.content && (
             <div className="text-sm whitespace-pre-wrap break-words">
               {formatContent(message.content)}
+            </div>
+          )}
+
+          {/* Error display */}
+          {message.metadata?.error && (
+            <div className="mt-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg flex items-start gap-2 border border-red-100 dark:border-red-800/50">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="flex-1 whitespace-pre-wrap">{message.metadata.error}</div>
             </div>
           )}
 

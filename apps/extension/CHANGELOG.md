@@ -1,3 +1,39 @@
+## [1.5.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.4.0...ext-v1.5.0) (2026-02-27)
+
+### Features
+
+* **backend:** add fetch_url tool for reading public web content ([bf2510f](https://github.com/BOTOOM/devmentorai/commit/bf2510f69ee5c9cf66eb9c16195e512339e18ae5))
+* **backend:** add image pre-upload support and update chat schemas ([955e367](https://github.com/BOTOOM/devmentorai/commit/955e367a1d1c7fec53f172f55f3a8b128c5c96fa))
+* **backend:** implement onPermissionRequest handler for Copilot SDK v0.1.28 ([f892c65](https://github.com/BOTOOM/devmentorai/commit/f892c659a6382e3a57a6173eb078dfa485b4db31))
+* **extension:** add parallel image upload capability to API client ([3ce536f](https://github.com/BOTOOM/devmentorai/commit/3ce536f81ed7bf7d598a17b89739c15b145dd522))
+* **extension:** enhance chat UI for image attachments and error reporting ([60ca515](https://github.com/BOTOOM/devmentorai/commit/60ca515465b0033a725911d3e5bcdc5221528db4))
+* **extension:** implement pre-upload image workflow in chat service ([eb73def](https://github.com/BOTOOM/devmentorai/commit/eb73def104050cd55b7ebfa19de3fc2d336a661e))
+* **extension:** improve screenshot quality and deprecate full-page capture ([eb20dc5](https://github.com/BOTOOM/devmentorai/commit/eb20dc58ae2101165b26fb1dd8cb4e978063bf3c))
+* **extension:** update extension entrypoints and sidepanel with image support ([34138c9](https://github.com/BOTOOM/devmentorai/commit/34138c93182c325aab2e2788b58c27d524c46f0c))
+* **shared:** enhance agent prompts with fetch_url tool awareness ([90b13db](https://github.com/BOTOOM/devmentorai/commit/90b13dbb50ca7984c2f09b8ef775290dc39bc7fd))
+* **website:** add Chat Workflow and Copilot CLI setup documentation pages ([6917268](https://github.com/BOTOOM/devmentorai/commit/6917268103701871abb662e0a2b3e63447af2c4f))
+* **website:** prioritize official store installations and improve Vercel deployment logic ([b9b4775](https://github.com/BOTOOM/devmentorai/commit/b9b4775133668efc941304243b2eb932b5f90ea0))
+* **website:** update OG image copy to mention Copilot SDK and fix FAQ formatting ([53aefff](https://github.com/BOTOOM/devmentorai/commit/53aefffbde1ade3b7a8fe210c49eeb8be32e79ba))
+
+### Bug Fixes
+
+* **extension:** resolve TS type mismatch and unused parameter in screenshot handling ([f0d96fa](https://github.com/BOTOOM/devmentorai/commit/f0d96fa9428f2d784dd3341aa6deaed82312edef))
+
+### Performance
+
+* **backend:** optimize full image processing and compression quality ([c5efb15](https://github.com/BOTOOM/devmentorai/commit/c5efb15cb263b6639890bbafba8e0a8a194101af))
+
+### Refactoring
+
+* **website:** simplify Vercel ignoreCommand logic with cleaner conditional grouping ([bacb4bc](https://github.com/BOTOOM/devmentorai/commit/bacb4bc85524a8adc978f8c5400542967ac37c5d))
+* **website:** simplify Vercel ignoreCommand logic with cleaner conditional syntax ([85b2011](https://github.com/BOTOOM/devmentorai/commit/85b2011e95133df6780c22993c2e7082bd8240d5))
+
+### Maintenance
+
+* **backend:** sync lockfile, built shared contracts, and fix test ([e2478ee](https://github.com/BOTOOM/devmentorai/commit/e2478eeb5f25e6973cc4c40ab783926ebc1922fe))
+* **backend:** update dependencies and server initialization ([5a78257](https://github.com/BOTOOM/devmentorai/commit/5a7825734a4ac63d60921cfa3003109a8c759a41))
+* **release:** backend v1.3.0 [skip ci] ([31d5a8d](https://github.com/BOTOOM/devmentorai/commit/31d5a8d4dd8af64c27a6ad8275a1a0d3b2e0f63c))
+
 ## [1.4.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.3.0...ext-v1.4.0) (2026-02-20)
 
 ### Features

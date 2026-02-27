@@ -54,6 +54,8 @@ export interface MessageMetadata {
     images?: ImageAttachment[];
     /** Whether context-aware mode was used */
     contextAware?: boolean;
+    /** Stream or API error encountered during response */
+    error?: string;
 }
 export type QuickAction = 'explain' | 'translate' | 'rewrite' | 'fix_grammar' | 'summarize' | 'expand' | 'analyze_config' | 'diagnose_error';
 export interface ToolCall {

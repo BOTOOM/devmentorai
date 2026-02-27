@@ -17,6 +17,8 @@ export const API_ENDPOINTS = {
     // Chat
     CHAT: (sessionId) => `/api/sessions/${sessionId}/chat`,
     CHAT_STREAM: (sessionId) => `/api/sessions/${sessionId}/chat/stream`,
+    // Image upload (pre-upload before sending chat)
+    IMAGE_UPLOAD: (sessionId) => `/api/sessions/${sessionId}/images/upload`,
     // Models
     MODELS: '/api/models',
     // Account

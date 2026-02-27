@@ -12,6 +12,7 @@ let isComplete = false;
 let currentContext: SelectionContext | null = null;
 let onDismissCallback: (() => void) | null = null;
 let anchorPosition: PopupPosition | null = null;
+let hasBeenDragged = false;
 
 interface PopupPosition {
   x: number;
@@ -34,6 +35,7 @@ export function createFloatingResponsePopup(
   currentContent = '';
   isComplete = false;
   onDismissCallback = onDismiss || null;
+  hasBeenDragged = false;
   
   // Create shadow host for style isolation
   popupContainer = document.createElement('div');
@@ -69,6 +71,9 @@ export function createFloatingResponsePopup(
   
   // Attach button handlers for initial loading state (dismiss button)
   attachButtonHandlers(shadow);
+  
+  // Setup drag handlers
+  setupDragHandlers(shadow);
   
   // Auto-replace if behavior is 'auto'
   if (behavior === 'auto') {
@@ -195,7 +200,7 @@ export function getCurrentContent(): string {
 // ============================================================================
 
 function positionPopup(position?: PopupPosition): void {
-  if (!popupContainer) return;
+  if (!popupContainer || hasBeenDragged) return;
 
   const referencePosition = position || anchorPosition;
   if (!referencePosition) return;
@@ -250,6 +255,53 @@ function setupKeyboardHandlers(_shadow: ShadowRoot): void {
   }
 }
 
+function setupDragHandlers(shadow: ShadowRoot): void {
+  const header = shadow.querySelector('.header') as HTMLElement;
+  if (!header || !popupContainer) return;
+
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let initialLeft = 0;
+  let initialTop = 0;
+
+  header.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    hasBeenDragged = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    
+    const rect = popupContainer!.getBoundingClientRect();
+    initialLeft = rect.left;
+    initialTop = rect.top;
+    
+    header.setPointerCapture(e.pointerId);
+  });
+
+  header.addEventListener('pointermove', (e) => {
+    if (!isDragging || !popupContainer) return;
+    
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    
+    const newLeft = initialLeft + dx;
+    const newTop = initialTop + dy;
+    
+    popupContainer.style.left = `${newLeft}px`;
+    popupContainer.style.top = `${newTop}px`;
+  });
+
+  header.addEventListener('pointerup', (e) => {
+    isDragging = false;
+    header.releasePointerCapture(e.pointerId);
+  });
+  
+  header.addEventListener('pointercancel', (e) => {
+    isDragging = false;
+    header.releasePointerCapture(e.pointerId);
+  });
+}
+
 function attachButtonHandlers(shadow: ShadowRoot): void {
   console.log('[FloatingPopup] attachButtonHandlers called');
   
@@ -264,8 +316,19 @@ function attachButtonHandlers(shadow: ShadowRoot): void {
   const existingHandler = (popup as any).__clickHandler;
   if (existingHandler) {
     popup.removeEventListener('click', existingHandler);
+    popup.removeEventListener('mousedown', (popup as any).__mouseDownHandler);
   }
   
+  // Prevent focus loss from the active element when clicking buttons
+  const mouseDownHandler = (e: Event) => {
+    const target = e.target as HTMLElement;
+    const button = target.closest('button');
+    if (button) {
+      // Prevent focus shift
+      e.preventDefault();
+    }
+  };
+
   // Create and store new handler
   const clickHandler = (e: Event) => {
     const target = e.target as HTMLElement;
@@ -279,6 +342,7 @@ function attachButtonHandlers(shadow: ShadowRoot): void {
       hasContext: !!currentContext 
     });
     
+    // Also prevent default here just in case
     e.preventDefault();
     e.stopPropagation();
     
@@ -292,6 +356,8 @@ function attachButtonHandlers(shadow: ShadowRoot): void {
   };
   
   (popup as any).__clickHandler = clickHandler;
+  (popup as any).__mouseDownHandler = mouseDownHandler;
+  popup.addEventListener('mousedown', mouseDownHandler);
   popup.addEventListener('click', clickHandler);
 }
 
@@ -368,6 +434,12 @@ function getStyles(): string {
       padding: 10px 14px;
       background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
       color: white;
+      cursor: grab;
+      user-select: none;
+    }
+    
+    .header:active {
+      cursor: grabbing;
     }
     
     .header-title {

@@ -31,7 +31,7 @@ interface ImageAttachmentZoneProps {
   /** Whether attachments are enabled */
   enabled?: boolean;
   /** Callback to capture screenshot */
-  onCaptureScreenshot?: () => void;
+  onCaptureScreenshot?: (mode: 'visible') => void;
   /** Whether screenshot capture is in progress */
   isCapturingScreenshot?: boolean;
   /** Whether screenshot button should be shown */
@@ -206,24 +206,26 @@ export function ImageAttachmentZone({
                 </div>
               )}
 
-              {/* Screenshot button */}
+              {/* Screenshot buttons */}
               {showScreenshotButton && onCaptureScreenshot && !isAtLimit && (
-                <button
-                  onClick={onCaptureScreenshot}
-                  disabled={isCapturingScreenshot}
-                  className={cn(
-                    'w-16 h-16 rounded-lg border-2',
-                    'border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500',
-                    'flex flex-col items-center justify-center',
-                    'text-gray-500 dark:text-gray-400 hover:text-primary-500 text-xs',
-                    'transition-colors',
-                    isCapturingScreenshot && 'opacity-50 cursor-not-allowed'
-                  )}
-                  title="Capture screenshot"
-                >
-                  <Camera className={cn('w-5 h-5 mb-0.5', isCapturingScreenshot && 'animate-pulse')} />
-                  <span>Screen</span>
-                </button>
+                <>
+                  <button
+                    onClick={() => onCaptureScreenshot('visible')}
+                    disabled={isCapturingScreenshot}
+                    className={cn(
+                      'w-16 h-16 rounded-lg border-2',
+                      'border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500',
+                      'flex flex-col items-center justify-center',
+                      'text-gray-500 dark:text-gray-400 hover:text-primary-500 text-xs',
+                      'transition-colors',
+                      isCapturingScreenshot && 'opacity-50 cursor-not-allowed'
+                    )}
+                    title="Capture visible screen"
+                  >
+                    <Camera className={cn('w-5 h-5 mb-0.5', isCapturingScreenshot && 'animate-pulse')} />
+                    <span>Screen</span>
+                  </button>
+                </>
               )}
             </div>
           )}

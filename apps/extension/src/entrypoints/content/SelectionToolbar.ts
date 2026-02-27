@@ -204,11 +204,58 @@ export function createSelectionToolbar(
     .tone-item .emoji {
       font-size: 14px;
     }
+
+    .trigger-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+      color: white;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, opacity 0.15s;
+      flex-shrink: 0;
+    }
+
+    .actions-container {
+      display: flex;
+      gap: 4px;
+      max-width: 0;
+      overflow: hidden;
+      opacity: 0;
+      transition: max-width 0.25s ease, opacity 0.2s ease, margin-left 0.2s;
+    }
+
+    .toolbar:hover .actions-container, .toolbar.expanded .actions-container {
+      max-width: 400px;
+      opacity: 1;
+      margin-left: 4px;
+      overflow: visible; /* needed for submenus! */
+    }
   `;
 
   // Create toolbar element
   const toolbar = document.createElement('div');
   toolbar.className = 'toolbar';
+
+  // Trigger button
+  const triggerBtn = document.createElement('button');
+  triggerBtn.className = 'trigger-btn';
+  triggerBtn.textContent = '✨';
+  triggerBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toolbar.classList.toggle('expanded');
+  });
+  toolbar.appendChild(triggerBtn);
+
+  // Actions wrapper
+  const actionsContainer = document.createElement('div');
+  actionsContainer.className = 'actions-container';
 
   // Add action buttons
   QUICK_ACTIONS.forEach((action) => {
@@ -225,13 +272,13 @@ export function createSelectionToolbar(
       e.stopPropagation();
       onAction(action.id);
     });
-    toolbar.appendChild(btn);
+    actionsContainer.appendChild(btn);
   });
 
   // Add divider
   const divider = document.createElement('div');
   divider.className = 'divider';
-  toolbar.appendChild(divider);
+  actionsContainer.appendChild(divider);
 
   // C.5 - Enhanced tone menu with submenu
   const toneContainer = document.createElement('div');
@@ -310,7 +357,7 @@ export function createSelectionToolbar(
 
   toneContainer.appendChild(toneBtn);
   toneContainer.appendChild(toneMenu);
-  toolbar.appendChild(toneContainer);
+  actionsContainer.appendChild(toneContainer);
 
   // Add "Open Chat" button
   const chatBtn = document.createElement('button');
@@ -329,7 +376,9 @@ export function createSelectionToolbar(
     });
     removeSelectionToolbar();
   });
-  toolbar.appendChild(chatBtn);
+  actionsContainer.appendChild(chatBtn);
+
+  toolbar.appendChild(actionsContainer);
 
   shadow.appendChild(styles);
   shadow.appendChild(toolbar);

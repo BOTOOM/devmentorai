@@ -407,24 +407,35 @@ async function handleMessage(
  * @param targetLanguage - Target language for translation (optional)
  */
 function buildQuickActionPrompt(action: string, selectedText: string, targetLanguage?: string): string {
+  const baseInstruction = 'CRITICAL: Output ONLY the requested content. No explanations, no XML tags, no <reminder> blocks, no conversational text.';
+  
   const actionPrompts: Record<string, string> = {
-    explain: `Explain the following text clearly and concisely:\n\n${selectedText}`,
+    explain: `Explain the following text clearly and concisely:\n\n${selectedText}\n\n${baseInstruction}`,
     translate: targetLanguage 
-      ? `Translate the following text to ${targetLanguage}. Return only the translated text without any explanation:\n\n${selectedText}`
-      : `Translate the following text:\n\n${selectedText}`,
-    rewrite: `Rewrite the following text for clarity and improved style. Return only the rewritten text without any explanation:\n\n${selectedText}`,
-    fix_grammar: `Fix the grammar and spelling in the following text. Return only the corrected text without any explanation:\n\n${selectedText}`,
-    summarize: `Summarize the following text briefly:\n\n${selectedText}`,
-    expand: `Expand on the following text with more details:\n\n${selectedText}`,
+      ? `Translate the following text to ${targetLanguage}. Return only the translated text without any explanation:\n\n${selectedText}\n\n${baseInstruction}`
+      : `Translate the following text:\n\n${selectedText}\n\n${baseInstruction}`,
+    rewrite: `Rewrite the following text for clarity and improved style. Return only the rewritten text without any explanation:\n\n${selectedText}\n\n${baseInstruction}`,
+    fix_grammar: `Fix the grammar and spelling in the following text. Return only the corrected text without any explanation:\n\n${selectedText}\n\n${baseInstruction}`,
+    summarize: `Provide a clear, detailed, and accurate summary of the following text, highlighting the main points:\n\n${selectedText}\n\n${baseInstruction}`,
+    expand: `Expand on the following text with more details:\n\n${selectedText}\n\n${baseInstruction}`,
   };
   
   // Handle tone-specific rewrites
   if (action.startsWith('rewrite_')) {
     const tone = action.replace('rewrite_', '');
-    return `Rewrite the following text in a ${tone} tone. Return only the rewritten text without any explanation:\n\n${selectedText}`;
+    return `Rewrite the following text in a ${tone} tone. Return only the rewritten text without any explanation:\n\n${selectedText}\n\n${baseInstruction}`;
   }
   
-  return actionPrompts[action] || `Process the following text:\n\n${selectedText}`;
+  return actionPrompts[action] || `Process the following text:\n\n${selectedText}\n\n${baseInstruction}`;
+}
+
+/**
+ * Removes AI artifacts like <reminder>...</reminder> from the response
+ */
+function sanitizeQuickActionContent(content: string): string {
+  if (!content) return content;
+  // Remove matched XML-like blocks that might be injected by the system prompt
+  return content.replace(/<reminder>[\s\S]*?<\/reminder>/g, '').trim();
 }
 
 /**
@@ -501,7 +512,7 @@ async function handleStreamingQuickAction(
                 type: 'QUICK_ACTION_STREAM_DELTA',
                 actionId,
                 delta: '',
-                fullContent: event.content || '',
+                fullContent: sanitizeQuickActionContent(event.content || ''),
               });
               break;
               
@@ -510,7 +521,7 @@ async function handleStreamingQuickAction(
               await chrome.tabs.sendMessage(tabId, {
                 type: 'QUICK_ACTION_STREAM_COMPLETE',
                 actionId,
-                finalContent: event.content || '',
+                finalContent: sanitizeQuickActionContent(event.content || ''),
               });
               
               // NOTE: Do NOT store pendingAction here to avoid duplicate processing

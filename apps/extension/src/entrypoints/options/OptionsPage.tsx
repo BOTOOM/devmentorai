@@ -91,7 +91,7 @@ export function OptionsPage() {
   if (!isLoaded) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 dark:border-primary-400"></div>
       </div>
     );
   }
@@ -125,7 +125,7 @@ export function OptionsPage() {
             </div>
             <button
               onClick={checkBackendConnection}
-              className="text-sm text-primary hover:underline"
+              className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
             >
               Test Connection
             </button>
@@ -162,8 +162,8 @@ export function OptionsPage() {
                     onClick={() => updateLocalSetting('theme', theme)}
                     className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
                       localSettings.theme === theme
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary'
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-400'
                     }`}
                   >
                     {theme === 'light' && '☀️ Light'}
@@ -290,7 +290,7 @@ export function OptionsPage() {
                   className="sr-only"
                 />
                 <div className={`w-11 h-6 rounded-full transition-colors ${
-                  localSettings.showSelectionToolbar ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                  localSettings.showSelectionToolbar ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'
                 }`}>
                   <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
                     localSettings.showSelectionToolbar ? 'translate-x-5' : 'translate-x-0.5'
@@ -337,7 +337,7 @@ export function OptionsPage() {
                   className="sr-only"
                 />
                 <div className={`w-11 h-6 rounded-full transition-colors ${
-                  localSettings.imageAttachmentsEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                  localSettings.imageAttachmentsEnabled ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'
                 }`}>
                   <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform ${
                     localSettings.imageAttachmentsEnabled ? 'translate-x-5' : 'translate-x-0.5'
@@ -357,8 +357,8 @@ export function OptionsPage() {
                     onClick={() => updateLocalSetting('screenshotBehavior', behavior)}
                     className={`flex-1 py-2 px-3 rounded-lg border transition-colors text-sm ${
                       localSettings.screenshotBehavior === behavior
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary'
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-400'
                     }`}
                   >
                     {behavior === 'disabled' && '🚫 Disabled'}
@@ -390,8 +390,8 @@ export function OptionsPage() {
                     onClick={() => updateLocalSetting('communicationMode', mode)}
                     className={`flex-1 py-2 px-4 rounded-lg border transition-colors ${
                       localSettings.communicationMode === mode
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary'
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-400'
                     }`}
                   >
                     {mode === 'http' && '🌐 HTTP Server'}
@@ -424,8 +424,8 @@ export function OptionsPage() {
                     onClick={() => updateLocalSetting('textReplacementBehavior', behavior)}
                     className={`flex-1 py-2 px-3 rounded-lg border transition-colors text-sm ${
                       localSettings.textReplacementBehavior === behavior
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary'
+                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-primary-400'
                     }`}
                   >
                     {behavior === 'ask' && '❓ Ask'}
@@ -566,7 +566,7 @@ export function OptionsPage() {
               <button
                 onClick={checkNow}
                 disabled={isChecking}
-                className="text-sm text-primary hover:underline disabled:opacity-50"
+                className="text-sm text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50"
               >
                 {isChecking ? 'Checking...' : 'Check for updates'}
               </button>

@@ -67,6 +67,7 @@ export function SidePanel() {
   const {
     messages,
     isStreaming,
+    isSending,
     sendMessage,
     abortMessage,
   } = useChat(activeSession?.id);
@@ -248,6 +249,10 @@ export function SidePanel() {
     }
   }, [captureVisibleTabScreenshot]);
 
+  const handleCaptureScreenshot = useCallback(async (_mode: 'visible') => {
+    return captureVisibleTabScreenshot();
+  }, [captureVisibleTabScreenshot]);
+
   // Toggle context mode and extract context if enabling
   const handleToggleContextMode = useCallback(async () => {
     const newState = !contextModeEnabled;
@@ -369,6 +374,7 @@ export function SidePanel() {
         session={activeSession}
         messages={messages}
         isStreaming={isStreaming}
+        isSending={isSending}
         onSendMessage={handleSendMessage}
         onAbort={abortMessage}
         onChangeModel={canChangeSessionModel ? handleChangeSessionModel : undefined}
@@ -385,7 +391,7 @@ export function SidePanel() {
         // Image attachment props
         imageAttachmentsEnabled={settings.imageAttachmentsEnabled}
         screenshotBehavior={settings.screenshotBehavior}
-        onCaptureScreenshot={captureVisibleTabScreenshot}
+        onCaptureScreenshot={handleCaptureScreenshot}
         onRegisterAddImage={(fn) => { addImageToChatRef.current = fn; }}
       />
 

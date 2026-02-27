@@ -239,6 +239,72 @@ export class ApiClient {
   }
 
   /**
+   * Pre-upload images to the backend for a message.
+   * Sends images individually in parallel to avoid body-size issues.
+   * Returns the processed image references (paths on disk, URLs for display).
+   */
+  async uploadImages(
+    sessionId: string,
+    messageId: string,
+    images: Array<{ id: string; dataUrl: string; mimeType: string; source: string }>
+  ): Promise<ApiResponse<{
+    images: Array<{
+      id: string;
+      thumbnailUrl: string;
+      fullImageUrl: string;
+      fullImagePath: string;
+      mimeType: string;
+      dimensions: { width: number; height: number };
+      fileSize: number;
+    }>;
+  }>> {
+    const baseUrl = await this.resolveBaseUrl();
+    
+    // Upload images one at a time to avoid payload limits
+    const allProcessed: Array<{
+      id: string;
+      thumbnailUrl: string;
+      fullImageUrl: string;
+      fullImagePath: string;
+      mimeType: string;
+      dimensions: { width: number; height: number };
+      fileSize: number;
+    }> = [];
+
+    // Upload in parallel (each image is its own request)
+    const uploadPromises = images.map(async (image) => {
+      const response = await fetch(
+        `${baseUrl}/api/images/upload/${sessionId}/${messageId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ images: [image] }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Image upload failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json() as ApiResponse<{ images: typeof allProcessed }>;
+      if (result.success && result.data?.images) {
+        return result.data.images;
+      }
+      throw new Error(result.error?.message || 'Upload failed');
+    });
+
+    const results = await Promise.all(uploadPromises);
+    for (const imgs of results) {
+      allProcessed.push(...imgs);
+    }
+
+    return {
+      success: true,
+      data: { images: allProcessed },
+    };
+  }
+
+  /**
    * Get full URL for a thumbnail image
    */
   getThumbnailUrl(relativePath: string): string {

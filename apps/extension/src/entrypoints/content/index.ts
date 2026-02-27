@@ -178,6 +178,10 @@ export default defineContentScript({
         
         const streamMsg = message as QuickActionStreamMessage;
         if (streamMsg.type === 'QUICK_ACTION_STREAM_START' && contextToUse && rectToUse) {
+          // Hide toolbar immediately
+          removeSelectionToolbar();
+          isToolbarVisible = false;
+
           // Show floating popup for streaming response
           createFloatingResponsePopup(
             { x: rectToUse.left + rectToUse.width / 2, y: rectToUse.bottom },

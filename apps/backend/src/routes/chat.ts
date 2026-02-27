@@ -112,12 +112,23 @@ const fullContextSchema = z.object({
   }),
 }).passthrough();
 
-// Schema for image payload
+// Schema for image payload (inline data URL - legacy / small images)
 const imagePayloadSchema = z.object({
   id: z.string(),
   dataUrl: z.string(),
   mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
   source: z.enum(['screenshot', 'paste', 'drop']),
+});
+
+// Schema for pre-uploaded image reference (from /api/images/upload endpoint)
+const preUploadedImageSchema = z.object({
+  id: z.string(),
+  fullImagePath: z.string(),
+  mimeType: z.string(),
+  thumbnailUrl: z.string().optional(),
+  fullImageUrl: z.string().optional(),
+  dimensions: z.object({ width: z.number(), height: z.number() }).optional(),
+  fileSize: z.number().optional(),
 });
 
 const sendMessageSchema = z.object({
@@ -126,6 +137,8 @@ const sendMessageSchema = z.object({
   fullContext: fullContextSchema.optional(),
   useContextAwareMode: z.boolean().optional(),
   images: z.array(imagePayloadSchema).max(5).optional(),
+  /** Pre-uploaded image references (already processed on disk) */
+  preUploadedImages: z.array(preUploadedImageSchema).max(5).optional(),
 });
 
 export async function chatRoutes(fastify: FastifyInstance) {
@@ -269,6 +282,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
       // Process images if provided
       let processedImagesRaw: ProcessedImage[] = [];
       let processedImages: ImageAttachment[] = [];
+      let copilotAttachments: Array<{ type: 'file'; path: string; displayName: string }> = [];
       // Build backend URL with port for image serving
       const host = request.headers.host || `${request.hostname}:3847`;
       const backendUrl = `http://${host}`;
@@ -288,9 +302,36 @@ export async function chatRoutes(fastify: FastifyInstance) {
       );
 
       // Process images after we have the message ID
-      if (body.images && body.images.length > 0) {
+      // Prefer pre-uploaded images (already on disk) over inline data URLs
+      if (body.preUploadedImages && body.preUploadedImages.length > 0) {
+        // Images were already processed via /api/images/upload endpoint
+        console.log(`[ChatRoute] Using ${body.preUploadedImages.length} pre-uploaded images`);
+        copilotAttachments = body.preUploadedImages.map((img, index) => ({
+          type: 'file' as const,
+          path: img.fullImagePath,
+          displayName: `image_${index + 1}.${(img.mimeType || 'image/jpeg').split('/')[1] || 'jpg'}`,
+        }));
+
+        // Build metadata for message storage
+        processedImages = body.preUploadedImages.map(img => ({
+          id: img.id,
+          source: 'screenshot' as const,
+          mimeType: (img.mimeType || 'image/jpeg') as any,
+          dimensions: img.dimensions || { width: 0, height: 0 },
+          fileSize: img.fileSize || 0,
+          timestamp: new Date().toISOString(),
+          thumbnailUrl: img.thumbnailUrl,
+          fullImageUrl: img.fullImageUrl,
+        }));
+
+        fastify.sessionService.updateMessageMetadata(userMessage.id, {
+          ...userMessage.metadata,
+          images: processedImages,
+        });
+      } else if (body.images && body.images.length > 0) {
+        // Inline image upload (legacy path for small images)
         try {
-          console.log(`[ChatRoute] Processing ${body.images.length} images for message ${userMessage.id}`);
+          console.log(`[ChatRoute] Processing ${body.images.length} inline images for message ${userMessage.id}`);
           processedImagesRaw = await processMessageImages(
             sessionId,
             userMessage.id,
@@ -305,19 +346,18 @@ export async function chatRoutes(fastify: FastifyInstance) {
             images: processedImages,
           });
           
+          copilotAttachments = processedImagesRaw.map((img, index) => ({
+            type: 'file' as const,
+            path: img.fullImagePath,
+            displayName: `image_${index + 1}.${img.mimeType.split('/')[1] || 'jpg'}`,
+          }));
+          
           console.log(`[ChatRoute] Processed ${processedImages.length} images successfully`);
         } catch (err) {
           console.error('[ChatRoute] Failed to process images:', err);
           // Continue without images - don't fail the message
         }
       }
-
-      // Build attachments for Copilot SDK from processed images
-      const copilotAttachments = processedImagesRaw.map((img, index) => ({
-        type: 'file' as const,
-        path: img.fullImagePath,
-        displayName: `image_${index + 1}.${img.mimeType.split('/')[1] || 'jpg'}`,
-      }));
       
       if (copilotAttachments.length > 0) {
         console.log(`[ChatRoute] Built ${copilotAttachments.length} attachments for Copilot:`, copilotAttachments);
@@ -475,6 +515,12 @@ export async function chatRoutes(fastify: FastifyInstance) {
           cleanupTimers();
 
           if (!streamEnded) {
+            if (!reply.raw.headersSent) {
+              reply.raw.setHeader('Content-Type', 'text/event-stream');
+              reply.raw.setHeader('Cache-Control', 'no-cache');
+              reply.raw.setHeader('Connection', 'keep-alive');
+              reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+            }
             sendSSE({
               type: 'error',
               data: {
@@ -516,6 +562,12 @@ export async function chatRoutes(fastify: FastifyInstance) {
       }
       
       // Send error via SSE
+      if (!reply.raw.headersSent) {
+        reply.raw.setHeader('Content-Type', 'text/event-stream');
+        reply.raw.setHeader('Cache-Control', 'no-cache');
+        reply.raw.setHeader('Connection', 'keep-alive');
+        reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+      }
       const errorEvent: StreamEvent = {
         type: 'error',
         data: { error: error instanceof Error ? error.message : 'Unknown error' },

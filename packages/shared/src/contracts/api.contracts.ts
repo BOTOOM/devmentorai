@@ -35,6 +35,9 @@ export const API_ENDPOINTS = {
   CHAT: (sessionId: string) => `/api/sessions/${sessionId}/chat`,
   CHAT_STREAM: (sessionId: string) => `/api/sessions/${sessionId}/chat/stream`,
   
+  // Image upload (pre-upload before sending chat)
+  IMAGE_UPLOAD: (sessionId: string) => `/api/sessions/${sessionId}/images/upload`,
+
   // Models
   MODELS: '/api/models',
 
@@ -112,6 +115,13 @@ export interface ApiEndpoints {
     params: { id: string };
     body: SendMessageRequest;
     response: ReadableStream; // SSE stream
+  };
+
+  // POST /api/sessions/:id/images/upload
+  'POST /api/sessions/:id/images/upload': {
+    params: { id: string };
+    body: { images: Array<{ id: string; dataUrl: string; mimeType: string; source: string }> };
+    response: ApiResponse<{ images: Array<{ id: string; thumbnailUrl: string; fullImageUrl: string; fullImagePath: string }> }>;
   };
   
   // GET /api/models

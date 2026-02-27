@@ -254,10 +254,14 @@ class NativeMessagingHost {
           break;
         }
         
-        // Process message asynchronously
-        this.handleMessage(message).catch((err) => {
-          this.log(`Error handling message: ${err}`);
-        });
+        // Process message asynchronously but catch synchronous errors from the promise initialization
+        try {
+          this.handleMessage(message).catch((err) => {
+            this.log(`Error handling message: ${err}`);
+          });
+        } catch (handleErr) {
+          this.log(`Error initializing message handler: ${handleErr}`);
+        }
       } catch (error) {
         this.log(`Error reading message: ${error}`);
         break;

@@ -30,6 +30,8 @@ function truncate(str: string | undefined | null, maxLen = 500): string {
 
 export async function createServer() {
   const fastify = Fastify({
+    // Allow large payloads for image uploads (data URLs can be 10-30MB for full-page screenshots)
+    bodyLimit: 50 * 1024 * 1024, // 50MB
     logger: {
       level: DEBUG_MODE ? 'debug' : 'info',
       transport: {

@@ -510,6 +510,70 @@ export const analyzeErrorTool: Tool = {
 };
 
 /**
+ * Fetch public URL content
+ */
+export const fetchUrlTool: Tool = {
+  name: 'fetch_url',
+  description: 'Fetch the text content of a public URL. Use this to read documentation, github issues, or other public web pages when the user shares a URL.',
+  parameters: {
+    type: 'object',
+    properties: {
+      url: {
+        type: 'string',
+        description: 'The HTTP or HTTPS URL to fetch',
+      },
+    },
+    required: ['url'],
+  },
+  handler: async (params) => {
+    const targetUrl = params.url as string;
+    
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      return `Error: Only HTTP/HTTPS URLs are supported, got "${targetUrl}"`;
+    }
+
+    try {
+      // Abort after 10 seconds to avoid hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(targetUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'DevMentorAI/1.0',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8',
+        },
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        return `Error: Server responded with status ${response.status} ${response.statusText}`;
+      }
+      
+      const contentType = response.headers.get('content-type') || '';
+      const text = await response.text();
+      
+      // If it's an HTML page, we should ideally strip tags, but for a simple tool, 
+      // returning the raw text/HTML up to a reasonable limit is a good start.
+      // We'll limit the response size to avoid overwhelming the LLM context.
+      const MAX_LENGTH = 15000;
+      
+      if (text.length > MAX_LENGTH) {
+        return text.substring(0, MAX_LENGTH) + `\n\n[Content truncated at ${MAX_LENGTH} characters]`;
+      }
+      
+      return text;
+    } catch (error) {
+      if ((error as any).name === 'AbortError') {
+        return `Error: Request to ${targetUrl} timed out after 10 seconds.`;
+      }
+      return `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  },
+};
+
+/**
  * Export all DevOps tools
  */
 export const devopsTools: Tool[] = [
@@ -517,6 +581,7 @@ export const devopsTools: Tool[] = [
   listDirectoryTool,
   analyzeConfigTool,
   analyzeErrorTool,
+  fetchUrlTool,
 ];
 
 export function getToolByName(name: string): Tool | undefined {

@@ -1,3 +1,45 @@
+## [1.3.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.2.3...backend-v1.3.0) (2026-02-27)
+
+### Features
+
+* **backend:** add fetch_url tool for reading public web content ([bf2510f](https://github.com/BOTOOM/devmentorai/commit/bf2510f69ee5c9cf66eb9c16195e512339e18ae5))
+* **backend:** add image pre-upload support and update chat schemas ([955e367](https://github.com/BOTOOM/devmentorai/commit/955e367a1d1c7fec53f172f55f3a8b128c5c96fa))
+* **backend:** implement onPermissionRequest handler for Copilot SDK v0.1.28 ([f892c65](https://github.com/BOTOOM/devmentorai/commit/f892c659a6382e3a57a6173eb078dfa485b4db31))
+* **docker:** add Docker Compose setup with Copilot CLI integration and persistence ([4e9b245](https://github.com/BOTOOM/devmentorai/commit/4e9b245077da9ca107f3003836bb7f842cc40de4))
+* **extension:** add dynamic backend URL configuration from storage ([1f22e19](https://github.com/BOTOOM/devmentorai/commit/1f22e19a91129bba361526ef590e57ed006330e8))
+* **extension:** add model search, pricing tiers, and account status display ([4664751](https://github.com/BOTOOM/devmentorai/commit/4664751b3ef14bf55c8903ae874917a9218b6778))
+* **extension:** disable model picker after chat starts and add session recovery retry logic ([c5e7b73](https://github.com/BOTOOM/devmentorai/commit/c5e7b73ffe0eeaedabd7741e85bd02c86b6d37e6))
+* **extension:** insert pending text at cursor position instead of replacing draft ([18cc61b](https://github.com/BOTOOM/devmentorai/commit/18cc61b5710417fc49fb3a4aa9c49859d9fe8576))
+* **extension:** replace auth status badge with user avatar icon and tooltip ([613a357](https://github.com/BOTOOM/devmentorai/commit/613a357115dc18a9beca6622ad513893fe47a3f5))
+* **shared:** enhance agent prompts with fetch_url tool awareness ([90b13db](https://github.com/BOTOOM/devmentorai/commit/90b13dbb50ca7984c2f09b8ef775290dc39bc7fd))
+* **website:** add Chat Workflow and Copilot CLI setup documentation pages ([6917268](https://github.com/BOTOOM/devmentorai/commit/6917268103701871abb662e0a2b3e63447af2c4f))
+* **website:** add dynamic OG images and favicon with gradient branding ([ade1cac](https://github.com/BOTOOM/devmentorai/commit/ade1cac575fab1889b1b4a99504dcd7392d1ee18))
+* **website:** add FAQ and support pages with YouTube demo embed and responsive improvements ([6f53b6a](https://github.com/BOTOOM/devmentorai/commit/6f53b6a2d9283a1c9101404a6afa494f04e2524c))
+* **website:** add static OG image and dynamic metadata with request-based URL resolution ([8fcb7a0](https://github.com/BOTOOM/devmentorai/commit/8fcb7a03c8aefe88a0aeace58712ba64a4d34a6c))
+* **website:** prioritize official store installations and improve Vercel deployment logic ([b9b4775](https://github.com/BOTOOM/devmentorai/commit/b9b4775133668efc941304243b2eb932b5f90ea0))
+* **website:** update OG image copy to mention Copilot SDK and fix FAQ formatting ([53aefff](https://github.com/BOTOOM/devmentorai/commit/53aefffbde1ade3b7a8fe210c49eeb8be32e79ba))
+
+### Performance
+
+* **backend:** optimize full image processing and compression quality ([c5efb15](https://github.com/BOTOOM/devmentorai/commit/c5efb15cb263b6639890bbafba8e0a8a194101af))
+
+### Refactoring
+
+* **extension:** add browser compatibility layer for Chrome/Firefox API differences ([c1c60ed](https://github.com/BOTOOM/devmentorai/commit/c1c60ed4cd287719de91ecebf71876c0864fdb6e))
+* **extension:** add programmatic side panel opening with fallback for Firefox ([322113a](https://github.com/BOTOOM/devmentorai/commit/322113a9cdc7e5588cb713257d9fce1c304f4100))
+* **tests:** improve E2E test isolation and add accessibility attributes ([5acaef0](https://github.com/BOTOOM/devmentorai/commit/5acaef0027a18e3f67942065e8a47447e01e785a))
+* **website:** simplify Vercel ignoreCommand logic with cleaner conditional grouping ([bacb4bc](https://github.com/BOTOOM/devmentorai/commit/bacb4bc85524a8adc978f8c5400542967ac37c5d))
+* **website:** simplify Vercel ignoreCommand logic with cleaner conditional syntax ([85b2011](https://github.com/BOTOOM/devmentorai/commit/85b2011e95133df6780c22993c2e7082bd8240d5))
+
+### Maintenance
+
+* **backend:** sync lockfile, built shared contracts, and fix test ([e2478ee](https://github.com/BOTOOM/devmentorai/commit/e2478eeb5f25e6973cc4c40ab783926ebc1922fe))
+* **backend:** update dependencies and server initialization ([5a78257](https://github.com/BOTOOM/devmentorai/commit/5a7825734a4ac63d60921cfa3003109a8c759a41))
+* **release:** extension v1.1.5 [skip ci] ([ebed54a](https://github.com/BOTOOM/devmentorai/commit/ebed54ad5a1ac0eb8e45d422efdccfc8d6a34e37))
+* **release:** extension v1.2.0 [skip ci] ([fdbf83e](https://github.com/BOTOOM/devmentorai/commit/fdbf83e3e46a037b94db364f208f7f71f6097783))
+* **release:** extension v1.3.0 [skip ci] ([085ed9c](https://github.com/BOTOOM/devmentorai/commit/085ed9c2cecf0adcca45414924b7daa65ecc61b3))
+* **release:** extension v1.4.0 [skip ci] ([f9f1f6f](https://github.com/BOTOOM/devmentorai/commit/f9f1f6f8f99762edfebee8de631e251734e19ac8))
+
 ## [1.2.3](https://github.com/BOTOOM/devmentorai/compare/backend-v1.2.2...backend-v1.2.3) (2026-02-19)
 
 ### Bug Fixes

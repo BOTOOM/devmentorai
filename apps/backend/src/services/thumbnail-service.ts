@@ -28,6 +28,13 @@ const THUMBNAIL_CONFIG = {
   format: 'jpeg' as const,
 };
 
+/** Full image generation settings */
+const FULL_IMAGE_CONFIG = {
+  maxDimension: 2000,
+  quality: 80,
+  format: 'jpeg' as const,
+};
+
 export interface ImageInput {
   id: string;
   dataUrl: string;
@@ -85,6 +92,19 @@ async function generateThumbnail(buffer: Buffer): Promise<Buffer> {
       withoutEnlargement: true,
     })
     .jpeg({ quality: THUMBNAIL_CONFIG.quality })
+    .toBuffer();
+}
+
+/**
+ * Generate a compressed full-size image from an image buffer
+ */
+async function generateFullImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize(FULL_IMAGE_CONFIG.maxDimension, FULL_IMAGE_CONFIG.maxDimension, {
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: FULL_IMAGE_CONFIG.quality })
     .toBuffer();
 }
 
@@ -156,10 +176,12 @@ export async function processMessageImages(
       fs.writeFileSync(thumbnailAbsPath, thumbnailBuffer);
 
       // Save FULL IMAGE to disk (for Copilot SDK attachments and lightbox view)
-      const extension = getExtensionForMimeType(mimeType);
+      // Resize and compress to avoid huge payloads crashing the backend
+      const fullImageBuffer = await generateFullImage(buffer);
+      const extension = 'jpg'; // Always jpeg as per FULL_IMAGE_CONFIG
       const fullImageAbsPath = getFullImagePath(sessionId, messageId, index, extension);
-      fs.writeFileSync(fullImageAbsPath, buffer);
-      console.log(`[ThumbnailService] Saved full image to ${fullImageAbsPath}`);
+      fs.writeFileSync(fullImageAbsPath, fullImageBuffer);
+      console.log(`[ThumbnailService] Saved compressed full image to ${fullImageAbsPath}`);
 
       // Generate relative paths for DB storage (from DATA_DIR)
       const thumbnailRelativePath = toRelativePath(thumbnailAbsPath);

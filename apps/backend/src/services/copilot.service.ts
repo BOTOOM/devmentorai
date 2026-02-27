@@ -1,4 +1,4 @@
-import { CopilotClient, type SessionEvent, type Tool as CopilotTool } from '@github/copilot-sdk';
+import { CopilotClient, type SessionEvent, type Tool as CopilotTool, approveAll } from '@github/copilot-sdk';
 import { SessionService } from './session.service.js';
 import { getAgentConfig, SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
 import type {
@@ -360,6 +360,7 @@ export class CopilotService {
       systemMessage: systemPrompt ? { content: systemPrompt } : undefined,
       tools,
       mcpServers,
+      onPermissionRequest: approveAll,
     });
 
     this.sessions.set(sessionId, { sessionId, session, type });
@@ -394,7 +395,7 @@ export class CopilotService {
 
     // First, try to resume existing session
     try {
-      const session = await this.client.resumeSession(sessionId);
+      const session = await this.client.resumeSession(sessionId, { onPermissionRequest: approveAll });
       // Try to get type from DB, fallback to 'general'
       const dbSession = this.sessionService.getSession(sessionId);
       this.sessions.set(sessionId, { sessionId, session, type: dbSession?.type || 'general' });

@@ -15,6 +15,7 @@ export declare const API_ENDPOINTS: {
     readonly SESSION_MESSAGES: (id: string) => string;
     readonly CHAT: (sessionId: string) => string;
     readonly CHAT_STREAM: (sessionId: string) => string;
+    readonly IMAGE_UPLOAD: (sessionId: string) => string;
     readonly MODELS: "/api/models";
     readonly ACCOUNT_AUTH: "/api/account/auth";
     readonly ACCOUNT_QUOTA: "/api/account/quota";
@@ -83,6 +84,27 @@ export interface ApiEndpoints {
         };
         body: SendMessageRequest;
         response: ReadableStream;
+    };
+    'POST /api/sessions/:id/images/upload': {
+        params: {
+            id: string;
+        };
+        body: {
+            images: Array<{
+                id: string;
+                dataUrl: string;
+                mimeType: string;
+                source: string;
+            }>;
+        };
+        response: ApiResponse<{
+            images: Array<{
+                id: string;
+                thumbnailUrl: string;
+                fullImageUrl: string;
+                fullImagePath: string;
+            }>;
+        }>;
     };
     'GET /api/models': {
         response: ApiResponse<{

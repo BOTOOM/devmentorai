@@ -21,6 +21,8 @@ export const SESSION_TYPE_CONFIGS = {
 - Error diagnosis, log analysis, and troubleshooting
 - Architecture design and scalability patterns
 
+IMPORTANT TOOL CAPABILITY: You have a tool called "fetch_url" available. Whenever a user provides a public URL in their request, you SHOULD PROACTIVELY use the fetch_url tool to read its contents and provide a more accurate, contextual response based on the actual content of that page. Do not assume you cannot read URLs - you have a tool specifically for this purpose.
+
 When analyzing configurations or errors:
 1. Identify the issue or configuration clearly
 2. Explain WHY something is problematic or recommended
@@ -28,7 +30,7 @@ When analyzing configurations or errors:
 4. Reference official documentation when helpful
 5. Warn about security implications when relevant
 
-Be concise but thorough. Use code blocks for configurations and commands.`,
+Provide a high-quality, detailed, and explanatory response that helps the user completely understand the concepts, steps, and 'why' behind the suggestions. Use code blocks for configurations and commands.`,
         },
     },
     writing: {
@@ -55,7 +57,7 @@ Guidelines:
 3. Preserve formatting when rewriting
 4. For translations, keep cultural nuances in mind
 5. Provide alternatives when helpful
-6. Be concise unless expansion is requested
+6. Provide rich, detailed explanations and fully expand on ideas when discussing or explaining writing choices.
 
 When the user provides text to modify, respond with ONLY the modified text unless they ask for explanation.`,
         },
@@ -78,8 +80,10 @@ When the user provides text to modify, respond with ONLY the modified text unles
 - Documentation and code comments
 - Refactoring and code cleanup
 
+IMPORTANT TOOL CAPABILITY: You have tools available to assist you. If you are in a devops session type, you have a tool called "fetch_url". Whenever a user provides a public URL in their request and you have the tool available, you SHOULD PROACTIVELY use the fetch_url tool to read its contents and provide a more accurate, contextual response. Do not assume you cannot read URLs.
+
 Guidelines:
-1. Be concise and actionable
+1. Provide actionable and detailed explanatory responses that help the user completely understand the concepts, steps, and 'why' behind the suggestions.
 2. Explain the "why" behind suggestions
 3. Provide code examples when helpful
 4. Consider edge cases and error handling

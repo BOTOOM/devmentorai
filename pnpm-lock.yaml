@@ -18,8 +18,8 @@ importers:
         specifier: ^10.0.2
         version: 10.1.0
       '@github/copilot-sdk':
-        specifier: ^0.1.0
-        version: 0.1.19
+        specifier: ^0.1.28
+        version: 0.1.28
       better-sqlite3:
         specifier: ^11.7.0
         version: 11.10.0
@@ -27,8 +27,8 @@ importers:
         specifier: ^0.38.4
         version: 0.38.4(@types/better-sqlite3@7.6.13)(@types/react@19.2.10)(better-sqlite3@11.10.0)(react@19.2.4)
       fastify:
-        specifier: ^5.2.1
-        version: 5.7.2
+        specifier: ^5.7.4
+        version: 5.7.4
       pino:
         specifier: ^9.6.0
         version: 9.14.0
@@ -1226,48 +1226,48 @@ packages:
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
 
-  '@github/copilot-darwin-arm64@0.0.394':
-    resolution: {integrity: sha512-qDmDFiFaYFW45UhxylN2JyQRLVGLCpkr5UmgbfH5e0aksf+69qytK/MwpD2Cq12KdTjyGMEorlADkSu5eftELA==}
+  '@github/copilot-darwin-arm64@0.0.416':
+    resolution: {integrity: sha512-mipNAS3Pi8Eu2TA9rTHdjEMaDZNNKJl29rL5cvs9imjshsQJBwiJD3zIV/XQvqsFB8IWngn5ZFT9ybML4milkg==}
     cpu: [arm64]
     os: [darwin]
     hasBin: true
 
-  '@github/copilot-darwin-x64@0.0.394':
-    resolution: {integrity: sha512-iN4YwSVFxhASiBjLk46f+AzRTNHCvYcmyTKBASxieMIhnDxznYmpo+haFKPCv2lCsEWU8s5LARCnXxxx8J1wKA==}
+  '@github/copilot-darwin-x64@0.0.416':
+    resolution: {integrity: sha512-22Q1rkpYflX5XMfmfvA/uZ/9ME43rUARy6rQZ+tfl2/Xg2FFR8NXyvhtatqVZ5v+N2DE81IrYUG3V0wfX0U8Iw==}
     cpu: [x64]
     os: [darwin]
     hasBin: true
 
-  '@github/copilot-linux-arm64@0.0.394':
-    resolution: {integrity: sha512-9NeGvmO2tGztuneXZfYAyW3fDk6Pdl6Ffg8MAUaevA/p0awvA+ti/Vh0ZSTcI81nDTjkzONvrcIcjYAN7x0oSg==}
+  '@github/copilot-linux-arm64@0.0.416':
+    resolution: {integrity: sha512-iLFzBpjSNQOqOvBIq4AxlSWDGlAW5+Ri0Qz2h1CVBb5JcUOdfSL22Fz/3wWzrV1quvnkVyJQ45tL9zS117DhcA==}
     cpu: [arm64]
     os: [linux]
     hasBin: true
 
-  '@github/copilot-linux-x64@0.0.394':
-    resolution: {integrity: sha512-toahsYQORrP/TPSBQ7sxj4/fJg3YUrD0ksCj/Z4y2vT6EwrE9iC2BspKgQRa4CBoCqxYDNB2blc+mQ1UuzPOxg==}
+  '@github/copilot-linux-x64@0.0.416':
+    resolution: {integrity: sha512-+dSZOLaCr+A/WJLE++4lCC13PziIO64PzFGJsEmSedQkqw2dnXrAYbsp+cbtXJJ6w0DZpHigeifhn1m3sAWUvw==}
     cpu: [x64]
     os: [linux]
     hasBin: true
 
-  '@github/copilot-sdk@0.1.19':
-    resolution: {integrity: sha512-h/KvYb6g99v9SurNJGxeXUatmP7GO8KHTAb68GYfmgUqH1EUeN5g0xMUc5lvKxAi7hwj2OxRR73dd37zMMiiiQ==}
-    engines: {node: '>=18.0.0'}
+  '@github/copilot-sdk@0.1.28':
+    resolution: {integrity: sha512-dJpg5IWCdwc5YLqT0VB6yGF7Alx86kJyajxwxp33Y1q0dl5ZMqOFq/Cbe2yOAhO5dv9a6eZdgpBWHjPTKONebQ==}
+    engines: {node: '>=20.0.0'}
 
-  '@github/copilot-win32-arm64@0.0.394':
-    resolution: {integrity: sha512-R7XBP3l+oeDuBrP0KD80ZBEMsZoxAW8QO2MNsDUV8eVrNJnp6KtGHoA+iCsKYKNOD6wHA/q5qm/jR+gpsz46Aw==}
+  '@github/copilot-win32-arm64@0.0.416':
+    resolution: {integrity: sha512-jeTroTL5CeAysbl3GJeLyPMsb2fEP16Iqo7faeozlbyU9BD5GjaLKtEApmFCE2hP0/CNcJVg1K5cZLTaKYOXCw==}
     cpu: [arm64]
     os: [win32]
     hasBin: true
 
-  '@github/copilot-win32-x64@0.0.394':
-    resolution: {integrity: sha512-/XYV8srP+pMXbf9Gc3wr58zCzBZvsdA3X4poSvr2uU8yCZ6E4pD0agFaZ1c/CikANJi8nb0Id3kulhEhePz/3A==}
+  '@github/copilot-win32-x64@0.0.416':
+    resolution: {integrity: sha512-62kv5dMNZ+7unVi3puK16trlOItLldFgQEkk2mVqAsRzEA9XqxArNeN+lG6kAIHNbiKA+OKVafdkzy104kHy4w==}
     cpu: [x64]
     os: [win32]
     hasBin: true
 
-  '@github/copilot@0.0.394':
-    resolution: {integrity: sha512-koSiaHvVwjgppgh+puxf6dgsR8ql/WST1scS5bjzMsJFfWk7f4xtEXla7TCQfSGoZkCmCsr2Tis27v5TpssiCg==}
+  '@github/copilot@0.0.416':
+    resolution: {integrity: sha512-rohH9dEeLRkYD31BUL7RFnGz2ZU/7CVkNdZlWEut+CSXgha6uhb3GPmIAPty1gZyUeMeHqJOwu+SSEjAxVaXEg==}
     hasBin: true
 
   '@humanfs/core@0.19.1':
@@ -3306,8 +3306,8 @@ packages:
   fastify-plugin@5.1.0:
     resolution: {integrity: sha512-FAIDA8eovSt5qcDgcBvDuX/v0Cjz0ohGhENZ/wpc3y+oZCY2afZ9Baqql3g/lC+OHRnciQol4ww7tuthOb9idw==}
 
-  fastify@5.7.2:
-    resolution: {integrity: sha512-dBJolW+hm6N/yJVf6J5E1BxOBNkuXNl405nrfeR8SpvGWG3aCC2XDHyiFBdow8Win1kj7sjawQc257JlYY6M/A==}
+  fastify@5.7.4:
+    resolution: {integrity: sha512-e6l5NsRdaEP8rdD8VR0ErJASeyaRbzXYpmkrpr2SuvuMq6Si3lvsaVy5C+7gLanEkvjpMDzBXWE5HPeb/hgTxA==}
 
   fastq@1.20.1:
     resolution: {integrity: sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw==}
@@ -6752,38 +6752,38 @@ snapshots:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.3.0
 
-  '@github/copilot-darwin-arm64@0.0.394':
+  '@github/copilot-darwin-arm64@0.0.416':
     optional: true
 
-  '@github/copilot-darwin-x64@0.0.394':
+  '@github/copilot-darwin-x64@0.0.416':
     optional: true
 
-  '@github/copilot-linux-arm64@0.0.394':
+  '@github/copilot-linux-arm64@0.0.416':
     optional: true
 
-  '@github/copilot-linux-x64@0.0.394':
+  '@github/copilot-linux-x64@0.0.416':
     optional: true
 
-  '@github/copilot-sdk@0.1.19':
+  '@github/copilot-sdk@0.1.28':
     dependencies:
-      '@github/copilot': 0.0.394
+      '@github/copilot': 0.0.416
       vscode-jsonrpc: 8.2.1
       zod: 4.3.6
 
-  '@github/copilot-win32-arm64@0.0.394':
+  '@github/copilot-win32-arm64@0.0.416':
     optional: true
 
-  '@github/copilot-win32-x64@0.0.394':
+  '@github/copilot-win32-x64@0.0.416':
     optional: true
 
-  '@github/copilot@0.0.394':
+  '@github/copilot@0.0.416':
     optionalDependencies:
-      '@github/copilot-darwin-arm64': 0.0.394
-      '@github/copilot-darwin-x64': 0.0.394
-      '@github/copilot-linux-arm64': 0.0.394
-      '@github/copilot-linux-x64': 0.0.394
-      '@github/copilot-win32-arm64': 0.0.394
-      '@github/copilot-win32-x64': 0.0.394
+      '@github/copilot-darwin-arm64': 0.0.416
+      '@github/copilot-darwin-x64': 0.0.416
+      '@github/copilot-linux-arm64': 0.0.416
+      '@github/copilot-linux-x64': 0.0.416
+      '@github/copilot-win32-arm64': 0.0.416
+      '@github/copilot-win32-x64': 0.0.416
 
   '@humanfs/core@0.19.1': {}
 
@@ -8990,7 +8990,7 @@ snapshots:
 
   fastify-plugin@5.1.0: {}
 
-  fastify@5.7.2:
+  fastify@5.7.4:
     dependencies:
       '@fastify/ajv-compiler': 4.0.5
       '@fastify/error': 4.2.0

@@ -31,8 +31,8 @@ describe('DevOps Tools', () => {
   });
 
   describe('Tool Registry', () => {
-    it('should have 4 tools registered', () => {
-      expect(devopsTools).toHaveLength(4);
+    it('should have 5 tools registered', () => {
+      expect(devopsTools).toHaveLength(5);
     });
 
     it('should find tool by name', () => {

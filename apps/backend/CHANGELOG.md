@@ -1,3 +1,22 @@
+## [1.4.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.3.0...backend-v1.4.0) (2026-03-06)
+
+### Features
+
+* **extension:** add parallel image upload capability to API client ([3ce536f](https://github.com/BOTOOM/devmentorai/commit/3ce536f81ed7bf7d598a17b89739c15b145dd522))
+* **extension:** enhance chat UI for image attachments and error reporting ([60ca515](https://github.com/BOTOOM/devmentorai/commit/60ca515465b0033a725911d3e5bcdc5221528db4))
+* **extension:** implement pre-upload image workflow in chat service ([eb73def](https://github.com/BOTOOM/devmentorai/commit/eb73def104050cd55b7ebfa19de3fc2d336a661e))
+* **extension:** improve screenshot quality and deprecate full-page capture ([eb20dc5](https://github.com/BOTOOM/devmentorai/commit/eb20dc58ae2101165b26fb1dd8cb4e978063bf3c))
+* **extension:** update extension entrypoints and sidepanel with image support ([34138c9](https://github.com/BOTOOM/devmentorai/commit/34138c93182c325aab2e2788b58c27d524c46f0c))
+
+### Bug Fixes
+
+* **extension:** resolve TS type mismatch and unused parameter in screenshot handling ([f0d96fa](https://github.com/BOTOOM/devmentorai/commit/f0d96fa9428f2d784dd3341aa6deaed82312edef))
+
+### Maintenance
+
+* **deps:** bump fastify from 5.7.4 to 5.8.1 ([b38d3c4](https://github.com/BOTOOM/devmentorai/commit/b38d3c43651b293061f1faa9555c942328a9a754))
+* **release:** extension v1.5.0 [skip ci] ([b0199ff](https://github.com/BOTOOM/devmentorai/commit/b0199ff8f0f5526e3fb671c73c1f966a0aa39b93))
+
 ## [1.3.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.2.3...backend-v1.3.0) (2026-02-27)
 
 ### Features

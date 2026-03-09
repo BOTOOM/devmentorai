@@ -51,18 +51,33 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     try {
       const body = createSessionSchema.parse(request.body);
       console.log('[sessionRoutes] Creating session with body:', body);
+
+      if (body.provider && !fastify.llmProviderService.isProviderRegistered(body.provider)) {
+        return reply.code(400).send({
+          success: false,
+          error: {
+            code: 'PROVIDER_NOT_REGISTERED',
+            message: `Provider '${body.provider}' is not available in this backend instance`,
+          },
+        });
+      }
       
       // Create in database
       const session = fastify.sessionService.createSession(body);
       
       // Create provider-specific session
-      await fastify.llmProviderService.createSession(
-        session.id,
-        session.type,
-        session.model,
-        session.provider,
-        session.systemPrompt
-      );
+      try {
+        await fastify.llmProviderService.createSession(
+          session.id,
+          session.type,
+          session.model,
+          session.provider,
+          session.systemPrompt
+        );
+      } catch (providerError) {
+        fastify.sessionService.deleteSession(session.id);
+        throw providerError;
+      }
 
       return reply.code(201).send({
         success: true,
@@ -128,6 +143,16 @@ export async function sessionRoutes(fastify: FastifyInstance) {
 
       const providerChanged = body.provider !== undefined && body.provider !== currentSession.provider;
       const modelChanged = body.model !== undefined && body.model !== currentSession.model;
+
+      if (providerChanged && body.provider && !fastify.llmProviderService.isProviderRegistered(body.provider)) {
+        return reply.code(400).send({
+          success: false,
+          error: {
+            code: 'PROVIDER_NOT_REGISTERED',
+            message: `Provider '${body.provider}' is not available in this backend instance`,
+          },
+        });
+      }
 
       if (modelChanged || providerChanged) {
         await fastify.llmProviderService.switchSessionModel(

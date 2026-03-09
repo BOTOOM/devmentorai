@@ -3,16 +3,19 @@ import type { ApiResponse, ModelInfo, ModelPricingTier } from '@devmentorai/shar
 
 const TIER_ORDER: ModelPricingTier[] = ['free', 'cheap', 'standard', 'premium'];
 
-const FALLBACK_MODEL: ModelInfo = {
-  id: 'gpt-4.1',
-  name: 'GPT-4.1',
-  description: 'Recommended baseline model for DevMentorAI sessions',
-  provider: 'copilot',
-  available: true,
+const buildFallbackModel = (provider: string = 'copilot'): ModelInfo => ({
+  id: provider === 'copilot' ? 'gpt-4.1' : `${provider}-default`,
+  name: provider === 'copilot' ? 'GPT-4.1' : `${provider} (default)`,
+  description:
+    provider === 'copilot'
+      ? 'Recommended baseline model for DevMentorAI sessions'
+      : `Fallback model placeholder for ${provider}`,
+  provider,
+  available: provider === 'copilot',
   isDefault: true,
   pricingTier: 'free',
   pricingMultiplier: 0,
-};
+});
 
 function sortModelsByTierAndName(models: ModelInfo[]): ModelInfo[] {
   return [...models].sort((a, b) => {
@@ -32,9 +35,10 @@ async function getModelsPayload(
   const response = await fastify.llmProviderService.listModels(provider);
 
   if (!response.models || response.models.length === 0) {
+    const fallbackModel = buildFallbackModel(provider || 'copilot');
     return {
-      models: [FALLBACK_MODEL],
-      default: FALLBACK_MODEL.id,
+      models: [fallbackModel],
+      default: fallbackModel.id,
     };
   }
 
@@ -42,7 +46,7 @@ async function getModelsPayload(
   const defaultModel =
     sortedModels.find((model) => model.id === response.default)?.id ||
     sortedModels.find((model) => model.isDefault)?.id ||
-    FALLBACK_MODEL.id;
+    buildFallbackModel(provider || 'copilot').id;
 
   return {
     models: sortedModels.map((model) => ({

@@ -14,6 +14,22 @@ import { ProviderRegistry } from './providers/provider-registry.js';
 
 const FALLBACK_PROVIDER: LLMProvider = 'copilot';
 
+export class ProviderNotRegisteredError extends Error {
+  readonly code = 'PROVIDER_NOT_REGISTERED';
+
+  constructor(
+    readonly provider: string,
+    readonly registeredProviders: LLMProvider[]
+  ) {
+    super(
+      `Provider '${provider}' is not registered. Registered providers: ${
+        registeredProviders.length > 0 ? registeredProviders.join(', ') : 'none'
+      }`
+    );
+    this.name = 'ProviderNotRegisteredError';
+  }
+}
+
 export class LLMProviderService {
   private readonly registry = new ProviderRegistry();
 
@@ -32,6 +48,10 @@ export class LLMProviderService {
     return this.registry.list().map((provider) => provider.id);
   }
 
+  isProviderRegistered(provider: string): boolean {
+    return this.registry.has(provider as LLMProvider);
+  }
+
   getProviderStates(): Record<string, { ready: boolean; mockMode: boolean }> {
     const states: Record<string, { ready: boolean; mockMode: boolean }> = {};
     for (const provider of this.registry.list()) {
@@ -48,8 +68,7 @@ export class LLMProviderService {
     const normalized = provider as LLMProvider;
     if (this.registry.has(normalized)) return normalized;
 
-    console.warn(`[LLMProviderService] Provider '${provider}' is not registered. Falling back to '${FALLBACK_PROVIDER}'.`);
-    return FALLBACK_PROVIDER;
+    throw new ProviderNotRegisteredError(provider, this.listRegisteredProviders());
   }
 
   private getProvider(provider?: string) {

@@ -9,7 +9,7 @@ import { imagesRoutes } from './routes/images.js';
 import { updatesRoutes } from './routes/updates.js';
 import { registerToolsRoutes } from './routes/tools.js';
 import { CopilotService } from './services/copilot.service.js';
-import { LLMProviderService } from './services/llm-provider.service.js';
+import { LLMProviderService, ProviderNotRegisteredError } from './services/llm-provider.service.js';
 import { SessionService } from './services/session.service.js';
 import { initDatabase } from './db/index.js';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
@@ -44,6 +44,24 @@ export async function createServer() {
         },
       },
     },
+  });
+
+  fastify.setErrorHandler((error, _request, reply) => {
+    if (error instanceof ProviderNotRegisteredError) {
+      return reply.code(400).send({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message,
+          details: {
+            provider: error.provider,
+            registeredProviders: error.registeredProviders,
+          },
+        },
+      });
+    }
+
+    return reply.send(error);
   });
 
   // Observability middleware - log all requests and responses

@@ -18,23 +18,37 @@ async function refreshUpdateInfo() {
 }
 
 // Check on startup and every hour
-refreshUpdateInfo();
+await refreshUpdateInfo();
 setInterval(refreshUpdateInfo, 60 * 60 * 1000);
 
 export async function healthRoutes(fastify: FastifyInstance) {
   fastify.get<{
     Reply: ApiResponse<HealthResponse>;
   }>('/health', async (_request, reply) => {
-    const copilotService = fastify.copilotService;
+    const providerStates = fastify.llmProviderService.getProviderStates();
+    const registeredProviders = fastify.llmProviderService.listRegisteredProviders();
+    const activeProvider =
+      registeredProviders.find((provider) => provider === 'copilot')
+      ?? registeredProviders[0]
+      ?? 'copilot';
+    const activeState = providerStates[activeProvider];
+    const activeReady = activeState?.ready ?? false;
+    const activeMockMode = activeState?.mockMode ?? true;
     
     const healthData: HealthResponse = {
-      status: copilotService.isReady() ? 'healthy' : 'degraded',
+      status: activeReady ? 'healthy' : 'degraded',
       version: BACKEND_VERSION,
-      copilotConnected: copilotService.isReady() && !copilotService.isMockMode(),
+      copilotConnected: activeReady && !activeMockMode,
+      activeProvider,
+      providerStates,
       uptime: Math.floor((Date.now() - startTime) / 1000),
       timestamp: new Date().toISOString(),
-      ...(cachedUpdateInfo || {}),
     };
+
+    if (cachedUpdateInfo) {
+      healthData.latestVersion = cachedUpdateInfo.latestVersion;
+      healthData.updateAvailable = cachedUpdateInfo.updateAvailable;
+    }
 
     return reply.send({
       success: true,

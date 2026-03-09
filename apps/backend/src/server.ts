@@ -9,6 +9,7 @@ import { imagesRoutes } from './routes/images.js';
 import { updatesRoutes } from './routes/updates.js';
 import { registerToolsRoutes } from './routes/tools.js';
 import { CopilotService } from './services/copilot.service.js';
+import { LLMProviderService } from './services/llm-provider.service.js';
 import { SessionService } from './services/session.service.js';
 import { initDatabase } from './db/index.js';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
@@ -106,18 +107,20 @@ export async function createServer() {
   // Initialize services
   const sessionService = new SessionService(db);
   const copilotService = new CopilotService(sessionService);
+  const llmProviderService = new LLMProviderService(copilotService);
   
   try {
-    await copilotService.initialize();
-    fastify.log.info('CopilotService initialized');
+    await llmProviderService.initialize();
+    fastify.log.info('LLMProviderService initialized');
   } catch (err) {
-    fastify.log.error({ err }, 'Failed to initialize CopilotService');
-    fastify.log.warn('Running in mock mode - Copilot features will be simulated');
+    fastify.log.error({ err }, 'Failed to initialize LLMProviderService');
+    fastify.log.warn('Running in mock mode where available providers cannot initialize');
   }
 
   // Decorate fastify with services
   fastify.decorate('sessionService', sessionService);
   fastify.decorate('copilotService', copilotService);
+  fastify.decorate('llmProviderService', llmProviderService);
 
   // Register plugins
   await fastify.register(cors, {
@@ -160,7 +163,7 @@ async function main() {
 
     let exitCode = 0;
     try {
-      await fastify.copilotService.shutdown();
+      await fastify.llmProviderService.shutdown();
       await fastify.close();
     } catch (err) {
       exitCode = 1;
@@ -210,5 +213,6 @@ declare module 'fastify' {
   interface FastifyInstance {
     sessionService: SessionService;
     copilotService: CopilotService;
+    llmProviderService: LLMProviderService;
   }
 }

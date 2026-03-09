@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import type { SessionEvent } from '@github/copilot-sdk';
 import type {
@@ -124,7 +124,7 @@ const imagePayloadSchema = z.object({
 const preUploadedImageSchema = z.object({
   id: z.string(),
   fullImagePath: z.string(),
-  mimeType: z.string(),
+  mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
   thumbnailUrl: z.string().optional(),
   fullImageUrl: z.string().optional(),
   dimensions: z.object({ width: z.number(), height: z.number() }).optional(),
@@ -141,7 +141,303 @@ const sendMessageSchema = z.object({
   preUploadedImages: z.array(preUploadedImageSchema).max(5).optional(),
 });
 
+type ParsedSendMessageBody = z.infer<typeof sendMessageSchema>;
+type ProviderAttachment = { type: 'file'; path: string; displayName: string };
+
 export async function chatRoutes(fastify: FastifyInstance) {
+  const STREAM_TIMEOUT_MS = 120000;
+  const IDLE_TIMEOUT_MS = 30000;
+
+  const setSseHeaders = (reply: FastifyReply): void => {
+    if (reply.raw.headersSent) {
+      return;
+    }
+
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+  };
+
+  const buildUserMessageMetadata = (body: ParsedSendMessageBody): Message['metadata'] => {
+    if (body.context) {
+      return {
+        pageUrl: body.context.pageUrl,
+        selectedText: body.context.selectedText,
+        action: body.context.action,
+        contextAware: body.useContextAwareMode,
+      };
+    }
+
+    return { contextAware: body.useContextAwareMode };
+  };
+
+  const persistFullContext = (
+    sessionId: string,
+    messageId: string,
+    fullContext: ParsedSendMessageBody['fullContext']
+  ): void => {
+    if (!fullContext) {
+      return;
+    }
+
+    try {
+      fastify.sessionService.saveContext(
+        sessionId,
+        JSON.stringify(fullContext),
+        messageId,
+        fullContext.page?.url,
+        fullContext.page?.title,
+        fullContext.page?.platform?.type
+      );
+      console.log(`[ChatRoute] Context saved for message ${messageId}`);
+    } catch (contextError) {
+      console.error('[ChatRoute] Failed to persist context:', contextError);
+    }
+  };
+
+  const prepareProviderAttachments = async (
+    sessionId: string,
+    userMessage: Message,
+    body: ParsedSendMessageBody,
+    backendUrl: string
+  ): Promise<ProviderAttachment[]> => {
+    if (body.preUploadedImages && body.preUploadedImages.length > 0) {
+      console.log(`[ChatRoute] Using ${body.preUploadedImages.length} pre-uploaded images`);
+
+      const providerAttachments = body.preUploadedImages.map((img, index) => ({
+        type: 'file' as const,
+        path: img.fullImagePath,
+        displayName: `image_${index + 1}.${img.mimeType.split('/')[1] ?? 'jpg'}`,
+      }));
+
+      const processedImages: ImageAttachment[] = body.preUploadedImages.map((img) => ({
+        id: img.id,
+        source: 'screenshot' as const,
+        mimeType: img.mimeType,
+        dimensions: img.dimensions || { width: 0, height: 0 },
+        fileSize: img.fileSize || 0,
+        timestamp: new Date().toISOString(),
+        thumbnailUrl: img.thumbnailUrl,
+        fullImageUrl: img.fullImageUrl,
+      }));
+
+      fastify.sessionService.updateMessageMetadata(userMessage.id, {
+        ...userMessage.metadata,
+        images: processedImages,
+      });
+
+      return providerAttachments;
+    }
+
+    if (body.images && body.images.length > 0) {
+      try {
+        console.log(`[ChatRoute] Processing ${body.images.length} inline images for message ${userMessage.id}`);
+        const processedImagesRaw: ProcessedImage[] = await processMessageImages(
+          sessionId,
+          userMessage.id,
+          body.images,
+          backendUrl
+        );
+
+        const processedImages = toImageAttachments(processedImagesRaw);
+        fastify.sessionService.updateMessageMetadata(userMessage.id, {
+          ...userMessage.metadata,
+          images: processedImages,
+        });
+
+        console.log(`[ChatRoute] Processed ${processedImages.length} images successfully`);
+        return processedImagesRaw.map((img, index) => ({
+          type: 'file' as const,
+          path: img.fullImagePath,
+          displayName: `image_${index + 1}.${img.mimeType.split('/')[1] ?? 'jpg'}`,
+        }));
+      } catch (imageError) {
+        console.error('[ChatRoute] Failed to process images:', imageError);
+      }
+    }
+
+    return [];
+  };
+
+  const streamSessionResponse = async (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    sessionId: string,
+    provider: string,
+    userPrompt: string,
+    context: ParsedSendMessageBody['context'],
+    providerAttachments: ProviderAttachment[]
+  ): Promise<void> => {
+    setSseHeaders(reply);
+
+    let fullContent = '';
+    let assistantMessageId: string | null = null;
+    let streamEnded = false;
+    let lastActivityTime = Date.now();
+    let globalTimeout: ReturnType<typeof setTimeout> | undefined;
+    let idleCheckInterval: ReturnType<typeof setInterval> | undefined;
+
+    const cleanupTimers = () => {
+      if (globalTimeout) clearTimeout(globalTimeout);
+      if (idleCheckInterval) clearInterval(idleCheckInterval);
+    };
+
+    const sendSse = (event: StreamEvent, force = false) => {
+      if (streamEnded && !force) {
+        return;
+      }
+
+      reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+      lastActivityTime = Date.now();
+    };
+
+    const endStream = (reason: string = 'completed') => {
+      if (streamEnded) {
+        return;
+      }
+      streamEnded = true;
+
+      console.log(`[ChatRoute] Stream ending: ${reason}. Content length: ${fullContent.length}`);
+
+      if (fullContent && !assistantMessageId) {
+        const message = fastify.sessionService.addMessage(sessionId, 'assistant', fullContent);
+        assistantMessageId = message.id;
+      }
+
+      sendSse({ type: 'done', data: { messageId: assistantMessageId || undefined, reason } }, true);
+      reply.raw.write('data: [DONE]\n\n');
+      reply.raw.end();
+    };
+
+    const abortProviderRequest = () => {
+      fastify.llmProviderService.abortRequest(sessionId, provider).catch((abortError) => {
+        console.warn('[ChatRoute] Failed to abort provider request:', abortError);
+      });
+    };
+
+    let resolveStreamComplete: (() => void) | null = null;
+    let streamCompleteResolved = false;
+    const resolveStreamCompleteOnce = () => {
+      if (streamCompleteResolved) {
+        return;
+      }
+
+      streamCompleteResolved = true;
+      resolveStreamComplete?.();
+    };
+
+    const streamComplete = new Promise<void>((resolve) => {
+      resolveStreamComplete = resolve;
+
+      const finish = (reason: string, abortProvider = false) => {
+        cleanupTimers();
+        endStream(reason);
+        if (abortProvider) {
+          abortProviderRequest();
+        }
+        resolveStreamCompleteOnce();
+      };
+
+      const handleEvent = (event: SessionEvent) => {
+        if (streamEnded) {
+          return;
+        }
+
+        console.log('[ChatRoute] Received event:', event.type);
+        lastActivityTime = Date.now();
+
+        switch (event.type) {
+          case 'assistant.message_delta':
+            fullContent += event.data.deltaContent || '';
+            sendSse({
+              type: 'message_delta',
+              data: { deltaContent: event.data.deltaContent },
+            });
+            break;
+
+          case 'assistant.message':
+            fullContent = event.data.content || fullContent;
+            sendSse({
+              type: 'message_complete',
+              data: { content: fullContent },
+            });
+            break;
+
+          case 'tool.execution_start':
+            sendSse({
+              type: 'tool_start',
+              data: {
+                toolName: (event.data as any).toolName,
+                toolCallId: (event.data as any).toolCallId,
+              },
+            });
+            break;
+
+          case 'tool.execution_complete':
+            sendSse({
+              type: 'tool_complete',
+              data: { toolCallId: (event.data as any).toolCallId },
+            });
+            break;
+
+          case 'session.idle':
+            finish('completed');
+            break;
+        }
+      };
+
+      globalTimeout = setTimeout(() => {
+        console.warn('[ChatRoute] Global stream timeout reached');
+        finish('timeout', true);
+      }, STREAM_TIMEOUT_MS);
+
+      idleCheckInterval = setInterval(() => {
+        const idleTime = Date.now() - lastActivityTime;
+        if (idleTime > IDLE_TIMEOUT_MS && !streamEnded) {
+          console.warn(`[ChatRoute] Stream idle for ${idleTime}ms, ending`);
+          finish('idle_timeout', true);
+        }
+      }, 5000);
+
+      fastify.llmProviderService
+        .streamMessage(
+          sessionId,
+          provider,
+          userPrompt,
+          context,
+          handleEvent,
+          providerAttachments.length > 0 ? providerAttachments : undefined
+        )
+        .catch((streamError) => {
+          console.error(`[ChatRoute] Failed to start stream for provider ${provider}:`, streamError);
+          setSseHeaders(reply);
+          sendSse({
+            type: 'error',
+            data: {
+              error: streamError instanceof Error ? streamError.message : 'Failed to start stream',
+            },
+          });
+          finish('provider_error');
+        });
+    });
+
+    request.raw.on('close', () => {
+      if (streamEnded) {
+        return;
+      }
+
+      console.log('[ChatRoute] Client disconnected, aborting');
+      streamEnded = true;
+      cleanupTimers();
+      abortProviderRequest();
+      resolveStreamCompleteOnce();
+      reply.raw.end();
+    });
+
+    await streamComplete;
+  };
+
   // Helper to build the appropriate prompt based on context type
   // Returns userPrompt (enriched with context) and promptType
   // systemPrompt is always null - we don't override Copilot's default
@@ -221,12 +517,12 @@ export async function chatRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // Get response from Copilot (no system prompt - uses customAgents from session)
-      const response = await fastify.copilotService.sendMessage(
+      // Get response from active provider (no system prompt override)
+      const response = await fastify.llmProviderService.sendMessage(
         sessionId,
+        session.provider,
         userPrompt,
         body.context
-        // NOT passing systemPrompt - preserves Copilot's intelligence
       );
 
       // Save assistant message
@@ -279,10 +575,6 @@ export async function chatRoutes(fastify: FastifyInstance) {
       const { userPrompt, promptType } = buildPrompt(body);
       console.log(`[ChatRoute] Using ${promptType} prompt for streaming`);
 
-      // Process images if provided
-      let processedImagesRaw: ProcessedImage[] = [];
-      let processedImages: ImageAttachment[] = [];
-      let copilotAttachments: Array<{ type: 'file'; path: string; displayName: string }> = [];
       // Build backend URL with port for image serving
       const host = request.headers.host || `${request.hostname}:3847`;
       const backendUrl = `http://${host}`;
@@ -293,261 +585,34 @@ export async function chatRoutes(fastify: FastifyInstance) {
         sessionId,
         'user',
         body.prompt,
-        body.context ? {
-          pageUrl: body.context.pageUrl,
-          selectedText: body.context.selectedText,
-          action: body.context.action,
-          contextAware: body.useContextAwareMode,
-        } : { contextAware: body.useContextAwareMode }
+        buildUserMessageMetadata(body)
       );
 
-      // Process images after we have the message ID
-      // Prefer pre-uploaded images (already on disk) over inline data URLs
-      if (body.preUploadedImages && body.preUploadedImages.length > 0) {
-        // Images were already processed via /api/images/upload endpoint
-        console.log(`[ChatRoute] Using ${body.preUploadedImages.length} pre-uploaded images`);
-        copilotAttachments = body.preUploadedImages.map((img, index) => ({
-          type: 'file' as const,
-          path: img.fullImagePath,
-          displayName: `image_${index + 1}.${(img.mimeType || 'image/jpeg').split('/')[1] || 'jpg'}`,
-        }));
-
-        // Build metadata for message storage
-        processedImages = body.preUploadedImages.map(img => ({
-          id: img.id,
-          source: 'screenshot' as const,
-          mimeType: (img.mimeType || 'image/jpeg') as any,
-          dimensions: img.dimensions || { width: 0, height: 0 },
-          fileSize: img.fileSize || 0,
-          timestamp: new Date().toISOString(),
-          thumbnailUrl: img.thumbnailUrl,
-          fullImageUrl: img.fullImageUrl,
-        }));
-
-        fastify.sessionService.updateMessageMetadata(userMessage.id, {
-          ...userMessage.metadata,
-          images: processedImages,
-        });
-      } else if (body.images && body.images.length > 0) {
-        // Inline image upload (legacy path for small images)
-        try {
-          console.log(`[ChatRoute] Processing ${body.images.length} inline images for message ${userMessage.id}`);
-          processedImagesRaw = await processMessageImages(
-            sessionId,
-            userMessage.id,
-            body.images,
-            backendUrl
-          );
-          processedImages = toImageAttachments(processedImagesRaw);
-          
-          // Update message metadata with images
-          fastify.sessionService.updateMessageMetadata(userMessage.id, {
-            ...userMessage.metadata,
-            images: processedImages,
-          });
-          
-          copilotAttachments = processedImagesRaw.map((img, index) => ({
-            type: 'file' as const,
-            path: img.fullImagePath,
-            displayName: `image_${index + 1}.${img.mimeType.split('/')[1] || 'jpg'}`,
-          }));
-          
-          console.log(`[ChatRoute] Processed ${processedImages.length} images successfully`);
-        } catch (err) {
-          console.error('[ChatRoute] Failed to process images:', err);
-          // Continue without images - don't fail the message
-        }
-      }
+      const providerAttachments = await prepareProviderAttachments(
+        sessionId,
+        userMessage,
+        body,
+        backendUrl
+      );
       
-      if (copilotAttachments.length > 0) {
-        console.log(`[ChatRoute] Built ${copilotAttachments.length} attachments for Copilot:`, copilotAttachments);
-      }
-
-      // Persist context if fullContext is provided (Phase 5)
-      if (body.fullContext) {
-        try {
-          fastify.sessionService.saveContext(
-            sessionId,
-            JSON.stringify(body.fullContext),
-            userMessage.id,
-            body.fullContext.page?.url,
-            body.fullContext.page?.title,
-            body.fullContext.page?.platform?.type
-          );
-          console.log(`[ChatRoute] Context saved for message ${userMessage.id}`);
-        } catch (err) {
-          console.error('[ChatRoute] Failed to persist context:', err);
-        }
-      }
-
-      // Set up SSE
-      reply.raw.setHeader('Content-Type', 'text/event-stream');
-      reply.raw.setHeader('Cache-Control', 'no-cache');
-      reply.raw.setHeader('Connection', 'keep-alive');
-      reply.raw.setHeader('Access-Control-Allow-Origin', '*');
-
-      let fullContent = '';
-      let assistantMessageId: string | null = null;
-      let streamEnded = false;
-      let lastActivityTime = Date.now();
-
-      // Global timeout for the entire streaming operation (2 minutes)
-      const STREAM_TIMEOUT_MS = 120000;
-      // Idle timeout - if no events received for this duration, consider it stuck
-      const IDLE_TIMEOUT_MS = 30000;
-
-      const sendSSE = (event: StreamEvent) => {
-        if (!streamEnded) {
-          reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
-          lastActivityTime = Date.now();
-        }
-      };
-
-      const endStream = (reason: string = 'completed') => {
-        if (streamEnded) return;
-        streamEnded = true;
-        
-        console.log(`[ChatRoute] Stream ending: ${reason}. Content length: ${fullContent.length}`);
-        
-        // Save message if we have content
-        if (fullContent && !assistantMessageId) {
-          const message = fastify.sessionService.addMessage(
-            sessionId,
-            'assistant',
-            fullContent
-          );
-          assistantMessageId = message.id;
-        }
-
-        sendSSE({ type: 'done', data: { messageId: assistantMessageId || undefined, reason } });
-        reply.raw.write('data: [DONE]\n\n');
-        reply.raw.end();
-      };
-
-      // Create a Promise that resolves when streaming is complete
-      const streamComplete = new Promise<void>((resolve) => {
-        const cleanupTimers = () => {
-          clearTimeout(globalTimeout);
-          clearInterval(idleCheckInterval);
-        };
-
-        // Set up global timeout
-        const globalTimeout = setTimeout(() => {
-          console.warn('[ChatRoute] Global stream timeout reached');
-          cleanupTimers();
-          endStream('timeout');
-          fastify.copilotService.abortRequest(sessionId).catch(() => {});
-          resolve();
-        }, STREAM_TIMEOUT_MS);
-
-        // Set up idle timeout check
-        const idleCheckInterval = setInterval(() => {
-          const idleTime = Date.now() - lastActivityTime;
-          if (idleTime > IDLE_TIMEOUT_MS && !streamEnded) {
-            console.warn(`[ChatRoute] Stream idle for ${idleTime}ms, ending`);
-            cleanupTimers();
-            endStream('idle_timeout');
-            fastify.copilotService.abortRequest(sessionId).catch(() => {});
-            resolve();
-          }
-        }, 5000);
-
-        // Handle Copilot events
-        const handleEvent = (event: SessionEvent) => {
-          if (streamEnded) return;
-          
-          console.log('[ChatRoute] Received event:', event.type);
-          lastActivityTime = Date.now();
-          
-          switch (event.type) {
-            case 'assistant.message_delta':
-              fullContent += event.data.deltaContent || '';
-              sendSSE({
-                type: 'message_delta',
-                data: { deltaContent: event.data.deltaContent },
-              });
-              break;
-
-            case 'assistant.message':
-              fullContent = event.data.content || fullContent;
-              sendSSE({
-                type: 'message_complete',
-                data: { content: fullContent },
-              });
-              break;
-
-            case 'tool.execution_start':
-              sendSSE({
-                type: 'tool_start',
-                data: {
-                  toolName: (event.data as any).toolName,
-                  toolCallId: (event.data as any).toolCallId,
-                },
-              });
-              break;
-
-            case 'tool.execution_complete':
-              sendSSE({
-                type: 'tool_complete',
-                data: { toolCallId: (event.data as any).toolCallId },
-              });
-              break;
-
-            case 'session.idle':
-              cleanupTimers();
-              endStream('completed');
-              resolve();
-              break;
-          }
-        };
-
-        // Start streaming with attachments (no system prompt - uses customAgents from session)
-        const streamStart = fastify.copilotService.streamMessage(
-          sessionId,
-          userPrompt,
-          body.context,
-          handleEvent,
-          copilotAttachments.length > 0 ? copilotAttachments : undefined
+      if (providerAttachments.length > 0) {
+        console.log(
+          `[ChatRoute] Built ${providerAttachments.length} attachments for provider ${session.provider}:`,
+          providerAttachments
         );
+      }
 
-        streamStart.catch((streamError) => {
-          console.error('[ChatRoute] Failed to start Copilot stream:', streamError);
-          cleanupTimers();
+      persistFullContext(sessionId, userMessage.id, body.fullContext);
 
-          if (!streamEnded) {
-            if (!reply.raw.headersSent) {
-              reply.raw.setHeader('Content-Type', 'text/event-stream');
-              reply.raw.setHeader('Cache-Control', 'no-cache');
-              reply.raw.setHeader('Connection', 'keep-alive');
-              reply.raw.setHeader('Access-Control-Allow-Origin', '*');
-            }
-            sendSSE({
-              type: 'error',
-              data: {
-                error: streamError instanceof Error ? streamError.message : 'Failed to start stream',
-              },
-            });
-            endStream('copilot_error');
-          }
-
-          resolve();
-        });
-      });
-
-      // Handle client disconnect
-      request.raw.on('close', () => {
-        if (!streamEnded) {
-          console.log('[ChatRoute] Client disconnected, aborting');
-          streamEnded = true;
-          fastify.copilotService.abortRequest(sessionId).catch((abortError) => {
-            console.error('[ChatRoute] Failed to abort request after disconnect:', abortError);
-          });
-          reply.raw.end();
-        }
-      });
-
-      // Wait for streaming to complete before allowing Fastify to close the connection
-      await streamComplete;
+      await streamSessionResponse(
+        request,
+        reply,
+        sessionId,
+        session.provider,
+        userPrompt,
+        body.context,
+        providerAttachments
+      );
 
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -562,12 +627,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
       }
       
       // Send error via SSE
-      if (!reply.raw.headersSent) {
-        reply.raw.setHeader('Content-Type', 'text/event-stream');
-        reply.raw.setHeader('Cache-Control', 'no-cache');
-        reply.raw.setHeader('Connection', 'keep-alive');
-        reply.raw.setHeader('Access-Control-Allow-Origin', '*');
-      }
+      setSseHeaders(reply);
       const errorEvent: StreamEvent = {
         type: 'error',
         data: { error: error instanceof Error ? error.message : 'Unknown error' },

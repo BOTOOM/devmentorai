@@ -73,6 +73,7 @@ export class CopilotService {
   async getAuthStatus(): Promise<CopilotAuthStatus> {
     if (this.mockMode || !this.client) {
       return {
+        provider: 'copilot',
         isAuthenticated: false,
         login: null,
         reason: 'Copilot SDK unavailable (mock mode)',
@@ -86,6 +87,7 @@ export class CopilotService {
 
       if (!client.getAuthStatus) {
         return {
+          provider: 'copilot',
           isAuthenticated: false,
           login: null,
           reason: 'Copilot auth API not available in this SDK version',
@@ -94,11 +96,13 @@ export class CopilotService {
 
       const auth = await client.getAuthStatus();
       return {
+        provider: 'copilot',
         isAuthenticated: Boolean(auth?.isAuthenticated),
         login: typeof auth?.login === 'string' ? auth.login : null,
       };
     } catch (error) {
       return {
+        provider: 'copilot',
         isAuthenticated: false,
         login: null,
         reason: error instanceof Error ? error.message : 'Failed to get auth status',
@@ -154,6 +158,7 @@ export class CopilotService {
   async getQuota(): Promise<CopilotQuotaStatus> {
     if (this.mockMode || !this.client) {
       return {
+        provider: 'copilot',
         used: null,
         included: null,
         remaining: null,
@@ -175,6 +180,7 @@ export class CopilotService {
       const quotaData = await client.rpc?.account?.getQuota?.();
       if (!quotaData || typeof quotaData !== 'object') {
         return {
+          provider: 'copilot',
           used: null,
           included: null,
           remaining: null,
@@ -187,6 +193,7 @@ export class CopilotService {
       return this.normalizeQuota(quotaData as Record<string, unknown>);
     } catch (error) {
       return {
+        provider: 'copilot',
         used: null,
         included: null,
         remaining: null,
@@ -294,6 +301,7 @@ export class CopilotService {
       (typeof percentageUsed === 'number' ? Math.max(0, 100 - percentageUsed) : null);
 
     return {
+      provider: 'copilot',
       used,
       included,
       remaining,

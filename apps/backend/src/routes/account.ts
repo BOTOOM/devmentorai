@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import type { ApiResponse, CopilotAuthStatus, CopilotQuotaStatus } from '@devmentorai/shared';
+import type { ApiResponse, ProviderAuthStatus, ProviderQuotaStatus } from '@devmentorai/shared';
 
 export async function accountRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get<{
-    Reply: ApiResponse<CopilotAuthStatus>;
-  }>('/account/auth', async (_request, reply) => {
-    const auth = await fastify.copilotService.getAuthStatus();
+    Querystring: { provider?: string };
+    Reply: ApiResponse<ProviderAuthStatus>;
+  }>('/account/auth', async (request, reply) => {
+    const auth = await fastify.llmProviderService.getAuthStatus(request.query.provider);
 
     return reply.send({
       success: true,
@@ -14,9 +15,10 @@ export async function accountRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get<{
-    Reply: ApiResponse<CopilotQuotaStatus>;
-  }>('/account/quota', async (_request, reply) => {
-    const quota = await fastify.copilotService.getQuota();
+    Querystring: { provider?: string };
+    Reply: ApiResponse<ProviderQuotaStatus>;
+  }>('/account/quota', async (request, reply) => {
+    const quota = await fastify.llmProviderService.getQuota(request.query.provider);
 
     return reply.send({
       success: true,

@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
-import path from 'path';
-import os from 'os';
-import fs from 'fs';
+import path from 'node:path';
+import os from 'node:os';
+import fs from 'node:fs';
 
 const DB_DIR = path.join(os.homedir(), '.devmentorai');
 const DB_PATH = path.join(DB_DIR, 'devmentorai.db');
@@ -26,6 +26,7 @@ export function initDatabase(): Database.Database {
       name TEXT NOT NULL,
       type TEXT NOT NULL CHECK (type IN ('devops', 'writing', 'development', 'general')),
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'closed')),
+      provider TEXT NOT NULL DEFAULT 'copilot',
       model TEXT NOT NULL DEFAULT 'gpt-4.1',
       system_prompt TEXT,
       custom_agent TEXT,
@@ -63,6 +64,15 @@ export function initDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_session_contexts_session_id ON session_contexts(session_id);
     CREATE INDEX IF NOT EXISTS idx_session_contexts_extracted_at ON session_contexts(extracted_at);
   `);
+
+  // Migrate older databases that predate provider support.
+  const sessionColumns = db
+    .prepare("PRAGMA table_info('sessions')")
+    .all() as Array<{ name: string }>;
+  const hasProviderColumn = sessionColumns.some((column) => column.name === 'provider');
+  if (!hasProviderColumn) {
+    db.exec("ALTER TABLE sessions ADD COLUMN provider TEXT NOT NULL DEFAULT 'copilot'");
+  }
 
   return db;
 }

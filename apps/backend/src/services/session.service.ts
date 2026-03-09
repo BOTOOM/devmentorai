@@ -4,6 +4,7 @@ import {
   generateMessageId,
   formatDate,
   getAgentConfig,
+  getDefaultProvider,
   getDefaultModel,
 } from '@devmentorai/shared';
 import type {
@@ -22,6 +23,7 @@ interface DbSession {
   name: string;
   type: SessionType;
   status: SessionStatus;
+  provider: string;
   model: string;
   system_prompt: string | null;
   custom_agent: string | null;
@@ -75,17 +77,19 @@ export class SessionService {
     const id = generateSessionId();
     const now = formatDate();
     const agentConfig = getAgentConfig(request.type);
+    const provider = request.provider || getDefaultProvider(request.type);
     const model = request.model || getDefaultModel(request.type);
     
     const stmt = this.db.prepare(`
-      INSERT INTO sessions (id, name, type, model, system_prompt, custom_agent, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sessions (id, name, type, provider, model, system_prompt, custom_agent, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
       id,
       request.name,
       request.type,
+      provider,
       model,
       request.systemPrompt || agentConfig?.prompt || null,
       agentConfig?.name || null,
@@ -111,6 +115,10 @@ export class SessionService {
       updates.push('status = ?');
       values.push(request.status);
     }
+    if (request.provider !== undefined) {
+      updates.push('provider = ?');
+      values.push(request.provider);
+    }
     if (request.model !== undefined) {
       updates.push('model = ?');
       values.push(request.model);
@@ -119,8 +127,7 @@ export class SessionService {
     if (updates.length === 0) return session;
 
     updates.push('updated_at = ?');
-    values.push(formatDate());
-    values.push(id);
+    values.push(...[formatDate(), id]);
 
     const stmt = this.db.prepare(`
       UPDATE sessions SET ${updates.join(', ')} WHERE id = ?
@@ -368,6 +375,7 @@ export class SessionService {
       name: row.name,
       type: row.type,
       status: row.status,
+      provider: row.provider as Session['provider'],
       model: row.model,
       systemPrompt: row.system_prompt || undefined,
       customAgent: row.custom_agent || undefined,

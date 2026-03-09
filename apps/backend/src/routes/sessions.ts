@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { SUPPORTED_LLM_PROVIDERS } from '@devmentorai/shared';
 import type {
   ApiResponse,
   PaginatedResponse,
@@ -13,6 +14,7 @@ import { deleteSessionImages } from '../services/thumbnail-service.js';
 const createSessionSchema = z.object({
   name: z.string().min(1).max(100),
   type: z.enum(['devops', 'writing', 'development', 'general']),
+  provider: z.enum(SUPPORTED_LLM_PROVIDERS).optional(),
   model: z.string().optional(),
   systemPrompt: z.string().optional(),
 });
@@ -20,6 +22,7 @@ const createSessionSchema = z.object({
 const updateSessionSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   status: z.enum(['active', 'paused', 'closed']).optional(),
+  provider: z.enum(SUPPORTED_LLM_PROVIDERS).optional(),
   model: z.string().min(1).optional(),
 });
 
@@ -52,11 +55,12 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       // Create in database
       const session = fastify.sessionService.createSession(body);
       
-      // Create Copilot session
-      await fastify.copilotService.createCopilotSession(
+      // Create provider-specific session
+      await fastify.llmProviderService.createSession(
         session.id,
         session.type,
         session.model,
+        session.provider,
         session.systemPrompt
       );
 
@@ -122,12 +126,17 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         });
       }
 
-      if (body.model && body.model !== currentSession.model) {
-        await fastify.copilotService.switchSessionModel(
+      const providerChanged = body.provider !== undefined && body.provider !== currentSession.provider;
+      const modelChanged = body.model !== undefined && body.model !== currentSession.model;
+
+      if (modelChanged || providerChanged) {
+        await fastify.llmProviderService.switchSessionModel(
           currentSession.id,
           currentSession.type,
-          body.model,
-          currentSession.systemPrompt
+          body.model ?? currentSession.model,
+          body.provider ?? currentSession.provider,
+          currentSession.systemPrompt,
+          currentSession.provider
         );
       }
 
@@ -183,11 +192,11 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // Destroy Copilot session first (handles cleanup of SDK resources)
+    // Destroy provider session first (handles provider resources)
     try {
-      await fastify.copilotService.destroySession(sessionId);
+      await fastify.llmProviderService.destroySession(sessionId, session.provider);
     } catch (error) {
-      console.error(`[SessionRoute] Error destroying Copilot session:`, error);
+      console.error(`[SessionRoute] Error destroying provider session:`, error);
       // Continue with DB deletion even if Copilot cleanup fails
     }
 
@@ -228,15 +237,16 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // Resume Copilot session
-    const resumed = await fastify.copilotService.resumeCopilotSession(sessionId);
+    // Resume provider session
+    const resumed = await fastify.llmProviderService.resumeSession(sessionId, session.provider);
 
     if (!resumed) {
-      // Create new Copilot session if resume failed
-      await fastify.copilotService.createCopilotSession(
+      // Create a new provider session if resume failed
+      await fastify.llmProviderService.createSession(
         session.id,
         session.type,
         session.model,
+        session.provider,
         session.systemPrompt
       );
     }
@@ -255,7 +265,19 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     Params: { id: string };
     Reply: ApiResponse<void>;
   }>('/sessions/:id/abort', async (request, reply) => {
-    await fastify.copilotService.abortRequest(request.params.id);
+    const session = fastify.sessionService.getSession(request.params.id);
+
+    if (!session) {
+      return reply.code(404).send({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Session not found',
+        },
+      });
+    }
+
+    await fastify.llmProviderService.abortRequest(request.params.id, session.provider);
 
     return reply.send({
       success: true,

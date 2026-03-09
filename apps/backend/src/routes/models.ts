@@ -7,7 +7,7 @@ const FALLBACK_MODEL: ModelInfo = {
   id: 'gpt-4.1',
   name: 'GPT-4.1',
   description: 'Recommended baseline model for DevMentorAI sessions',
-  provider: 'openai',
+  provider: 'copilot',
   available: true,
   isDefault: true,
   pricingTier: 'free',
@@ -25,8 +25,11 @@ function sortModelsByTierAndName(models: ModelInfo[]): ModelInfo[] {
   });
 }
 
-async function getModelsPayload(fastify: FastifyInstance): Promise<{ models: ModelInfo[]; default: string }> {
-  const response = await fastify.copilotService.listModels();
+async function getModelsPayload(
+  fastify: FastifyInstance,
+  provider?: string
+): Promise<{ models: ModelInfo[]; default: string }> {
+  const response = await fastify.llmProviderService.listModels(provider);
 
   if (!response.models || response.models.length === 0) {
     return {
@@ -53,9 +56,10 @@ async function getModelsPayload(fastify: FastifyInstance): Promise<{ models: Mod
 export async function modelsRoutes(fastify: FastifyInstance): Promise<void> {
   // List all available models
   fastify.get<{
+    Querystring: { provider?: string };
     Reply: ApiResponse<{ models: ModelInfo[]; default: string }>;
-  }>('/models', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const payload = await getModelsPayload(fastify);
+  }>('/models', async (request: FastifyRequest<{ Querystring: { provider?: string } }>, reply: FastifyReply) => {
+    const payload = await getModelsPayload(fastify, request.query.provider);
 
     return reply.send({
       success: true,
@@ -66,10 +70,11 @@ export async function modelsRoutes(fastify: FastifyInstance): Promise<void> {
   // Get specific model info
   fastify.get<{
     Params: { id: string };
+    Querystring: { provider?: string };
     Reply: ApiResponse<ModelInfo>;
   }>('/models/:id', async (request, reply) => {
     const modelId = request.params.id;
-    const payload = await getModelsPayload(fastify);
+    const payload = await getModelsPayload(fastify, request.query.provider);
     const model = payload.models.find((m) => m.id === modelId);
 
     if (!model) {

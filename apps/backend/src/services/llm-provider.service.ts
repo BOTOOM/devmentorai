@@ -167,6 +167,31 @@ export class LLMProviderService {
     return this.getProvider(provider).getQuota();
   }
 
+  listAvailableTools(type: SessionType, provider?: string): Array<{ name: string; description: string }> {
+    const adapter = this.getProvider(provider);
+    if (!adapter.listAvailableTools) {
+      return [];
+    }
+
+    return adapter.listAvailableTools(type);
+  }
+
+  async executeTool(
+    toolName: string,
+    params: Record<string, unknown>,
+    provider?: string
+  ): Promise<{ success: boolean; result?: string; error?: string }> {
+    const adapter = this.getProvider(provider);
+    if (!adapter.executeTool) {
+      return {
+        success: false,
+        error: `Provider '${adapter.id}' does not support direct tool execution`,
+      };
+    }
+
+    return adapter.executeTool(toolName, params);
+  }
+
   isReady(provider?: string): boolean {
     return this.getProvider(provider).isReady();
   }

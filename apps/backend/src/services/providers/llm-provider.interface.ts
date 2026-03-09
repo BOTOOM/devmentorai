@@ -14,6 +14,17 @@ export interface ProviderAttachment {
   displayName?: string;
 }
 
+export interface ProviderToolDefinition {
+  name: string;
+  description: string;
+}
+
+export interface ProviderToolExecutionResult {
+  success: boolean;
+  result?: string;
+  error?: string;
+}
+
 export interface LLMProviderAdapter {
   readonly id: LLMProvider;
   initialize(): Promise<void>;
@@ -57,6 +68,9 @@ export interface LLMProviderAdapter {
   listModels(): Promise<{ models: ModelInfo[]; default: string }>;
   getAuthStatus(): Promise<ProviderAuthStatus>;
   getQuota(): Promise<ProviderQuotaStatus>;
+
+  listAvailableTools?(type: SessionType): ProviderToolDefinition[];
+  executeTool?(toolName: string, params: Record<string, unknown>): Promise<ProviderToolExecutionResult>;
 
   shutdown(): Promise<void>;
 }

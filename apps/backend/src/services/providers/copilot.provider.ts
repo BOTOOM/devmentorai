@@ -6,7 +6,12 @@ import type {
   SessionType,
 } from '@devmentorai/shared';
 import { CopilotService } from '../copilot.service.js';
-import type { LLMProviderAdapter, ProviderAttachment } from './llm-provider.interface.js';
+import type {
+  LLMProviderAdapter,
+  ProviderAttachment,
+  ProviderToolDefinition,
+  ProviderToolExecutionResult,
+} from './llm-provider.interface.js';
 
 export class CopilotProviderAdapter implements LLMProviderAdapter {
   readonly id = 'copilot' as const;
@@ -103,6 +108,17 @@ export class CopilotProviderAdapter implements LLMProviderAdapter {
       periodEnd: quota.periodEnd,
       raw: quota.raw,
     };
+  }
+
+  listAvailableTools(type: SessionType): ProviderToolDefinition[] {
+    return this.copilotService.getAvailableTools(type);
+  }
+
+  async executeTool(
+    toolName: string,
+    params: Record<string, unknown>
+  ): Promise<ProviderToolExecutionResult> {
+    return this.copilotService.executeTool(toolName, params);
   }
 
   async shutdown(): Promise<void> {

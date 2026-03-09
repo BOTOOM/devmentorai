@@ -119,7 +119,6 @@ export async function createServer() {
 
   // Decorate fastify with services
   fastify.decorate('sessionService', sessionService);
-  fastify.decorate('copilotService', copilotService);
   fastify.decorate('llmProviderService', llmProviderService);
 
   // Register plugins
@@ -139,7 +138,7 @@ export async function createServer() {
   await fastify.register(imagesRoutes, { prefix: '/api/images' });
   
   // Register tools routes (not prefixed - has /api in route definitions)
-  registerToolsRoutes(fastify, copilotService);
+  registerToolsRoutes(fastify);
 
   return fastify;
 }
@@ -212,7 +211,6 @@ try {
 declare module 'fastify' {
   interface FastifyInstance {
     sessionService: SessionService;
-    copilotService: CopilotService;
     llmProviderService: LLMProviderService;
   }
 }

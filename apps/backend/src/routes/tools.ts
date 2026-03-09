@@ -6,26 +6,23 @@
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { CopilotService } from '../services/copilot.service.js';
 import type { SessionType } from '@devmentorai/shared';
 
 interface ToolExecuteBody {
   toolName: string;
   params: Record<string, unknown>;
+  provider?: string;
 }
 
-export function registerToolsRoutes(
-  app: FastifyInstance, 
-  copilotService: CopilotService
-): void {
+export function registerToolsRoutes(app: FastifyInstance): void {
   
   // List available tools
   app.get('/api/tools', async (
-    request: FastifyRequest<{ Querystring: { type?: SessionType } }>,
+    request: FastifyRequest<{ Querystring: { type?: SessionType; provider?: string } }>,
     reply: FastifyReply
   ) => {
     const sessionType = request.query.type || 'devops';
-    const tools = copilotService.getAvailableTools(sessionType);
+    const tools = app.llmProviderService.listAvailableTools(sessionType, request.query.provider);
     
     return reply.send({
       success: true,
@@ -39,6 +36,7 @@ export function registerToolsRoutes(
     reply: FastifyReply
   ) => {
     const { toolName, params } = request.body;
+    const provider = request.body.provider;
     
     if (!toolName) {
       return reply.status(400).send({
@@ -47,7 +45,7 @@ export function registerToolsRoutes(
       });
     }
     
-    const result = await copilotService.executeTool(toolName, params || {});
+    const result = await app.llmProviderService.executeTool(toolName, params || {}, provider);
     
     if (!result.success) {
       return reply.status(400).send({
@@ -67,10 +65,10 @@ export function registerToolsRoutes(
   
   // Analyze config endpoint (convenience wrapper)
   app.post('/api/tools/analyze-config', async (
-    request: FastifyRequest<{ Body: { content: string; type?: string } }>,
+    request: FastifyRequest<{ Body: { content: string; type?: string; provider?: string } }>,
     reply: FastifyReply
   ) => {
-    const { content, type } = request.body;
+    const { content, type, provider } = request.body;
     
     if (!content) {
       return reply.status(400).send({
@@ -79,10 +77,10 @@ export function registerToolsRoutes(
       });
     }
     
-    const result = await copilotService.executeTool('analyze_config', {
+    const result = await app.llmProviderService.executeTool('analyze_config', {
       content,
       type: type || 'auto',
-    });
+    }, provider);
     
     return reply.send({
       success: result.success,
@@ -93,10 +91,10 @@ export function registerToolsRoutes(
   
   // Analyze error endpoint (convenience wrapper)
   app.post('/api/tools/analyze-error', async (
-    request: FastifyRequest<{ Body: { error: string; context?: string } }>,
+    request: FastifyRequest<{ Body: { error: string; context?: string; provider?: string } }>,
     reply: FastifyReply
   ) => {
-    const { error, context } = request.body;
+    const { error, context, provider } = request.body;
     
     if (!error) {
       return reply.status(400).send({
@@ -105,10 +103,10 @@ export function registerToolsRoutes(
       });
     }
     
-    const result = await copilotService.executeTool('analyze_error', {
+    const result = await app.llmProviderService.executeTool('analyze_error', {
       error,
       context: context || 'general',
-    });
+    }, provider);
     
     return reply.send({
       success: result.success,

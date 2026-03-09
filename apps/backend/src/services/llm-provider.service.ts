@@ -9,10 +9,47 @@ import type {
 } from '@devmentorai/shared';
 import { CopilotService } from './copilot.service.js';
 import { CopilotProviderAdapter } from './providers/copilot.provider.js';
+import { CliCommandProviderAdapter } from './providers/cli-command.provider.js';
 import type { ProviderAttachment } from './providers/llm-provider.interface.js';
 import { ProviderRegistry } from './providers/provider-registry.js';
 
 const FALLBACK_PROVIDER: LLMProvider = 'copilot';
+
+const CLI_PROVIDER_MODELS: Record<'gemini-cli' | 'claude-code' | 'kilo-code', ModelInfo[]> = {
+  'gemini-cli': [
+    {
+      id: 'gemini-2.5-pro',
+      name: 'Gemini 2.5 Pro',
+      provider: 'gemini-cli',
+      available: false,
+      description: 'Google Gemini CLI default model',
+      pricingTier: 'free',
+      pricingMultiplier: 0,
+    },
+  ],
+  'claude-code': [
+    {
+      id: 'claude-sonnet-4',
+      name: 'Claude Sonnet 4',
+      provider: 'claude-code',
+      available: false,
+      description: 'Claude Code default model',
+      pricingTier: 'standard',
+      pricingMultiplier: 1,
+    },
+  ],
+  'kilo-code': [
+    {
+      id: 'kilo-default',
+      name: 'Kilo Default',
+      provider: 'kilo-code',
+      available: false,
+      description: 'Kilo Code default model',
+      pricingTier: 'standard',
+      pricingMultiplier: 1,
+    },
+  ],
+};
 
 export class ProviderNotRegisteredError extends Error {
   readonly code = 'PROVIDER_NOT_REGISTERED';
@@ -35,6 +72,33 @@ export class LLMProviderService {
 
   constructor(copilotService: CopilotService) {
     this.registry.register(new CopilotProviderAdapter(copilotService));
+    this.registry.register(
+      new CliCommandProviderAdapter({
+        id: 'gemini-cli',
+        command: process.env.DEVMENTORAI_GEMINI_CLI_COMMAND || 'gemini',
+        displayName: 'Gemini CLI',
+        defaultModel: 'gemini-2.5-pro',
+        models: CLI_PROVIDER_MODELS['gemini-cli'],
+      })
+    );
+    this.registry.register(
+      new CliCommandProviderAdapter({
+        id: 'claude-code',
+        command: process.env.DEVMENTORAI_CLAUDE_CODE_COMMAND || 'claude',
+        displayName: 'Claude Code',
+        defaultModel: 'claude-sonnet-4',
+        models: CLI_PROVIDER_MODELS['claude-code'],
+      })
+    );
+    this.registry.register(
+      new CliCommandProviderAdapter({
+        id: 'kilo-code',
+        command: process.env.DEVMENTORAI_KILO_CODE_COMMAND || 'kilo',
+        displayName: 'Kilo Code',
+        defaultModel: 'kilo-default',
+        models: CLI_PROVIDER_MODELS['kilo-code'],
+      })
+    );
   }
 
   async initialize(): Promise<void> {

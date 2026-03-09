@@ -61,6 +61,16 @@ export async function sessionRoutes(fastify: FastifyInstance) {
           },
         });
       }
+
+      if (body.provider && !fastify.llmProviderService.isReady(body.provider)) {
+        return reply.code(503).send({
+          success: false,
+          error: {
+            code: 'PROVIDER_NOT_READY',
+            message: `Provider '${body.provider}' is installed but not ready. Verify local CLI installation/login.`,
+          },
+        });
+      }
       
       // Create in database
       const session = fastify.sessionService.createSession(body);
@@ -150,6 +160,16 @@ export async function sessionRoutes(fastify: FastifyInstance) {
           error: {
             code: 'PROVIDER_NOT_REGISTERED',
             message: `Provider '${body.provider}' is not available in this backend instance`,
+          },
+        });
+      }
+
+      if (providerChanged && body.provider && !fastify.llmProviderService.isReady(body.provider)) {
+        return reply.code(503).send({
+          success: false,
+          error: {
+            code: 'PROVIDER_NOT_READY',
+            message: `Provider '${body.provider}' is installed but not ready. Verify local CLI installation/login.`,
           },
         });
       }

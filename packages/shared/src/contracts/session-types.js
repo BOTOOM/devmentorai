@@ -6,6 +6,7 @@ export const SESSION_TYPE_CONFIGS = {
         name: 'DevOps Mentor',
         description: 'Expert in DevOps, cloud infrastructure, and best practices',
         icon: '🛠️',
+        defaultProvider: 'copilot',
         defaultModel: 'gpt-4.1',
         agent: {
             name: 'devops-mentor',
@@ -37,6 +38,7 @@ Provide a high-quality, detailed, and explanatory response that helps the user c
         name: 'Writing Assistant',
         description: 'Helps with writing, rewriting, and translation',
         icon: '✍️',
+        defaultProvider: 'copilot',
         defaultModel: 'gpt-4.1',
         agent: {
             name: 'writing-assistant',
@@ -66,6 +68,7 @@ When the user provides text to modify, respond with ONLY the modified text unles
         name: 'Development Helper',
         description: 'Assists with code review, debugging, and best practices',
         icon: '💻',
+        defaultProvider: 'copilot',
         defaultModel: 'gpt-4.1',
         agent: {
             name: 'dev-helper',
@@ -102,6 +105,7 @@ When reviewing code, focus on:
         name: 'General Assistant',
         description: 'General-purpose AI assistant',
         icon: '💬',
+        defaultProvider: 'copilot',
         defaultModel: 'gpt-4.1',
         agent: null, // Uses default Copilot behavior
     },
@@ -117,5 +121,11 @@ export function getAgentConfig(type) {
  */
 export function getDefaultModel(type) {
     return SESSION_TYPE_CONFIGS[type]?.defaultModel ?? 'gpt-4.1';
+}
+/**
+ * Get the default provider for a session type
+ */
+export function getDefaultProvider(type) {
+    return SESSION_TYPE_CONFIGS[type]?.defaultProvider ?? 'copilot';
 }
 //# sourceMappingURL=session-types.js.map

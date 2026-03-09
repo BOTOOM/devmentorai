@@ -1,7 +1,7 @@
 /**
  * Session type configurations with pre-defined agents
  */
-import type { SessionType } from '../types/session.js';
+import type { LLMProvider, SessionType } from '../types/session.js';
 export interface AgentConfig {
     name: string;
     displayName: string;
@@ -13,6 +13,7 @@ export interface SessionTypeConfig {
     description: string;
     icon: string;
     agent: AgentConfig | null;
+    defaultProvider: LLMProvider;
     defaultModel: string;
 }
 export declare const SESSION_TYPE_CONFIGS: Record<SessionType, SessionTypeConfig>;
@@ -24,4 +25,8 @@ export declare function getAgentConfig(type: SessionType): AgentConfig | null;
  * Get the default model for a session type
  */
 export declare function getDefaultModel(type: SessionType): string;
+/**
+ * Get the default provider for a session type
+ */
+export declare function getDefaultProvider(type: SessionType): LLMProvider;
 //# sourceMappingURL=session-types.d.ts.map

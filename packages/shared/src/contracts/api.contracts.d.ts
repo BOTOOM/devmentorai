@@ -2,7 +2,7 @@
  * API contract definitions for DevMentorAI
  * These define the endpoints and their request/response types
  */
-import type { Session, CreateSessionRequest, UpdateSessionRequest, Message, SendMessageRequest, ApiResponse, PaginatedResponse, HealthResponse, ModelInfo, CopilotAuthStatus, CopilotQuotaStatus } from '../types/index.js';
+import type { Session, CreateSessionRequest, UpdateSessionRequest, Message, SendMessageRequest, ApiResponse, PaginatedResponse, HealthResponse, ModelInfo, ProviderAuthStatus, ProviderQuotaStatus } from '../types/index.js';
 /**
  * Backend API endpoints contract
  */
@@ -107,16 +107,25 @@ export interface ApiEndpoints {
         }>;
     };
     'GET /api/models': {
+        query?: {
+            provider?: string;
+        };
         response: ApiResponse<{
             models: ModelInfo[];
             default: string;
         }>;
     };
     'GET /api/account/auth': {
-        response: ApiResponse<CopilotAuthStatus>;
+        query?: {
+            provider?: string;
+        };
+        response: ApiResponse<ProviderAuthStatus>;
     };
     'GET /api/account/quota': {
-        response: ApiResponse<CopilotQuotaStatus>;
+        query?: {
+            provider?: string;
+        };
+        response: ApiResponse<ProviderQuotaStatus>;
     };
 }
 /**

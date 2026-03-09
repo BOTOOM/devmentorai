@@ -26,6 +26,8 @@ export interface HealthResponse {
   status: 'healthy' | 'degraded' | 'unhealthy';
   version: string;
   copilotConnected: boolean;
+  activeProvider?: string;
+  providerStates?: Record<string, { ready: boolean; mockMode: boolean }>;
   uptime: number;
   timestamp: string;
   /** Latest available version (if update check has run) */
@@ -48,13 +50,15 @@ export interface ModelInfo {
   supportedReasoningEfforts?: string[];
 }
 
-export interface CopilotAuthStatus {
+export interface ProviderAuthStatus {
+  provider: string;
   isAuthenticated: boolean;
   login?: string | null;
   reason?: string;
 }
 
-export interface CopilotQuotaStatus {
+export interface ProviderQuotaStatus {
+  provider: string;
   used?: number | null;
   included?: number | null;
   remaining?: number | null;
@@ -64,3 +68,6 @@ export interface CopilotQuotaStatus {
   periodEnd?: string | null;
   raw?: Record<string, unknown>;
 }
+
+export type CopilotAuthStatus = ProviderAuthStatus;
+export type CopilotQuotaStatus = ProviderQuotaStatus;

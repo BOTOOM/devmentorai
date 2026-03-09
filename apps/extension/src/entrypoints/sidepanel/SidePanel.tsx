@@ -19,8 +19,9 @@ import type {
   MessageContext,
   ImagePayload,
   ModelInfo,
-  CopilotAuthStatus,
-  CopilotQuotaStatus,
+  ProviderAuthStatus,
+  ProviderQuotaStatus,
+  LLMProvider,
 } from '@devmentorai/shared';
 
 // Extend QuickAction to include tone variations
@@ -35,8 +36,8 @@ export function SidePanel() {
   const [showScreenshotConfirm, setShowScreenshotConfirm] = useState(false);
   const [contextModeEnabled, setContextModeEnabled] = useState(false);
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
-  const [authStatus, setAuthStatus] = useState<CopilotAuthStatus | null>(null);
-  const [quotaStatus, setQuotaStatus] = useState<CopilotQuotaStatus | null>(null);
+  const [authStatus, setAuthStatus] = useState<ProviderAuthStatus | null>(null);
+  const [quotaStatus, setQuotaStatus] = useState<ProviderQuotaStatus | null>(null);
   const [isChangingModel, setIsChangingModel] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     action: ExtendedAction;
@@ -92,13 +93,14 @@ export function SidePanel() {
     }
 
     let cancelled = false;
+    const selectedProvider = activeSession?.provider;
 
     const loadSidebarData = async () => {
       try {
         const [modelsResponse, authResponse, quotaResponse] = await Promise.all([
-          apiClient.getModels(),
-          apiClient.getAccountAuth(),
-          apiClient.getAccountQuota(),
+          apiClient.getModels(selectedProvider),
+          apiClient.getAccountAuth(selectedProvider),
+          apiClient.getAccountQuota(selectedProvider),
         ]);
 
         if (cancelled) return;
@@ -126,14 +128,14 @@ export function SidePanel() {
     return () => {
       cancelled = true;
     };
-  }, [connectionStatus, apiClient]);
+  }, [connectionStatus, apiClient, activeSession?.provider]);
 
   // Check for pending actions from context menu
   useEffect(() => {
     const checkPendingAction = async () => {
       try {
         const response = await chrome.runtime.sendMessage({ type: 'GET_PENDING_ACTION' });
-        if (response && response.action && response.selectedText) {
+        if (response?.action && response?.selectedText) {
           setPendingAction(response);
         }
       } catch (error) {
@@ -284,8 +286,13 @@ export function SidePanel() {
     }
   }, [handleScreenshotForContextMode]);
 
-  const handleNewSession = useCallback(async (name: string, type: Session['type'], model?: string) => {
-    await createSession(name, type, model);
+  const handleNewSession = useCallback(async (
+    name: string,
+    type: Session['type'],
+    model?: string,
+    provider?: LLMProvider
+  ) => {
+    await createSession(name, type, model, provider);
     setShowNewSessionModal(false);
   }, [createSession]);
 
@@ -296,13 +303,13 @@ export function SidePanel() {
 
     setIsChangingModel(true);
     try {
-      await updateSessionModel(activeSession.id, model);
+      await updateSessionModel(activeSession.id, model, activeSession.provider);
     } catch (error) {
       console.error('[SidePanel] Failed to change session model:', error);
     } finally {
       setIsChangingModel(false);
     }
-  }, [activeSession?.id, activeSession?.model, canChangeSessionModel, updateSessionModel]);
+  }, [activeSession?.id, activeSession?.model, activeSession?.provider, canChangeSessionModel, updateSessionModel]);
 
   // D.1 - Handle using page context in chat
   const handleUsePageContext = useCallback((context: { url: string; title: string; selectedText?: string }) => {
@@ -346,7 +353,17 @@ export function SidePanel() {
       {connectionStatus === 'connected' && authStatus && !authStatus.isAuthenticated && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
           <p className="text-xs text-amber-700 dark:text-amber-300">
-            Copilot login required. Run <code className="font-mono">github-copilot auth login</code> (or <code className="font-mono">copilot auth login</code>) and restart backend.
+            {authStatus.provider === 'copilot'
+              ? (
+                <>
+                  Copilot login required. Run <code className="font-mono">github-copilot auth login</code> (or <code className="font-mono">copilot auth login</code>) and restart backend.
+                </>
+                )
+              : (
+                <>
+                  {authStatus.provider} login required. Authenticate with the provider CLI and restart backend.
+                </>
+                )}
           </p>
         </div>
       )}

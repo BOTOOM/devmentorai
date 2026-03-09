@@ -5,8 +5,8 @@ import type {
   PaginatedResponse,
   HealthResponse,
   ModelInfo,
-  CopilotAuthStatus,
-  CopilotQuotaStatus,
+  ProviderAuthStatus,
+  ProviderQuotaStatus,
   Session,
   CreateSessionRequest,
   UpdateSessionRequest,
@@ -30,6 +30,83 @@ export class ApiClient {
     );
   }
 
+  private withProviderQuery(endpoint: string, provider?: string): string {
+    if (!provider) return endpoint;
+
+    const separator = endpoint.includes('?') ? '&' : '?';
+    return `${endpoint}${separator}provider=${encodeURIComponent(provider)}`;
+  }
+
+  private handleSseLine(
+    line: string,
+    onEvent: (event: StreamEvent) => void
+  ): boolean {
+    if (!line.startsWith('data: ')) {
+      return false;
+    }
+
+    const data = line.slice(6).trim();
+    if (data === '[DONE]') {
+      console.log('[ApiClient] Received [DONE] marker');
+      onEvent({ type: 'done', data: {} });
+      return true;
+    }
+
+    try {
+      const event = JSON.parse(data) as StreamEvent;
+      console.log('[ApiClient] Parsed SSE event:', event.type);
+      onEvent(event);
+    } catch (parseError) {
+      console.error('[ApiClient] Failed to parse SSE event:', data, parseError);
+    }
+
+    return false;
+  }
+
+  private processSseChunk(
+    chunk: Uint8Array,
+    decoder: TextDecoder,
+    buffer: string,
+    onEvent: (event: StreamEvent) => void
+  ): { buffer: string; done: boolean } {
+    const nextBuffer = `${buffer}${decoder.decode(chunk, { stream: true })}`;
+    const lines = nextBuffer.split('\n');
+    const remainder = lines.pop() || '';
+
+    for (const line of lines) {
+      const done = this.handleSseLine(line, onEvent);
+      if (done) {
+        return { buffer: remainder, done: true };
+      }
+    }
+
+    return { buffer: remainder, done: false };
+  }
+
+  private async consumeSseStream(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    onEvent: (event: StreamEvent) => void
+  ): Promise<void> {
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        console.log('[ApiClient] Stream done (reader.read() returned done)');
+        onEvent({ type: 'done', data: {} });
+        return;
+      }
+
+      const processed = this.processSseChunk(value, decoder, buffer, onEvent);
+      buffer = processed.buffer;
+      if (processed.done) {
+        return;
+      }
+    }
+  }
+
   private static normalizeBaseUrl(url: string): string {
     return url.trim().replace(/\/+$/, '');
   }
@@ -40,8 +117,8 @@ export class ApiClient {
       if (backendUrl && backendUrl.trim().length > 0) {
         this.baseUrl = ApiClient.normalizeBaseUrl(backendUrl);
       }
-    } catch {
-      // Keep current URL if storage is unavailable in this context.
+    } catch (storageError) {
+      console.warn('[ApiClient] Failed to read backendUrl from storage:', storageError);
     }
 
     return this.baseUrl;
@@ -93,16 +170,16 @@ export class ApiClient {
   }
 
   // Models
-  async getModels(): Promise<ApiResponse<ModelsResponse>> {
-    return this.request<ModelsResponse>(API_ENDPOINTS.MODELS);
+  async getModels(provider?: string): Promise<ApiResponse<ModelsResponse>> {
+    return this.request<ModelsResponse>(this.withProviderQuery(API_ENDPOINTS.MODELS, provider));
   }
 
-  async getAccountAuth(): Promise<ApiResponse<CopilotAuthStatus>> {
-    return this.request<CopilotAuthStatus>(API_ENDPOINTS.ACCOUNT_AUTH);
+  async getAccountAuth(provider?: string): Promise<ApiResponse<ProviderAuthStatus>> {
+    return this.request<ProviderAuthStatus>(this.withProviderQuery(API_ENDPOINTS.ACCOUNT_AUTH, provider));
   }
 
-  async getAccountQuota(): Promise<ApiResponse<CopilotQuotaStatus>> {
-    return this.request<CopilotQuotaStatus>(API_ENDPOINTS.ACCOUNT_QUOTA);
+  async getAccountQuota(provider?: string): Promise<ApiResponse<ProviderQuotaStatus>> {
+    return this.request<ProviderQuotaStatus>(this.withProviderQuery(API_ENDPOINTS.ACCOUNT_QUOTA, provider));
   }
 
   // Sessions
@@ -197,42 +274,9 @@ export class ApiClient {
     console.log('[ApiClient] Starting to read SSE stream...');
     
     const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
 
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) {
-          console.log('[ApiClient] Stream done (reader.read() returned done)');
-          onEvent({ type: 'done', data: {} });
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim();
-            if (data === '[DONE]') {
-              console.log('[ApiClient] Received [DONE] marker');
-              onEvent({ type: 'done', data: {} });
-              return;
-            }
-            
-            try {
-              const event = JSON.parse(data) as StreamEvent;
-              console.log('[ApiClient] Parsed SSE event:', event.type);
-              onEvent(event);
-            } catch (e) {
-              console.error('[ApiClient] Failed to parse SSE event:', data);
-            }
-          }
-        }
-      }
+      await this.consumeSseStream(reader, onEvent);
     } finally {
       reader.releaseLock();
     }

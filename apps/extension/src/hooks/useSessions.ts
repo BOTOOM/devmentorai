@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ApiClient } from '../services/api-client';
-import type { Session, SessionType, CreateSessionRequest } from '@devmentorai/shared';
+import type { Session, SessionType, CreateSessionRequest, LLMProvider } from '@devmentorai/shared';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -74,9 +74,14 @@ export function useSessions(options?: UseSessionsOptions) {
     }
   };
 
-  const createSession = useCallback(async (name: string, type: SessionType, model?: string) => {
+  const createSession = useCallback(async (
+    name: string,
+    type: SessionType,
+    model?: string,
+    provider?: LLMProvider
+  ) => {
     try {
-      const request: CreateSessionRequest = { name, type, model };
+      const request: CreateSessionRequest = { name, type, model, provider };
       const response = await apiClient.createSession(request);
       
       if (response.success && response.data) {
@@ -135,8 +140,8 @@ export function useSessions(options?: UseSessionsOptions) {
     }
   }, [activeSessionId, sessions]);
 
-  const updateSessionModel = useCallback(async (sessionId: string, model: string) => {
-    const response = await apiClient.updateSession(sessionId, { model });
+  const updateSessionModel = useCallback(async (sessionId: string, model: string, provider?: LLMProvider) => {
+    const response = await apiClient.updateSession(sessionId, { model, provider });
 
     if (!response.success || !response.data) {
       throw new Error(response.error?.message || 'Failed to update session model');

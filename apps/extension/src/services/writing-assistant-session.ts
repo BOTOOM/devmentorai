@@ -4,7 +4,11 @@
  */
 
 import { ApiClient } from './api-client';
-import type { Session } from '@devmentorai/shared';
+import {
+  SUPPORTED_LLM_PROVIDERS,
+  type Session,
+  type LLMProvider,
+} from '@devmentorai/shared';
 
 const WRITING_ASSISTANT_SESSION_NAME = 'Writing Assistant';
 const WRITING_ASSISTANT_SESSION_TYPE = 'writing';
@@ -27,8 +31,47 @@ function isLikelySessionRecoveryError(message: string): boolean {
   ].some((token) => normalized.includes(token));
 }
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  try {
+    const serialized = JSON.stringify(error);
+    return serialized ?? 'Unknown error';
+  } catch {
+    return 'Unknown error';
+  }
+}
+
+async function resolveProviderForModel(
+  apiClient: ApiClient,
+  model: string,
+  provider?: LLMProvider
+): Promise<LLMProvider | undefined> {
+  if (provider) {
+    return provider;
+  }
+
+  try {
+    const modelsResponse = await apiClient.getModels();
+    const matchedProvider = modelsResponse.data?.models.find((item) => item.id === model)?.provider;
+    if (matchedProvider && SUPPORTED_LLM_PROVIDERS.includes(matchedProvider as LLMProvider)) {
+      return matchedProvider as LLMProvider;
+    }
+  } catch (error) {
+    console.warn('[WritingAssistant] Failed to resolve provider from model, using default provider:', error);
+  }
+
+  return undefined;
+}
+
 function isRecoverableSessionError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = getErrorMessage(error);
   return isLikelySessionRecoveryError(message);
 }
 
@@ -98,13 +141,19 @@ async function streamQuickActionOnce(
  * This session is used for all quick actions to provide fast AI responses
  */
 export async function getOrCreateWritingAssistantSession(
-  model?: string
+  model?: string,
+  provider?: LLMProvider
 ): Promise<Session | null> {
   const apiClient = ApiClient.getInstance();
   
   // Check cache
   const now = Date.now();
-  if (cachedSession && (now - lastFetchTime) < CACHE_TTL_MS) {
+  if (
+    cachedSession
+    && (now - lastFetchTime) < CACHE_TTL_MS
+    && (!provider || cachedSession.provider === provider)
+    && (!model || cachedSession.model === model)
+  ) {
     return cachedSession;
   }
   
@@ -121,13 +170,33 @@ export async function getOrCreateWritingAssistantSession(
     const existingSession = response.data.items.find(
       session => session.name === WRITING_ASSISTANT_SESSION_NAME && 
                  session.type === WRITING_ASSISTANT_SESSION_TYPE
+                 && (!provider || session.provider === provider)
     );
     
     if (existingSession) {
-      cachedSession = existingSession;
+      let sessionToUse = existingSession;
+      if (model && existingSession.model !== model) {
+        const updateResponse = await apiClient.updateSession(existingSession.id, {
+          model,
+          provider,
+        });
+
+        if (updateResponse.success && updateResponse.data) {
+          sessionToUse = updateResponse.data;
+        } else {
+          console.warn('[WritingAssistant] Failed to sync existing session model, reusing existing session', {
+            sessionId: existingSession.id,
+            requestedModel: model,
+            currentModel: existingSession.model,
+            error: updateResponse.error,
+          });
+        }
+      }
+
+      cachedSession = sessionToUse;
       lastFetchTime = now;
-      console.log('[WritingAssistant] Found existing session:', existingSession.id);
-      return existingSession;
+      console.log('[WritingAssistant] Found existing session:', sessionToUse.id);
+      return sessionToUse;
     }
     
     // Create new Writing Assistant session
@@ -136,6 +205,7 @@ export async function getOrCreateWritingAssistantSession(
       name: WRITING_ASSISTANT_SESSION_NAME,
       type: WRITING_ASSISTANT_SESSION_TYPE,
       model: model,
+      provider,
     });
     
     if (!createResponse.success || !createResponse.data) {
@@ -177,6 +247,56 @@ export function clearWritingAssistantCache(): void {
   lastFetchTime = 0;
 }
 
+async function recoverWritingAssistantSession(
+  apiClient: ApiClient,
+  session: Session,
+  model: string,
+  provider?: LLMProvider
+): Promise<Session> {
+  let resumeSucceeded = false;
+
+  try {
+    const resumeResponse = await apiClient.resumeSession(session.id);
+    resumeSucceeded = resumeResponse.success;
+  } catch (resumeError) {
+    console.warn('[WritingAssistant] Resume attempt failed during recovery:', resumeError);
+  }
+
+  if (resumeSucceeded) {
+    return session;
+  }
+
+  clearWritingAssistantCache();
+  const recoveredSession = await getOrCreateWritingAssistantSession(model, provider);
+  if (!recoveredSession) {
+    throw new Error('Failed to recover writing assistant session');
+  }
+
+  return recoveredSession;
+}
+
+async function streamQuickActionWithRecovery(
+  apiClient: ApiClient,
+  session: Session,
+  prompt: string,
+  model: string,
+  onEvent: (event: { type: string; content?: string; error?: string }) => void,
+  signal?: AbortSignal,
+  provider?: LLMProvider
+): Promise<void> {
+  try {
+    await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
+  } catch (error) {
+    if (!isRecoverableSessionError(error)) {
+      throw error;
+    }
+
+    console.warn('[WritingAssistant] Recoverable session error detected, attempting one recovery cycle:', error);
+    const recoveredSession = await recoverWritingAssistantSession(apiClient, session, model, provider);
+    await streamQuickActionOnce(apiClient, recoveredSession.id, prompt, onEvent, signal);
+  }
+}
+
 /**
  * Stream a quick action to the Writing Assistant session
  * Returns an async generator that yields stream events
@@ -185,47 +305,20 @@ export async function streamQuickAction(
   prompt: string,
   model: string,
   onEvent: (event: { type: string; content?: string; error?: string }) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  provider?: LLMProvider
 ): Promise<void> {
-  let session = await getOrCreateWritingAssistantSession(model);
+  const apiClient = ApiClient.getInstance();
+  const resolvedProvider = await resolveProviderForModel(apiClient, model, provider);
+  const session = await getOrCreateWritingAssistantSession(model, resolvedProvider);
   
   if (!session) {
     onEvent({ type: 'error', error: 'Failed to get Writing Assistant session' });
     return;
   }
   
-  const apiClient = ApiClient.getInstance();
-  
   try {
-    try {
-      await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
-      return;
-    } catch (error) {
-      if (!isRecoverableSessionError(error)) {
-        throw error;
-      }
-
-      console.warn('[WritingAssistant] Recoverable session error detected, attempting one recovery cycle:', error);
-
-      let resumeSucceeded = false;
-      try {
-        const resumeResponse = await apiClient.resumeSession(session.id);
-        resumeSucceeded = resumeResponse.success;
-      } catch (resumeError) {
-        console.warn('[WritingAssistant] Resume attempt failed during recovery:', resumeError);
-      }
-
-      if (!resumeSucceeded) {
-        clearWritingAssistantCache();
-        const recoveredSession = await getOrCreateWritingAssistantSession(model);
-        if (!recoveredSession) {
-          throw error;
-        }
-        session = recoveredSession;
-      }
-
-      await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
-    }
+    await streamQuickActionWithRecovery(apiClient, session, prompt, model, onEvent, signal, resolvedProvider);
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       onEvent({ type: 'error', error: 'Request cancelled' });

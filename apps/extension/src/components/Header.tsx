@@ -1,18 +1,18 @@
 import { Settings, Plus, Wifi, WifiOff, Loader2, HelpCircle, User } from 'lucide-react';
 import { cn } from '../lib/utils';
-import type { CopilotAuthStatus, CopilotQuotaStatus } from '@devmentorai/shared';
+import type { ProviderAuthStatus, ProviderQuotaStatus } from '@devmentorai/shared';
 
 interface HeaderProps {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
-  authStatus?: CopilotAuthStatus | null;
-  quotaStatus?: CopilotQuotaStatus | null;
+  authStatus?: ProviderAuthStatus | null;
+  quotaStatus?: ProviderQuotaStatus | null;
   onNewSession: () => void;
   onOpenSettings?: () => void;
   onOpenHelp?: () => void;      // D.2
   onViewPage?: () => void;      // D.1
 }
 
-function formatQuota(status?: CopilotQuotaStatus | null): string | null {
+function formatQuota(status?: ProviderQuotaStatus | null): string | null {
   if (!status) return null;
 
   let pctRemaining: number | null = null;
@@ -65,10 +65,11 @@ export function Header({
   const status = statusConfig[connectionStatus];
   const StatusIcon = status.icon;
   const quotaLabel = formatQuota(quotaStatus);
-  const accountName = authStatus?.login || 'copilot-user';
+  const providerName = authStatus?.provider || 'copilot';
+  const accountName = authStatus?.login || `${providerName}-user`;
   const loginLabel = authStatus?.isAuthenticated
     ? `@${accountName}`
-    : 'Copilot login required';
+    : `${providerName} login required`;
 
   return (
     <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 gap-3">
@@ -92,7 +93,7 @@ export function Header({
                   type="button"
                   className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-green-200 bg-green-50 text-green-700 dark:border-green-700/50 dark:bg-green-900/20 dark:text-green-300"
                   title={loginLabel}
-                  aria-label={`Copilot account ${loginLabel}`}
+                  aria-label={`${providerName} account ${loginLabel}`}
                 >
                   <User className="w-3.5 h-3.5" />
                 </button>

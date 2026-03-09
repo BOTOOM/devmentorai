@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
-import type { SessionType, ModelInfo } from '@devmentorai/shared';
-import { SESSION_TYPE_CONFIGS, DEFAULT_CONFIG } from '@devmentorai/shared';
+import {
+  SESSION_TYPE_CONFIGS,
+  SUPPORTED_LLM_PROVIDERS,
+  type SessionType,
+  type ModelInfo,
+  type LLMProvider,
+} from '@devmentorai/shared';
 import { ApiClient } from '../services/api-client';
 
 // D.5 - Pricing tier display
@@ -15,7 +20,7 @@ const PRICING_BADGES: Record<string, { label: string; color: string }> = {
 
 interface NewSessionModalProps {
   onClose: () => void;
-  onSubmit: (name: string, type: SessionType, model?: string) => Promise<void> | void;
+  onSubmit: (name: string, type: SessionType, model?: string, provider?: LLMProvider) => Promise<void> | void;
 }
 
 export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalProps>) {
@@ -31,7 +36,7 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
   useEffect(() => {
     const fetchModels = async () => {
       try {
-        const apiClient = new ApiClient(`http://localhost:${DEFAULT_CONFIG.DEFAULT_PORT}`);
+        const apiClient = ApiClient.getInstance();
         const response = await apiClient.getModels();
         if (response.success && response.data) {
           setModels(response.data.models);
@@ -48,9 +53,16 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
     e.preventDefault();
     if (!name.trim() || isSubmitting) return;
 
+    const maybeProvider = selectedModel?.provider;
+    const provider =
+      maybeProvider &&
+      SUPPORTED_LLM_PROVIDERS.includes(maybeProvider as LLMProvider)
+        ? (maybeProvider as LLMProvider)
+        : undefined;
+
     setIsSubmitting(true);
     try {
-      await onSubmit(name.trim(), type, model);
+      await onSubmit(name.trim(), type, model, provider);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,6 @@
 import { Settings, Plus, Wifi, WifiOff, Loader2, HelpCircle, User } from 'lucide-react';
 import { cn } from '../lib/utils';
-import type { ProviderAuthStatus, ProviderQuotaStatus } from '@devmentorai/shared';
+import { PROVIDER_DISPLAY, type ProviderAuthStatus, type ProviderQuotaStatus, type LLMProvider } from '@devmentorai/shared';
 
 interface HeaderProps {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
@@ -65,10 +65,11 @@ export function Header({
   const StatusIcon = status.icon;
   const quotaLabel = formatQuota(quotaStatus);
   const providerName = authStatus?.provider || 'copilot';
+  const providerDisplay = PROVIDER_DISPLAY[providerName as LLMProvider];
   const accountName = authStatus?.login || `${providerName}-user`;
   const loginLabel = authStatus?.isAuthenticated
     ? `@${accountName}`
-    : `${providerName} login required`;
+    : `${providerDisplay?.name || providerName} login required`;
 
   return (
     <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 gap-3">
@@ -86,6 +87,15 @@ export function Header({
 
         {connectionStatus === 'connected' && (
           <div className="flex items-center gap-1.5 min-w-0">
+            {providerDisplay && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 whitespace-nowrap"
+                title={providerDisplay.description}
+              >
+                <span aria-hidden>{providerDisplay.icon}</span>
+                {providerDisplay.name}
+              </span>
+            )}
             {authStatus?.isAuthenticated ? (
               <div className="relative group">
                 <button

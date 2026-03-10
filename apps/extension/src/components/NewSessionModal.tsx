@@ -4,6 +4,7 @@ import { cn } from '../lib/utils';
 import {
   SESSION_TYPE_CONFIGS,
   SUPPORTED_LLM_PROVIDERS,
+  PROVIDER_DISPLAY,
   type SessionType,
   type ModelInfo,
   type LLMProvider,
@@ -235,22 +236,37 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                     <p className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">No models found</p>
                   )}
 
-                  {/* D.5 - Group models by pricing tier */}
-                  {['free', 'cheap', 'standard', 'premium'].map(tier => {
-                    const tierModels = filteredModels.filter(m => m.pricingTier === tier || (!m.pricingTier && tier === 'standard'));
-                    if (tierModels.length === 0) return null;
-                    
+                  {/* Group models by provider */}
+                  {SUPPORTED_LLM_PROVIDERS.map(providerId => {
+                    const providerModels = filteredModels.filter(m => m.provider === providerId);
+                    if (providerModels.length === 0) return null;
+                    const display = PROVIDER_DISPLAY[providerId];
+                    const hasAvailable = providerModels.some(m => m.available !== false);
+
                     return (
-                      <div key={tier}>
-                        <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-                          <span className={cn(
-                            'text-xs font-medium px-2 py-0.5 rounded-full',
-                            PRICING_BADGES[tier]?.color || PRICING_BADGES.standard.color
-                          )}>
-                            {PRICING_BADGES[tier]?.label || 'Standard'}
+                      <div key={providerId}>
+                        <div className={cn(
+                          'px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2',
+                          hasAvailable
+                            ? 'bg-gray-50 dark:bg-gray-900'
+                            : 'bg-gray-100 dark:bg-gray-900/60'
+                        )}>
+                          <span className="text-sm" aria-hidden>{display.icon}</span>
+                          <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            {display.name}
                           </span>
+                          {!hasAvailable && (
+                            <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full">
+                              Offline
+                            </span>
+                          )}
+                          {hasAvailable && (
+                            <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
+                              Ready
+                            </span>
+                          )}
                         </div>
-                        {tierModels.map((m) => (
+                        {providerModels.map((m) => (
                           <button
                             key={m.id}
                             type="button"
@@ -279,13 +295,16 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                                 </p>
                               </div>
                               <div className="flex items-center gap-1.5">
-                                {m.available === false && (
-                                  <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full">
-                                    Unavailable
+                                {m.pricingTier && (
+                                  <span className={cn(
+                                    'text-[10px] px-1.5 py-0.5 rounded-full',
+                                    PRICING_BADGES[m.pricingTier]?.color || PRICING_BADGES.standard.color
+                                  )}>
+                                    {PRICING_BADGES[m.pricingTier]?.label || 'Standard'}
                                   </span>
                                 )}
                                 {m.isDefault && (
-                                  <span className="text-xs px-2 py-0.5 bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-full">
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-full">
                                     Default
                                   </span>
                                 )}

@@ -108,18 +108,6 @@ async function generateFullImage(buffer: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
-/**
- * Get the file extension for a MIME type
- */
-function getExtensionForMimeType(mimeType: string): string {
-  const extensions: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-    'image/gif': 'gif',
-  };
-  return extensions[mimeType] || 'jpg';
-}
 
 /**
  * Get the file path for a full image
@@ -163,7 +151,7 @@ export async function processMessageImages(
         continue;
       }
 
-      const { buffer, mimeType } = parsed;
+      const { buffer } = parsed;
 
       // Get original dimensions
       const dimensions = await getImageDimensions(buffer);

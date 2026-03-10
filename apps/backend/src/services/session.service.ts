@@ -389,8 +389,8 @@ export class SessionService {
     const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> | undefined : undefined;
     
     // Fix legacy image URLs that have incorrect format
-    if (metadata?.images) {
-      metadata.images = metadata.images.map((img: Record<string, unknown>) => ({
+    if (metadata?.images && Array.isArray(metadata.images)) {
+      metadata.images = (metadata.images as Record<string, unknown>[]).map((img) => ({
         ...img,
         thumbnailUrl: this.fixImageUrl(img.thumbnailUrl as string | undefined),
         fullImageUrl: this.fixImageUrl(img.fullImageUrl as string | undefined),

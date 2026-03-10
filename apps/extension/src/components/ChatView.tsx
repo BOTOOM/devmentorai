@@ -4,7 +4,7 @@ import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
 import { useImageAttachments } from '../hooks/useImageAttachments';
-import type { Session, Message, ContextPayload, PlatformDetection, ImagePayload, ModelInfo } from '@devmentorai/shared';
+import { SUPPORTED_LLM_PROVIDERS, PROVIDER_DISPLAY, type Session, type Message, type ContextPayload, type PlatformDetection, type ImagePayload, type ModelInfo } from '@devmentorai/shared';
 
 const PRICING_BADGES: Record<string, { label: string; color: string }> = {
   free: { label: 'Free', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
@@ -13,7 +13,6 @@ const PRICING_BADGES: Record<string, { label: string; color: string }> = {
   premium: { label: 'Premium', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
 };
 
-const MODEL_TIERS = ['free', 'cheap', 'standard', 'premium'] as const;
 
 interface ChatViewProps {
   session: Session | null;
@@ -369,26 +368,30 @@ export function ChatView({
                 <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No models found</p>
               )}
 
-              {MODEL_TIERS.map((tier) => {
-                const tierModels = filteredModels.filter(
-                  (model) => model.pricingTier === tier || (!model.pricingTier && tier === 'standard')
-                );
-                if (tierModels.length === 0) return null;
+              {SUPPORTED_LLM_PROVIDERS.map((providerId) => {
+                const providerModels = filteredModels.filter((m) => m.provider === providerId);
+                if (providerModels.length === 0) return null;
+                const display = PROVIDER_DISPLAY[providerId];
+                const hasAvailable = providerModels.some((m) => m.available !== false);
 
                 return (
-                  <div key={tier}>
-                    <div className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700">
-                      <span
-                        className={cn(
-                          'text-[10px] font-medium px-2 py-0.5 rounded-full',
-                          PRICING_BADGES[tier]?.color || PRICING_BADGES.standard.color
-                        )}
-                      >
-                        {PRICING_BADGES[tier]?.label || 'Standard'}
+                  <div key={providerId}>
+                    <div className={cn(
+                      'px-2.5 py-1.5 border-y border-gray-200 dark:border-gray-700 flex items-center gap-1.5',
+                      hasAvailable ? 'bg-gray-50 dark:bg-gray-900' : 'bg-gray-100 dark:bg-gray-900/60'
+                    )}>
+                      <span className="text-xs" aria-hidden>{display.icon}</span>
+                      <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">
+                        {display.name}
                       </span>
+                      {!hasAvailable && (
+                        <span className="ml-auto text-[9px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full">
+                          Offline
+                        </span>
+                      )}
                     </div>
 
-                    {tierModels.map((model) => (
+                    {providerModels.map((model) => (
                       <button
                         key={model.id}
                         type="button"
@@ -409,6 +412,14 @@ export function ChatView({
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{model.name}</span>
+                          {model.pricingTier && (
+                            <span className={cn(
+                              'text-[9px] px-1.5 py-0.5 rounded-full',
+                              PRICING_BADGES[model.pricingTier]?.color || PRICING_BADGES.standard.color
+                            )}>
+                              {PRICING_BADGES[model.pricingTier]?.label || 'Standard'}
+                            </span>
+                          )}
                           {model.available === false && (
                             <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
                               Unavailable

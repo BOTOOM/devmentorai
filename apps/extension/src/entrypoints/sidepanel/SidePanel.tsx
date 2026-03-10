@@ -13,15 +13,16 @@ import { useSettings } from '../../hooks/useSettings';
 import { useContextExtraction } from '../../hooks/useContextExtraction';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
 import { ApiClient } from '../../services/api-client';
-import type {
-  Session,
-  QuickAction,
-  MessageContext,
-  ImagePayload,
-  ModelInfo,
-  ProviderAuthStatus,
-  ProviderQuotaStatus,
-  LLMProvider,
+import {
+  PROVIDER_CAPABILITIES,
+  type Session,
+  type QuickAction,
+  type MessageContext,
+  type ImagePayload,
+  type ModelInfo,
+  type ProviderAuthStatus,
+  type ProviderQuotaStatus,
+  type LLMProvider,
 } from '@devmentorai/shared';
 
 // Extend QuickAction to include tone variations
@@ -407,8 +408,13 @@ export function SidePanel() {
         extractedContext={extractedContext}
         platform={platform}
         errorCount={errorCount}
-        // Image attachment props
-        imageAttachmentsEnabled={settings.imageAttachmentsEnabled}
+        // Image attachment props – disabled if the provider doesn't support vision/attachments
+        imageAttachmentsEnabled={
+          settings.imageAttachmentsEnabled &&
+          (activeSession?.provider
+            ? PROVIDER_CAPABILITIES[activeSession.provider]?.attachments !== false
+            : true)
+        }
         screenshotBehavior={settings.screenshotBehavior}
         onCaptureScreenshot={handleCaptureScreenshot}
         onRegisterAddImage={(fn) => { addImageToChatRef.current = fn; }}

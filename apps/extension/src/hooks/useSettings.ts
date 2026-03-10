@@ -132,7 +132,7 @@ export function useSettings() {
       
       for (const [key, change] of Object.entries(changes)) {
         if (key in DEFAULT_SETTINGS && change.newValue !== undefined) {
-          (updatedSettings as any)[key] = change.newValue;
+          (updatedSettings as Record<string, unknown>)[key] = change.newValue;
           hasChanges = true;
           
           // Apply theme immediately when changed from another context

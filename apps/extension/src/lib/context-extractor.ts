@@ -393,8 +393,10 @@ export function getNetworkFailuresFromPerformance(): PerformanceNetworkError[] {
       // A request is considered failed if:
       // - transferSize is 0 and duration is > 0 (request made but no response)
       // - or responseStatus is 4xx/5xx (if available in newer browsers)
+      const entryRecord = entry as unknown as Record<string, unknown>;
+      const responseStatus = typeof entryRecord.responseStatus === 'number' ? entryRecord.responseStatus : 0;
       const failed = (entry.transferSize === 0 && entry.duration > 100) ||
-                    (entry as any).responseStatus >= 400;
+                    responseStatus >= 400;
       
       if (failed) {
         errors.push({
@@ -1173,13 +1175,13 @@ export function startNetworkErrorCapture(): void {
   originalXHROpen = XMLHttpRequest.prototype.open;
   originalXHRSend = XMLHttpRequest.prototype.send;
 
-  XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...rest: any[]) {
+  XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...rest: unknown[]) {
     this._devmentor_url = String(url);
     this._devmentor_method = method.toUpperCase();
-    return originalXHROpen.apply(this, [method, url, ...rest] as any);
+    return originalXHROpen.apply(this, [method, url, ...rest] as Parameters<typeof XMLHttpRequest.prototype.open>);
   };
 
-  XMLHttpRequest.prototype.send = function(...args: any[]) {
+  XMLHttpRequest.prototype.send = function(...args: [body?: Document | XMLHttpRequestBodyInit | null]) {
     this.addEventListener('loadend', () => {
       if (this.status >= 400) {
         capturedNetworkErrors.push({
@@ -1203,7 +1205,7 @@ export function startNetworkErrorCapture(): void {
       trimNetworkErrors();
     });
 
-    return originalXHRSend.apply(this, args as any);
+    return originalXHRSend.apply(this, args as Parameters<typeof XMLHttpRequest.prototype.send>);
   };
 }
 

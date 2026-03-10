@@ -174,7 +174,8 @@ export function useContextExtraction(): UseContextExtractionResult {
       
       // Add screenshot reference to context if captured
       if (screenshotData) {
-        (aggregated as any).screenshot = {
+        const aggregatedRecord = aggregated as unknown as Record<string, unknown>;
+        aggregatedRecord.screenshot = {
           available: true,
           width: screenshotData.width,
           height: screenshotData.height,

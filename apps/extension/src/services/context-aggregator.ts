@@ -419,7 +419,7 @@ export async function getQuickContext(tabId: number): Promise<QuickContext | nul
           });
         }
       );
-    } catch (error) {
+    } catch (_error) {
       clearTimeout(timeout);
       resolve(null);
     }

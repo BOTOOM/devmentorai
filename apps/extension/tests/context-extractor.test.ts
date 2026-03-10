@@ -2,7 +2,7 @@
  * Unit tests for context-extractor.ts
  * Tests privacy masking, UI state analysis, and helper functions
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { JSDOM } from 'jsdom';
 
 // We'll test the exported functions that don't require full browser APIs

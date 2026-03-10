@@ -89,7 +89,32 @@ devmentorai-server logs --lines 100
 ## Requirements
 
 - **Node.js** >= 20.0.0
-- **GitHub Copilot CLI** (optional — server runs in mock mode without it)
+- At least one supported provider CLI installed locally:
+  - `github-copilot` / `copilot` (Copilot)
+  - `gemini` (Gemini CLI)
+  - `claude` (Claude Code CLI)
+  - `kilo` (Kilo Code CLI)
+
+## Multi-Provider Support
+
+The backend supports multiple providers through a provider abstraction layer. Current built-in providers:
+
+- `copilot` (fallback/default)
+- `gemini-cli`
+- `claude-code`
+- `kilo-code`
+
+### Provider command overrides
+
+You can override detected CLI binaries with environment variables:
+
+```bash
+DEVMENTORAI_GEMINI_CLI_COMMAND=gemini
+DEVMENTORAI_CLAUDE_CODE_COMMAND=claude
+DEVMENTORAI_KILO_CODE_COMMAND=kilo
+```
+
+If a provider command is missing, that provider is reported as unavailable and session creation for that provider is blocked with `PROVIDER_NOT_READY`.
 
 ## How It Works
 
@@ -112,8 +137,15 @@ The server runs as a background process and stores its data in `~/.devmentorai/`
 | `GET /api/health` | Health check |
 | `GET /api/sessions` | List sessions |
 | `POST /api/sessions` | Create a new session |
-| `POST /api/chat/:sessionId` | Send a message |
+| `POST /api/sessions/:sessionId/chat` | Send a message |
+| `POST /api/sessions/:sessionId/chat/stream` | Stream a message (SSE) |
 | `GET /api/models` | List available models |
+| `GET /api/account/auth` | Provider auth status |
+| `GET /api/account/quota` | Provider quota status |
+| `GET /api/tools` | List provider tools |
+| `POST /api/tools/execute` | Execute provider tool |
+
+Provider-aware endpoints accept `?provider=<provider-id>` (for example `?provider=gemini-cli`).
 
 ## Troubleshooting
 
@@ -135,9 +167,15 @@ The server runs as a background process and stores its data in `~/.devmentorai/`
 devmentorai-server start --port 4000
 ```
 
-### Copilot not connected
+### Provider not connected / not ready
 
-The server requires GitHub Copilot CLI to be installed and authenticated. Without it, the server runs in **mock mode** with simulated responses.
+If you receive `PROVIDER_NOT_READY` or see unavailable models:
+
+1. Ensure the provider CLI binary is installed and accessible in `PATH`
+2. Authenticate using that provider CLI
+3. Restart backend
+
+For Copilot specifically:
 
 ```bash
 # Install Copilot CLI (if not installed)

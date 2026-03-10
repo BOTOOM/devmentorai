@@ -11,6 +11,9 @@ services:
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       ALL_PROXY: ${ALL_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,backend}
+      # Local LLM provider URLs (Ollama / LM Studio running on host)
+      DEVMENTORAI_OLLAMA_BASE_URL: ${DEVMENTORAI_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      DEVMENTORAI_LMSTUDIO_BASE_URL: ${DEVMENTORAI_LMSTUDIO_BASE_URL:-http://host.docker.internal:1234}
     ports:
       - "${BACKEND_PORT:-3847}:${BACKEND_PORT:-3847}"
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"

@@ -10,6 +10,7 @@ import type {
 import { CopilotService } from './copilot.service.js';
 import { CopilotProviderAdapter } from './providers/copilot.provider.js';
 import { CliCommandProviderAdapter } from './providers/cli-command.provider.js';
+import { OpenAICompatibleProviderAdapter } from './providers/openai-compatible.provider.js';
 import type { ProviderAttachment } from './providers/llm-provider.interface.js';
 import { ProviderRegistry } from './providers/provider-registry.js';
 
@@ -97,6 +98,48 @@ export class LLMProviderService {
         displayName: 'Kilo Code',
         defaultModel: 'kilo-default',
         models: CLI_PROVIDER_MODELS['kilo-code'],
+      })
+    );
+
+    // Local server providers (OpenAI-compatible API)
+    this.registry.register(
+      new OpenAICompatibleProviderAdapter({
+        id: 'ollama',
+        displayName: 'Ollama',
+        baseUrl: process.env.DEVMENTORAI_OLLAMA_BASE_URL || 'http://localhost:11434',
+        defaultModel: 'llama3.2',
+        useOllamaModelEndpoint: true,
+        fallbackModels: [
+          {
+            id: 'llama3.2',
+            name: 'Llama 3.2',
+            provider: 'ollama',
+            available: false,
+            description: 'Meta Llama 3.2 – pull with: ollama pull llama3.2',
+            pricingTier: 'free',
+            pricingMultiplier: 0,
+          },
+        ],
+      })
+    );
+    this.registry.register(
+      new OpenAICompatibleProviderAdapter({
+        id: 'lmstudio',
+        displayName: 'LM Studio',
+        baseUrl: process.env.DEVMENTORAI_LMSTUDIO_BASE_URL || 'http://localhost:1234',
+        defaultModel: 'default',
+        useOllamaModelEndpoint: false,
+        fallbackModels: [
+          {
+            id: 'default',
+            name: 'LM Studio Model',
+            provider: 'lmstudio',
+            available: false,
+            description: 'Load a model in LM Studio and start the local server',
+            pricingTier: 'free',
+            pricingMultiplier: 0,
+          },
+        ],
       })
     );
   }

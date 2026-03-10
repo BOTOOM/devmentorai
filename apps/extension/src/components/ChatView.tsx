@@ -391,17 +391,30 @@ export function ChatView({
                     {tierModels.map((model) => (
                       <button
                         key={model.id}
+                        type="button"
+                        disabled={model.available === false}
                         onClick={() => {
+                          if (model.available === false) return;
                           onChangeModel?.(model.id);
                           setShowModelPicker(false);
                           setModelSearch('');
                         }}
                         className={cn(
-                          'w-full px-3 py-2 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+                          'w-full px-3 py-2 text-left text-xs transition-colors',
+                          model.available === false
+                            ? 'cursor-not-allowed opacity-60'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-700',
                           model.id === session.model && 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
                         )}
                       >
-                        <div className="font-medium">{model.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{model.name}</span>
+                          {model.available === false && (
+                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                              Unavailable
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[10px] text-gray-500 dark:text-gray-400">{model.id}</div>
                       </button>
                     ))}

@@ -31,6 +31,7 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Fetch available models
   useEffect(() => {
@@ -40,7 +41,15 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
         const response = await apiClient.getModels();
         if (response.success && response.data) {
           setModels(response.data.models);
-          setModel(response.data.default);
+
+          const defaultModel = response.data.models.find((item) => item.id === response.data.default);
+          const firstAvailableModel = response.data.models.find((item) => item.available !== false);
+          const preferredModel =
+            defaultModel && defaultModel.available !== false
+              ? defaultModel
+              : firstAvailableModel;
+
+          setModel(preferredModel?.id || response.data.default);
         }
       } catch (error) {
         console.error('Failed to fetch models:', error);
@@ -53,6 +62,8 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
     e.preventDefault();
     if (!name.trim() || isSubmitting) return;
 
+    setSubmitError(null);
+
     const maybeProvider = selectedModel?.provider;
     const provider =
       maybeProvider &&
@@ -60,9 +71,18 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
         ? (maybeProvider as LLMProvider)
         : undefined;
 
+    if (selectedModel && selectedModel.available === false) {
+      setSubmitError(
+        `Model '${selectedModel.name}' is not available right now. Install/login the provider CLI or choose another model.`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await onSubmit(name.trim(), type, model, provider);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Failed to create session');
     } finally {
       setIsSubmitting(false);
     }
@@ -112,6 +132,12 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {submitError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+              {submitError}
+            </div>
+          )}
+
           {/* Session name */}
           <div>
             <label
@@ -227,13 +253,18 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                           <button
                             key={m.id}
                             type="button"
+                            disabled={m.available === false}
                             onClick={() => {
+                              if (m.available === false) return;
                               setModel(m.id);
                               setShowModelPicker(false);
                               setModelSearch('');
                             }}
                             className={cn(
-                              'w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors',
+                              'w-full px-4 py-2.5 text-left transition-colors',
+                              m.available === false
+                                ? 'cursor-not-allowed opacity-60'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-700',
                               model === m.id && 'bg-primary-50 dark:bg-primary-900/20'
                             )}
                           >
@@ -247,6 +278,11 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                                 </p>
                               </div>
                               <div className="flex items-center gap-1.5">
+                                {m.available === false && (
+                                  <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full">
+                                    Unavailable
+                                  </span>
+                                )}
                                 {m.isDefault && (
                                   <span className="text-xs px-2 py-0.5 bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-full">
                                     Default

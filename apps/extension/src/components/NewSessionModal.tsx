@@ -39,17 +39,18 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
       try {
         const apiClient = ApiClient.getInstance();
         const response = await apiClient.getModels();
-        if (response.success && response.data) {
-          setModels(response.data.models);
+        const modelsData = response.success ? response.data : undefined;
+        if (modelsData) {
+          setModels(modelsData.models);
 
-          const defaultModel = response.data.models.find((item) => item.id === response.data.default);
-          const firstAvailableModel = response.data.models.find((item) => item.available !== false);
+          const defaultModel = modelsData.models.find((item) => item.id === modelsData.default);
+          const firstAvailableModel = modelsData.models.find((item) => item.available !== false);
           const preferredModel =
             defaultModel && defaultModel.available !== false
               ? defaultModel
               : firstAvailableModel;
 
-          setModel(preferredModel?.id || response.data.default);
+          setModel(preferredModel?.id || modelsData.default);
         }
       } catch (error) {
         console.error('Failed to fetch models:', error);
@@ -71,7 +72,7 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
         ? (maybeProvider as LLMProvider)
         : undefined;
 
-    if (selectedModel && selectedModel.available === false) {
+    if (selectedModel?.available === false) {
       setSubmitError(
         `Model '${selectedModel.name}' is not available right now. Install/login the provider CLI or choose another model.`
       );

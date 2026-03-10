@@ -143,6 +143,27 @@ const sendMessageSchema = z.object({
 
 type ParsedSendMessageBody = z.infer<typeof sendMessageSchema>;
 type ProviderAttachment = { type: 'file'; path: string; displayName: string };
+type BuildPromptInput = Pick<
+  ParsedSendMessageBody,
+  'prompt' | 'context' | 'fullContext' | 'useContextAwareMode'
+>;
+
+interface ToolExecutionPayload {
+  toolName?: string;
+  toolCallId?: string;
+}
+
+function parseToolExecutionPayload(data: unknown): ToolExecutionPayload {
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
+
+  const payload = data as Record<string, unknown>;
+  return {
+    toolName: typeof payload.toolName === 'string' ? payload.toolName : undefined,
+    toolCallId: typeof payload.toolCallId === 'string' ? payload.toolCallId : undefined,
+  };
+}
 
 export async function chatRoutes(fastify: FastifyInstance) {
   const STREAM_TIMEOUT_MS = 120000;
@@ -365,20 +386,26 @@ export async function chatRoutes(fastify: FastifyInstance) {
             break;
 
           case 'tool.execution_start':
+            {
+              const toolPayload = parseToolExecutionPayload(event.data);
             sendSse({
               type: 'tool_start',
               data: {
-                toolName: (event.data as any).toolName,
-                toolCallId: (event.data as any).toolCallId,
+                  toolName: toolPayload.toolName,
+                  toolCallId: toolPayload.toolCallId,
               },
             });
+            }
             break;
 
           case 'tool.execution_complete':
+            {
+              const toolPayload = parseToolExecutionPayload(event.data);
             sendSse({
               type: 'tool_complete',
-              data: { toolCallId: (event.data as any).toolCallId },
+                data: { toolCallId: toolPayload.toolCallId },
             });
+            }
             break;
 
           case 'session.idle':
@@ -441,9 +468,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
   // Helper to build the appropriate prompt based on context type
   // Returns userPrompt (enriched with context) and promptType
   // systemPrompt is always null - we don't override Copilot's default
-  const buildPrompt = (
-    body: { prompt: string; context?: any; fullContext?: any; useContextAwareMode?: boolean }
-  ): { userPrompt: string; promptType: string } => {
+  const buildPrompt = (body: BuildPromptInput): { userPrompt: string; promptType: string } => {
     // If full context is provided and context-aware mode is enabled
     if (body.fullContext && body.useContextAwareMode !== false) {
       if (validateContext(body.fullContext)) {

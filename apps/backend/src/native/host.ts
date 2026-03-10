@@ -18,9 +18,9 @@ import type { FastifyInstance } from 'fastify';
 interface NativeMessage {
   id: string;
   type: 'request' | 'stream' | 'abort';
-  method: string;
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
   path: string;
-  body?: unknown;
+  body?: string | Record<string, unknown> | unknown[] | Buffer;
 }
 
 interface NativeResponse {
@@ -154,16 +154,19 @@ class NativeMessagingHost {
     try {
       // Route the request through Fastify's inject method
       const response = await this.app.inject({
-        method: message.method as any,
+        method: message.method,
         url: message.path,
-        payload: message.body as any,
+        payload: message.body,
         headers: {
           'content-type': 'application/json',
         },
       });
 
       // Check if this is a streaming response
-      const contentType = (response.headers as any)['content-type'];
+      const contentTypeHeader = response.headers['content-type'];
+      const contentType = Array.isArray(contentTypeHeader)
+        ? contentTypeHeader.join(';')
+        : contentTypeHeader;
       if (message.type === 'stream' && contentType?.includes('text/event-stream')) {
         // Handle SSE streaming
         await this.handleStreamResponse(message.id, String(response.payload));

@@ -18,7 +18,6 @@ import { IMAGES_DIR } from '../lib/paths.js';
 import {
   getThumbnailFilePath,
   processMessageImages,
-  toImageAttachments,
 } from '../services/thumbnail-service.js';
 
 interface ImageParams {
@@ -77,10 +76,8 @@ export async function imagesRoutes(fastify: FastifyInstance) {
           backendUrl
         );
 
-        const processedImages = toImageAttachments(processedImagesRaw);
-
         // Return the processed image metadata + absolute paths for Copilot SDK attachments
-        const responseImages = processedImagesRaw.map((img, i) => ({
+        const responseImages = processedImagesRaw.map((img) => ({
           id: img.id,
           thumbnailUrl: img.thumbnailUrl,
           fullImageUrl: img.fullImageUrl,

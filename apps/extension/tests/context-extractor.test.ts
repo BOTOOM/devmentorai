@@ -128,13 +128,13 @@ describe('context-extractor', () => {
       originalWindow = globalThis.window;
       
       // Setup global document and window for the tests
-      (globalThis as any).document = dom.window.document;
-      (globalThis as any).window = dom.window;
+      (globalThis as unknown as Record<string, unknown>).document = dom.window.document;
+      (globalThis as unknown as Record<string, unknown>).window = dom.window;
     });
 
     afterEach(() => {
-      (globalThis as any).document = originalDocument;
-      (globalThis as any).window = originalWindow;
+      (globalThis as unknown as Record<string, unknown>).document = originalDocument;
+      (globalThis as unknown as Record<string, unknown>).window = originalWindow;
     });
 
     it('should detect loading indicators', () => {
@@ -249,7 +249,7 @@ describe('context-extractor', () => {
         runScripts: 'dangerously',
       });
       originalWindow = globalThis.window;
-      (globalThis as any).window = dom.window;
+      (globalThis as unknown as Record<string, unknown>).window = dom.window;
       
       // Clear any previously captured errors
       clearCapturedRuntimeErrors();
@@ -257,7 +257,7 @@ describe('context-extractor', () => {
 
     afterEach(() => {
       stopRuntimeErrorCapture();
-      (globalThis as any).window = originalWindow;
+      (globalThis as unknown as Record<string, unknown>).window = originalWindow;
     });
 
     it('should start and stop error capture', () => {
@@ -275,7 +275,7 @@ describe('context-extractor', () => {
       startRuntimeErrorCapture();
       // Simulate an error by manually triggering onerror
       if (window.onerror) {
-        (window.onerror as any)('Test error', 'test.js', 1, 1, new Error('Test'));
+        window.onerror('Test error', 'test.js', 1, 1, new Error('Test'));
       }
       
       clearCapturedRuntimeErrors();
@@ -288,7 +288,7 @@ describe('context-extractor', () => {
       
       // Trigger onerror manually
       if (window.onerror) {
-        (window.onerror as any)('Test error message', 'script.js', 10, 5, new Error('Test'));
+        window.onerror('Test error message', 'script.js', 10, 5, new Error('Test'));
       }
       
       const errors = getCapturedRuntimeErrors();
@@ -308,7 +308,7 @@ describe('context-extractor', () => {
         const event = {
           reason: { message: 'Promise rejected', stack: 'Error stack' },
         } as PromiseRejectionEvent;
-        (window.onunhandledrejection as any)(event);
+        window.onunhandledrejection(event);
       }
       
       const errors = getCapturedRuntimeErrors();
@@ -324,7 +324,7 @@ describe('context-extractor', () => {
       // Try to trigger an error
       const originalOnerror = window.onerror;
       if (originalOnerror) {
-        (originalOnerror as any)('Should not be captured', 'test.js', 1, 1, null);
+        (originalOnerror as OnErrorEventHandler)('Should not be captured', 'test.js', 1, 1, null);
       }
       
       const errors = getCapturedRuntimeErrors();

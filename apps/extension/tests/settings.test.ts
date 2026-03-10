@@ -2,7 +2,7 @@
  * Unit tests for useSettings hook and settings utilities
  * Tests settings validation, defaults, and storage
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { DEFAULT_SETTINGS, AVAILABLE_LANGUAGES, type Settings } from '../src/hooks/useSettings';
 
 describe('Settings', () => {

@@ -2,8 +2,7 @@
  * Unit tests for keyboard shortcuts utilities
  * Tests shortcut matching, formatting, and default shortcuts
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { JSDOM } from 'jsdom';
+import { describe, it, expect, vi } from 'vitest';
 
 // Re-implement the utility functions for testing
 interface KeyboardShortcut {

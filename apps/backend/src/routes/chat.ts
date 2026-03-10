@@ -85,11 +85,49 @@ const fullContextSchema = z.object({
     }),
   }),
   structure: z.object({
-    relevantSections: z.array(z.any()),
-    errorContainers: z.array(z.any()),
-    activeElements: z.any(),
-    metadata: z.any(),
-  }),
+    relevantSections: z.array(z.object({
+      purpose: z.string(),
+      outerHTML: z.string(),
+      textContent: z.string(),
+      attributes: z.record(z.string()),
+      xpath: z.string().optional(),
+    })),
+    errorContainers: z.array(z.object({
+      purpose: z.string(),
+      outerHTML: z.string(),
+      textContent: z.string(),
+      attributes: z.record(z.string()),
+      xpath: z.string().optional(),
+    })),
+    activeElements: z.object({
+      focusedElement: z.object({
+        tagName: z.string(),
+        id: z.string().optional(),
+        className: z.string().optional(),
+        textContent: z.string().optional(),
+        attributes: z.record(z.string()),
+      }).optional(),
+      activeModals: z.array(z.object({
+        purpose: z.string(),
+        outerHTML: z.string(),
+        textContent: z.string(),
+        attributes: z.record(z.string()),
+        xpath: z.string().optional(),
+      })).optional(),
+      activePanels: z.array(z.object({
+        purpose: z.string(),
+        outerHTML: z.string(),
+        textContent: z.string(),
+        attributes: z.record(z.string()),
+        xpath: z.string().optional(),
+      })).optional(),
+    }),
+    metadata: z.object({
+      totalNodes: z.number(),
+      extractedNodes: z.number(),
+      relevanceScore: z.number(),
+    }),
+  }).passthrough(),
   session: z.object({
     sessionId: z.string(),
     sessionType: z.string(),
@@ -101,7 +139,11 @@ const fullContextSchema = z.object({
     }),
     previousMessages: z.object({
       count: z.number(),
-      lastN: z.array(z.any()),
+      lastN: z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+        timestamp: z.string(),
+      })),
     }),
   }),
   privacy: z.object({

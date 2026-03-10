@@ -89,22 +89,28 @@ devmentorai-server logs --lines 100
 ## Requirements
 
 - **Node.js** >= 20.0.0
-- At least one supported provider CLI installed locally:
-  - `github-copilot` / `copilot` (Copilot)
-  - `gemini` (Gemini CLI)
-  - `claude` (Claude Code CLI)
-  - `kilo` (Kilo Code CLI)
+- At least one supported provider available:
+  - `github-copilot` / `copilot` (Copilot) — cloud, requires subscription
+  - `gemini` (Gemini CLI) — local CLI agent
+  - `claude` (Claude Code CLI) — local CLI agent
+  - `kilo` (Kilo Code CLI) — local CLI agent
+  - **Ollama** — local server, free, no account needed
+  - **LM Studio** — local server, free, no account needed
 
 ## Multi-Provider Support
 
 The backend supports multiple providers through a provider abstraction layer. Current built-in providers:
 
-- `copilot` (fallback/default)
-- `gemini-cli`
-- `claude-code`
-- `kilo-code`
+| Provider | Type | Default |
+|----------|------|---------|
+| `copilot` | Cloud (SDK) | ✅ fallback |
+| `gemini-cli` | CLI agent | |
+| `claude-code` | CLI agent | |
+| `kilo-code` | CLI agent | |
+| `ollama` | Local server (OpenAI-compatible) | |
+| `lmstudio` | Local server (OpenAI-compatible) | |
 
-### Provider command overrides
+### CLI provider command overrides
 
 You can override detected CLI binaries with environment variables:
 
@@ -115,6 +121,31 @@ DEVMENTORAI_KILO_CODE_COMMAND=kilo
 ```
 
 If a provider command is missing, that provider is reported as unavailable and session creation for that provider is blocked with `PROVIDER_NOT_READY`.
+
+### Local server providers (Ollama / LM Studio)
+
+Ollama and LM Studio expose an OpenAI-compatible API. The backend connects to them automatically on startup.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DEVMENTORAI_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
+| `DEVMENTORAI_LMSTUDIO_BASE_URL` | `http://localhost:1234` | LM Studio server URL |
+
+**Setup:**
+
+```bash
+# Ollama
+ollama serve                  # Start the server
+ollama pull llama3.2          # Download a model
+# Models are discovered automatically at startup
+
+# LM Studio
+# 1. Open LM Studio and load a model
+# 2. Start the local server (Settings → Local Server → Start)
+# Models are discovered automatically at startup
+```
+
+> **Docker note:** When running the backend in Docker, the default URLs point to `host.docker.internal` so the container can reach servers running on the host. Override with the env vars above if your setup differs.
 
 ## How It Works
 
@@ -142,6 +173,8 @@ The server runs as a background process and stores its data in `~/.devmentorai/`
 | `GET /api/models` | List available models |
 | `GET /api/account/auth` | Provider auth status |
 | `GET /api/account/quota` | Provider quota status |
+| `GET /api/providers` | List all registered providers with state |
+| `POST /api/providers/:id/reinitialize` | Re-initialize a provider at runtime |
 | `GET /api/tools` | List provider tools |
 | `POST /api/tools/execute` | Execute provider tool |
 

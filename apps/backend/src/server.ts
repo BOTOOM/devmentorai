@@ -7,6 +7,7 @@ import { modelsRoutes } from './routes/models.js';
 import { accountRoutes } from './routes/account.js';
 import { imagesRoutes } from './routes/images.js';
 import { updatesRoutes } from './routes/updates.js';
+import { providerRoutes } from './routes/providers.js';
 import { registerToolsRoutes } from './routes/tools.js';
 import { CopilotService } from './services/copilot.service.js';
 import { LLMProviderService, ProviderNotRegisteredError } from './services/llm-provider.service.js';
@@ -153,6 +154,7 @@ export async function createServer() {
   await fastify.register(modelsRoutes, { prefix: '/api' });
   await fastify.register(accountRoutes, { prefix: '/api' });
   await fastify.register(updatesRoutes, { prefix: '/api' });
+  await fastify.register(providerRoutes, { prefix: '/api' });
   await fastify.register(imagesRoutes, { prefix: '/api/images' });
   
   // Register tools routes (not prefixed - has /api in route definitions)

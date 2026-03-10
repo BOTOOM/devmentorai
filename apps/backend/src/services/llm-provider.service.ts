@@ -326,6 +326,15 @@ export class LLMProviderService {
     return this.getProvider(provider).isMockMode();
   }
 
+  async reinitializeProvider(providerId: string): Promise<{ ready: boolean; mockMode: boolean }> {
+    const adapter = this.getProvider(providerId);
+    await adapter.initialize();
+    return {
+      ready: adapter.isReady(),
+      mockMode: adapter.isMockMode(),
+    };
+  }
+
   async shutdown(): Promise<void> {
     for (const provider of this.registry.list()) {
       await provider.shutdown();

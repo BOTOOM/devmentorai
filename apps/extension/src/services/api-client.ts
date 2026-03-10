@@ -230,6 +230,18 @@ export class ApiClient {
     return this.request<PaginatedResponse<Message>>(API_ENDPOINTS.SESSION_MESSAGES(sessionId));
   }
 
+  // Providers
+  async listProviders(): Promise<ApiResponse<Array<{ id: string; ready: boolean; mockMode: boolean }>>> {
+    return this.request<Array<{ id: string; ready: boolean; mockMode: boolean }>>('/api/providers');
+  }
+
+  async reinitializeProvider(providerId: string): Promise<ApiResponse<{ provider: string; ready: boolean; mockMode: boolean }>> {
+    return this.request<{ provider: string; ready: boolean; mockMode: boolean }>(
+      `/api/providers/${encodeURIComponent(providerId)}/reinitialize`,
+      { method: 'POST', body: JSON.stringify({}) }
+    );
+  }
+
   // Chat
   async sendChat(sessionId: string, data: SendMessageRequest): Promise<ApiResponse<Message>> {
     return this.request<Message>(API_ENDPOINTS.CHAT(sessionId), {

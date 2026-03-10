@@ -551,7 +551,6 @@ export const fetchUrlTool: Tool = {
         return `Error: Server responded with status ${response.status} ${response.statusText}`;
       }
       
-      const contentType = response.headers.get('content-type') || '';
       const text = await response.text();
       
       // If it's an HTML page, we should ideally strip tags, but for a simple tool, 
@@ -565,7 +564,7 @@ export const fetchUrlTool: Tool = {
       
       return text;
     } catch (error) {
-      if ((error as any).name === 'AbortError') {
+      if (error instanceof DOMException && error.name === 'AbortError') {
         return `Error: Request to ${targetUrl} timed out after 10 seconds.`;
       }
       return `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`;

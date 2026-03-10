@@ -386,7 +386,7 @@ export class SessionService {
   }
 
   private mapDbMessage(row: DbMessage): Message {
-    let metadata = row.metadata ? JSON.parse(row.metadata) : undefined;
+    const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> | undefined : undefined;
     
     // Fix legacy image URLs that have incorrect format
     if (metadata?.images) {

@@ -344,7 +344,7 @@ export class CopilotService {
       // Create mock session
       this.sessions.set(sessionId, {
         sessionId,
-        session: null as any,
+        session: null as unknown as CopilotSession['session'],
         type,
       });
       return;
@@ -379,8 +379,8 @@ export class CopilotService {
    * The SDK expects tools with a `handler` function — it calls the handler
    * directly and uses the return value as the tool result (no sendToolResult needed).
    */
-  private buildSdkTools(): CopilotTool<any>[] {
-    return devopsTools.map((tool): CopilotTool<any> => ({
+  private buildSdkTools(): CopilotTool<Record<string, unknown>>[] {
+    return devopsTools.map((tool): CopilotTool<Record<string, unknown>> => ({
       name: tool.name,
       description: tool.description,
       parameters: tool.parameters,

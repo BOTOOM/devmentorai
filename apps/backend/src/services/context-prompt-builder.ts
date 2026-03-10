@@ -20,7 +20,6 @@
 
 import type {
   ContextPayload,
-  PlatformDetection,
   ExtractedError,
   HTMLSection,
   Heading,
@@ -390,8 +389,18 @@ export function buildContextAwarePrompt(
   enrichedPrompt += formatPageContext(context.page);
 
   // UI State (if available) - helps understand page state
-  if ((context.page as any).uiState) {
-    enrichedPrompt += formatUIState((context.page as any).uiState);
+  const pageRecord = context.page as unknown as Record<string, unknown>;
+  if (pageRecord.uiState && typeof pageRecord.uiState === 'object') {
+    enrichedPrompt += formatUIState(pageRecord.uiState as {
+      pageState: string;
+      loadingIndicators: number;
+      disabledButtons: number;
+      emptyStates: number;
+      errorStates: number;
+      toastNotifications: number;
+      modalOpen: boolean;
+      formValidationErrors: number;
+    });
   }
 
   // Platform-specific notes (factual locations, NOT instructions)
@@ -424,8 +433,16 @@ export function buildContextAwarePrompt(
   }
 
   // Runtime JavaScript errors (new)
-  if ((context.text as any).runtimeErrors?.length > 0) {
-    enrichedPrompt += formatRuntimeErrors((context.text as any).runtimeErrors);
+  const textRecord = context.text as unknown as Record<string, unknown>;
+  if (Array.isArray(textRecord.runtimeErrors) && textRecord.runtimeErrors.length > 0) {
+    enrichedPrompt += formatRuntimeErrors(textRecord.runtimeErrors as Array<{
+      message: string;
+      source?: string;
+      lineno?: number;
+      colno?: number;
+      stack?: string;
+      type: string;
+    }>);
   }
 
   // Selected text (user highlighted something specific)

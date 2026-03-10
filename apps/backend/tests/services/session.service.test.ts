@@ -17,6 +17,7 @@ describe('SessionService', () => {
         name TEXT NOT NULL,
         type TEXT NOT NULL CHECK (type IN ('devops', 'writing', 'development', 'general')),
         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'closed')),
+        provider TEXT NOT NULL DEFAULT 'copilot',
         model TEXT NOT NULL DEFAULT 'gpt-4.1',
         system_prompt TEXT,
         custom_agent TEXT,

@@ -67,7 +67,7 @@ export function createFloatingResponsePopup(
   requestAnimationFrame(() => positionPopup());
   
   // Setup keyboard handlers
-  setupKeyboardHandlers(shadow);
+  setupKeyboardHandlers();
   
   // Attach button handlers for initial loading state (dismiss button)
   attachButtonHandlers(shadow);
@@ -234,7 +234,7 @@ function positionPopup(position?: PopupPosition): void {
   popupContainer.style.top = `${top}px`;
 }
 
-function setupKeyboardHandlers(_shadow: ShadowRoot): void {
+function setupKeyboardHandlers(): void {
   const handleKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -251,7 +251,7 @@ function setupKeyboardHandlers(_shadow: ShadowRoot): void {
   
   // Cleanup on popup removal (stored in container for access)
   if (popupContainer) {
-    (popupContainer as any).__keydownHandler = handleKeydown;
+    (popupContainer as unknown as Record<string, unknown>).__keydownHandler = handleKeydown;
   }
 }
 
@@ -313,10 +313,11 @@ function attachButtonHandlers(shadow: ShadowRoot): void {
   }
   
   // Remove existing handler if any
-  const existingHandler = (popup as any).__clickHandler;
+  const popupRecord = popup as unknown as Record<string, unknown>;
+  const existingHandler = popupRecord.__clickHandler as EventListener | undefined;
   if (existingHandler) {
     popup.removeEventListener('click', existingHandler);
-    popup.removeEventListener('mousedown', (popup as any).__mouseDownHandler);
+    popup.removeEventListener('mousedown', popupRecord.__mouseDownHandler as EventListener);
   }
   
   // Prevent focus loss from the active element when clicking buttons
@@ -355,8 +356,8 @@ function attachButtonHandlers(shadow: ShadowRoot): void {
     }
   };
   
-  (popup as any).__clickHandler = clickHandler;
-  (popup as any).__mouseDownHandler = mouseDownHandler;
+  popupRecord.__clickHandler = clickHandler;
+  popupRecord.__mouseDownHandler = mouseDownHandler;
   popup.addEventListener('mousedown', mouseDownHandler);
   popup.addEventListener('click', clickHandler);
 }

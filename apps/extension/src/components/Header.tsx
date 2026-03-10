@@ -39,7 +39,6 @@ export function Header({
   onNewSession,
   onOpenSettings,
   onOpenHelp,
-  onViewPage: _onViewPage,
 }: Readonly<HeaderProps>) {
   const statusConfig = {
     connecting: {

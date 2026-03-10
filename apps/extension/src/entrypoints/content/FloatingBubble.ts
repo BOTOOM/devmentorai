@@ -7,7 +7,7 @@ import { storageGet, storageSet } from '../../lib/browser-utils';
 
 let bubbleContainer: HTMLDivElement | null = null;
 let isDragging = false;
-let dragOffset = { x: 0, y: 0 };
+const dragOffset = { x: 0, y: 0 };
 
 export function createFloatingBubble() {
   if (bubbleContainer) return;

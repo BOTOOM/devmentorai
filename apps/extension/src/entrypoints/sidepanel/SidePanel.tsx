@@ -251,7 +251,7 @@ export function SidePanel() {
     }
   }, [captureVisibleTabScreenshot]);
 
-  const handleCaptureScreenshot = useCallback(async (_mode: 'visible') => {
+  const handleCaptureScreenshot = useCallback(async () => {
     return captureVisibleTabScreenshot();
   }, [captureVisibleTabScreenshot]);
 

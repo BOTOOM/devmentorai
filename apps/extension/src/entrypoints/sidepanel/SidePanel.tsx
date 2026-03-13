@@ -99,7 +99,7 @@ export function SidePanel() {
     const loadSidebarData = async () => {
       try {
         const [modelsResponse, authResponse, quotaResponse] = await Promise.all([
-          apiClient.getModels(selectedProvider),
+          apiClient.getModels(),              // all providers — model picker groups by provider
           apiClient.getAccountAuth(selectedProvider),
           apiClient.getAccountQuota(selectedProvider),
         ]);

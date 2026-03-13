@@ -257,7 +257,12 @@ export class LLMProviderService {
 
   async listModels(provider?: string): Promise<{ models: ModelInfo[]; default: string }> {
     if (provider) {
-      return this.getProvider(provider).listModels();
+      const adapter = this.getProvider(provider);
+      const result = await adapter.listModels();
+      return {
+        ...result,
+        models: result.models.map((model) => ({ ...model, provider: adapter.id })),
+      };
     }
 
     const providers = this.registry.list();
@@ -271,7 +276,7 @@ export class LLMProviderService {
     })));
 
     const allModels = responses.flatMap(({ provider: providerId, payload }) =>
-      payload.models.map((model) => ({ ...model, provider: model.provider || providerId }))
+      payload.models.map((model) => ({ ...model, provider: providerId }))
     );
 
     const defaultModel =

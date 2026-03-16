@@ -48,13 +48,23 @@ export interface ModelInfo {
   pricingTier?: ModelPricingTier;
   pricingMultiplier?: number;
   supportedReasoningEfforts?: string[];
+  supportsVision?: boolean;
+  supportsAttachments?: boolean;
 }
+
+export type ProviderSessionRecoveryMode = 'native' | 'replay' | 'summary' | 'none';
 
 export interface ProviderAuthStatus {
   provider: string;
   isAuthenticated: boolean;
   login?: string | null;
   reason?: string;
+  requiresCredential?: boolean;
+  credentialConfigured?: boolean;
+  keyPreview?: string | null;
+  credentialLastUpdated?: string | null;
+  supportsNativeResume?: boolean;
+  sessionRecoveryMode?: ProviderSessionRecoveryMode;
 }
 
 export interface ProviderQuotaStatus {
@@ -67,6 +77,19 @@ export interface ProviderQuotaStatus {
   periodStart?: string | null;
   periodEnd?: string | null;
   raw?: Record<string, unknown>;
+}
+
+export interface ProviderCredentialStatus {
+  provider: string;
+  configured: boolean;
+  keyPreview?: string | null;
+  updatedAt?: string | null;
+  storage: 'local-backend-encrypted';
+}
+
+export interface SetProviderCredentialRequest {
+  provider: string;
+  apiKey: string;
 }
 
 export type CopilotAuthStatus = ProviderAuthStatus;

@@ -59,6 +59,14 @@ export function initDatabase(): Database.Database {
       FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS provider_credentials (
+      provider TEXT PRIMARY KEY,
+      encrypted_value TEXT NOT NULL,
+      key_preview TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
     CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
     CREATE INDEX IF NOT EXISTS idx_session_contexts_session_id ON session_contexts(session_id);

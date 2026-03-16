@@ -2,7 +2,7 @@
  * API contract definitions for DevMentorAI
  * These define the endpoints and their request/response types
  */
-import type { Session, CreateSessionRequest, UpdateSessionRequest, Message, SendMessageRequest, ApiResponse, PaginatedResponse, HealthResponse, ModelInfo, ProviderAuthStatus, ProviderQuotaStatus } from '../types/index.js';
+import type { Session, CreateSessionRequest, UpdateSessionRequest, Message, SendMessageRequest, ApiResponse, PaginatedResponse, HealthResponse, ModelInfo, ProviderAuthStatus, ProviderQuotaStatus, ProviderCredentialStatus, SetProviderCredentialRequest } from '../types/index.js';
 /**
  * Backend API endpoints contract
  */
@@ -19,6 +19,7 @@ export declare const API_ENDPOINTS: {
     readonly MODELS: "/api/models";
     readonly ACCOUNT_AUTH: "/api/account/auth";
     readonly ACCOUNT_QUOTA: "/api/account/quota";
+    readonly ACCOUNT_CREDENTIAL: (provider: string) => string;
 };
 /**
  * API endpoint type definitions
@@ -126,6 +127,25 @@ export interface ApiEndpoints {
             provider?: string;
         };
         response: ApiResponse<ProviderQuotaStatus>;
+    };
+    'GET /api/account/credentials/:provider': {
+        params: {
+            provider: string;
+        };
+        response: ApiResponse<ProviderCredentialStatus>;
+    };
+    'PUT /api/account/credentials/:provider': {
+        params: {
+            provider: string;
+        };
+        body: SetProviderCredentialRequest;
+        response: ApiResponse<ProviderCredentialStatus>;
+    };
+    'DELETE /api/account/credentials/:provider': {
+        params: {
+            provider: string;
+        };
+        response: ApiResponse<ProviderCredentialStatus>;
     };
 }
 /**

@@ -6,9 +6,11 @@ import type {
   HealthResponse,
   ModelInfo,
   ProviderAuthStatus,
+  ProviderCredentialStatus,
   ProviderQuotaStatus,
   Session,
   CreateSessionRequest,
+  SetProviderCredentialRequest,
   UpdateSessionRequest,
   Message,
   SendMessageRequest,
@@ -180,6 +182,27 @@ export class ApiClient {
 
   async getAccountQuota(provider?: string): Promise<ApiResponse<ProviderQuotaStatus>> {
     return this.request<ProviderQuotaStatus>(this.withProviderQuery(API_ENDPOINTS.ACCOUNT_QUOTA, provider));
+  }
+
+  async getProviderCredential(provider: string): Promise<ApiResponse<ProviderCredentialStatus>> {
+    return this.request<ProviderCredentialStatus>(API_ENDPOINTS.ACCOUNT_CREDENTIAL(provider));
+  }
+
+  async setProviderCredential(
+    provider: string,
+    data: SetProviderCredentialRequest
+  ): Promise<ApiResponse<ProviderCredentialStatus>> {
+    return this.request<ProviderCredentialStatus>(API_ENDPOINTS.ACCOUNT_CREDENTIAL(provider), {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProviderCredential(provider: string): Promise<ApiResponse<ProviderCredentialStatus>> {
+    return this.request<ProviderCredentialStatus>(API_ENDPOINTS.ACCOUNT_CREDENTIAL(provider), {
+      method: 'DELETE',
+      body: JSON.stringify({}),
+    });
   }
 
   // Sessions

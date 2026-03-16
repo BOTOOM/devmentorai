@@ -3,7 +3,7 @@
  */
 export type SessionType = 'devops' | 'writing' | 'development' | 'general';
 export type SessionStatus = 'active' | 'paused' | 'closed';
-export declare const SUPPORTED_LLM_PROVIDERS: readonly ["copilot", "gemini-cli", "claude-code", "kilo-code", "ollama", "lmstudio", "bedrock", "vertex-ai", "azure-foundry"];
+export declare const SUPPORTED_LLM_PROVIDERS: readonly ["copilot", "openrouter", "groq", "gemini-cli", "claude-code", "kilo-code", "ollama", "lmstudio", "bedrock", "vertex-ai", "azure-foundry"];
 export type LLMProvider = (typeof SUPPORTED_LLM_PROVIDERS)[number];
 export type ProviderCategory = 'cloud' | 'cli-agent' | 'local-server';
 export interface ProviderDisplayConfig {

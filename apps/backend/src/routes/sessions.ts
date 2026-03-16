@@ -286,14 +286,16 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     const resumed = await fastify.llmProviderService.resumeSession(sessionId, session.provider);
 
     if (!resumed) {
-      // Create a new provider session if resume failed
-      await fastify.llmProviderService.createSession(
-        session.id,
-        session.type,
-        session.model,
-        session.provider,
-        session.systemPrompt
-      );
+      const restored = await fastify.llmProviderService.restoreSession(session);
+      if (!restored) {
+        await fastify.llmProviderService.createSession(
+          session.id,
+          session.type,
+          session.model,
+          session.provider,
+          session.systemPrompt
+        );
+      }
     }
 
     // Update status to active

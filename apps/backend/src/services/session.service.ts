@@ -176,6 +176,16 @@ export class SessionService {
     };
   }
 
+  listAllMessages(sessionId: string): Message[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM messages
+      WHERE session_id = ?
+      ORDER BY timestamp ASC
+    `);
+    const rows = stmt.all(sessionId) as DbMessage[];
+    return rows.map(row => this.mapDbMessage(row));
+  }
+
   addMessage(
     sessionId: string,
     role: 'user' | 'assistant' | 'system',

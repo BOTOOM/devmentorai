@@ -1,18 +1,22 @@
 import type { SessionEvent } from '@github/copilot-sdk';
 import type {
   LLMProvider,
+  Message,
   MessageContext,
   ModelInfo,
   ProviderAuthStatus,
   ProviderQuotaStatus,
+  Session,
   SessionType,
 } from '@devmentorai/shared';
 import { CopilotService } from './copilot.service.js';
+import { ProviderCredentialService } from './credential.service.js';
 import { CopilotProviderAdapter } from './providers/copilot.provider.js';
 import { CliCommandProviderAdapter } from './providers/cli-command.provider.js';
 import { OpenAICompatibleProviderAdapter } from './providers/openai-compatible.provider.js';
 import type { ProviderAttachment } from './providers/llm-provider.interface.js';
 import { ProviderRegistry } from './providers/provider-registry.js';
+import { SessionService } from './session.service.js';
 
 const FALLBACK_PROVIDER: LLMProvider = 'copilot';
 
@@ -26,6 +30,8 @@ const CLI_PROVIDER_MODELS: Record<'gemini-cli' | 'claude-code' | 'kilo-code', Mo
       description: 'Google Gemini CLI default model',
       pricingTier: 'free',
       pricingMultiplier: 0,
+      supportsVision: false,
+      supportsAttachments: false,
     },
   ],
   'claude-code': [
@@ -37,6 +43,8 @@ const CLI_PROVIDER_MODELS: Record<'gemini-cli' | 'claude-code' | 'kilo-code', Mo
       description: 'Claude Code default model',
       pricingTier: 'standard',
       pricingMultiplier: 1,
+      supportsVision: false,
+      supportsAttachments: false,
     },
   ],
   'kilo-code': [
@@ -48,9 +56,61 @@ const CLI_PROVIDER_MODELS: Record<'gemini-cli' | 'claude-code' | 'kilo-code', Mo
       description: 'Kilo Code default model',
       pricingTier: 'standard',
       pricingMultiplier: 1,
+      supportsVision: false,
+      supportsAttachments: false,
     },
   ],
 };
+
+const OPENROUTER_FALLBACK_MODELS: ModelInfo[] = [
+  {
+    id: 'openrouter/free',
+    name: 'OpenRouter Free Router',
+    provider: 'openrouter',
+    available: false,
+    description: 'Routes requests to an available free model on OpenRouter',
+    pricingTier: 'free',
+    pricingMultiplier: 0,
+    supportsVision: true,
+    supportsAttachments: true,
+  },
+];
+
+const GROQ_FALLBACK_MODELS: ModelInfo[] = [
+  {
+    id: 'llama-3.1-8b-instant',
+    name: 'Llama 3.1 8B Instant',
+    provider: 'groq',
+    available: false,
+    description: 'Fast Groq-hosted open model',
+    pricingTier: 'free',
+    pricingMultiplier: 0,
+    supportsVision: false,
+    supportsAttachments: false,
+  },
+  {
+    id: 'llama-3.3-70b-versatile',
+    name: 'Llama 3.3 70B Versatile',
+    provider: 'groq',
+    available: false,
+    description: 'Higher quality Groq-hosted open model',
+    pricingTier: 'free',
+    pricingMultiplier: 0,
+    supportsVision: false,
+    supportsAttachments: false,
+  },
+  {
+    id: 'mixtral-8x7b-32768',
+    name: 'Mixtral 8x7B 32K',
+    provider: 'groq',
+    available: false,
+    description: 'Legacy Groq-hosted Mixtral model',
+    pricingTier: 'free',
+    pricingMultiplier: 0,
+    supportsVision: false,
+    supportsAttachments: false,
+  },
+];
 
 export class ProviderNotRegisteredError extends Error {
   readonly code = 'PROVIDER_NOT_REGISTERED';
@@ -71,8 +131,40 @@ export class ProviderNotRegisteredError extends Error {
 export class LLMProviderService {
   private readonly registry = new ProviderRegistry();
 
-  constructor(copilotService: CopilotService) {
+  constructor(
+    copilotService: CopilotService,
+    private readonly sessionService: SessionService,
+    private readonly providerCredentialService: ProviderCredentialService
+  ) {
     this.registry.register(new CopilotProviderAdapter(copilotService));
+    this.registry.register(
+      new OpenAICompatibleProviderAdapter({
+        id: 'openrouter',
+        displayName: 'OpenRouter',
+        baseUrl: process.env.DEVMENTORAI_OPENROUTER_BASE_URL || 'https://openrouter.ai/api',
+        defaultModel: 'openrouter/free',
+        useOllamaModelEndpoint: false,
+        fallbackModels: OPENROUTER_FALLBACK_MODELS,
+        requiresCredential: true,
+        apiKeyProvider: () => this.providerCredentialService.getCredential('openrouter'),
+        staticHeaders: {
+          'HTTP-Referer': 'https://github.com/BOTOOM/devmentorai',
+          'X-Title': 'DevMentorAI',
+        },
+      })
+    );
+    this.registry.register(
+      new OpenAICompatibleProviderAdapter({
+        id: 'groq',
+        displayName: 'Groq',
+        baseUrl: process.env.DEVMENTORAI_GROQ_BASE_URL || 'https://api.groq.com/openai',
+        defaultModel: 'llama-3.1-8b-instant',
+        useOllamaModelEndpoint: false,
+        fallbackModels: GROQ_FALLBACK_MODELS,
+        requiresCredential: true,
+        apiKeyProvider: () => this.providerCredentialService.getCredential('groq'),
+      })
+    );
     this.registry.register(
       new CliCommandProviderAdapter({
         id: 'gemini-cli',
@@ -100,8 +192,6 @@ export class LLMProviderService {
         models: CLI_PROVIDER_MODELS['kilo-code'],
       })
     );
-
-    // Local server providers (OpenAI-compatible API)
     this.registry.register(
       new OpenAICompatibleProviderAdapter({
         id: 'ollama',
@@ -118,6 +208,8 @@ export class LLMProviderService {
             description: 'Meta Llama 3.2 – pull with: ollama pull llama3.2',
             pricingTier: 'free',
             pricingMultiplier: 0,
+            supportsVision: false,
+            supportsAttachments: false,
           },
         ],
       })
@@ -138,6 +230,8 @@ export class LLMProviderService {
             description: 'Load a model in LM Studio and start the local server',
             pricingTier: 'free',
             pricingMultiplier: 0,
+            supportsVision: false,
+            supportsAttachments: false,
           },
         ],
       })
@@ -224,6 +318,20 @@ export class LLMProviderService {
     provider?: string
   ): Promise<boolean> {
     return this.getProvider(provider).resumeSession(sessionId);
+  }
+
+  async restoreSession(
+    session: Session,
+    messages?: Message[]
+  ): Promise<boolean> {
+    const adapter = this.getProvider(session.provider);
+    return adapter.restoreSession({
+      sessionId: session.id,
+      type: session.type,
+      model: session.model,
+      systemPrompt: session.systemPrompt,
+      messages: messages ?? this.sessionService.listAllMessages(session.id),
+    });
   }
 
   async sendMessage(

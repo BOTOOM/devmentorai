@@ -15,6 +15,8 @@ import type {
   ModelInfo,
   ProviderAuthStatus,
   ProviderQuotaStatus,
+  ProviderCredentialStatus,
+  SetProviderCredentialRequest,
 } from '../types/index.js';
 
 /**
@@ -44,6 +46,7 @@ export const API_ENDPOINTS = {
   // Account
   ACCOUNT_AUTH: '/api/account/auth',
   ACCOUNT_QUOTA: '/api/account/quota',
+  ACCOUNT_CREDENTIAL: (provider: string) => `/api/account/credentials/${encodeURIComponent(provider)}`,
 } as const;
 
 /**
@@ -140,6 +143,22 @@ export interface ApiEndpoints {
   'GET /api/account/quota': {
     query?: { provider?: string };
     response: ApiResponse<ProviderQuotaStatus>;
+  };
+
+  'GET /api/account/credentials/:provider': {
+    params: { provider: string };
+    response: ApiResponse<ProviderCredentialStatus>;
+  };
+
+  'PUT /api/account/credentials/:provider': {
+    params: { provider: string };
+    body: SetProviderCredentialRequest;
+    response: ApiResponse<ProviderCredentialStatus>;
+  };
+
+  'DELETE /api/account/credentials/:provider': {
+    params: { provider: string };
+    response: ApiResponse<ProviderCredentialStatus>;
   };
 }
 

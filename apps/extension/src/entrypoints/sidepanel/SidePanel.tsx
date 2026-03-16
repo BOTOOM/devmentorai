@@ -28,6 +28,26 @@ import {
 // Extend QuickAction to include tone variations
 type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
 
+function getUnauthenticatedProviderMessage(authStatus: ProviderAuthStatus | null): string {
+  if (!authStatus) {
+    return '';
+  }
+
+  if (authStatus.reason) {
+    return authStatus.reason;
+  }
+
+  if (authStatus.requiresCredential) {
+    return `${authStatus.provider} requires an API key. Open Settings and save your key in the secure backend credentials section.`;
+  }
+
+  if (authStatus.provider === 'copilot') {
+    return 'Copilot login required. Run github-copilot auth login (or copilot auth login) and restart backend.';
+  }
+
+  return `${authStatus.provider} login required. Authenticate with the provider CLI and restart backend.`;
+}
+
 export function SidePanel() {
   const apiClient = ApiClient.getInstance();
 
@@ -298,6 +318,21 @@ export function SidePanel() {
   }, [createSession]);
 
   const canChangeSessionModel = messages.length === 0;
+  const activeModelInfo = activeSession
+    ? availableModels.find(
+        (model) =>
+          model.provider === activeSession.provider &&
+          model.id === activeSession.model
+      )
+    : null;
+  const providerAllowsAttachments = activeSession?.provider
+    ? PROVIDER_CAPABILITIES[activeSession.provider]?.attachments !== false
+    : true;
+  const modelAllowsAttachments =
+    activeModelInfo?.supportsAttachments ??
+    activeModelInfo?.supportsVision ??
+    providerAllowsAttachments;
+  const unauthenticatedProviderMessage = getUnauthenticatedProviderMessage(authStatus);
 
   const handleChangeSessionModel = useCallback(async (model: string) => {
     if (!activeSession?.id || activeSession.model === model || !canChangeSessionModel) return;
@@ -354,19 +389,7 @@ export function SidePanel() {
       {connectionStatus === 'connected' && authStatus && !authStatus.isAuthenticated && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
           <p className="text-xs text-amber-700 dark:text-amber-300">
-            {authStatus.reason || (
-              authStatus.provider === 'copilot'
-                ? (
-                  <>
-                    Copilot login required. Run <code className="font-mono">github-copilot auth login</code> (or <code className="font-mono">copilot auth login</code>) and restart backend.
-                  </>
-                  )
-                : (
-                  <>
-                    {authStatus.provider} login required. Authenticate with the provider CLI and restart backend.
-                  </>
-                  )
-            )}
+            {unauthenticatedProviderMessage}
           </p>
         </div>
       )}
@@ -411,9 +434,7 @@ export function SidePanel() {
         // Image attachment props – disabled if the provider doesn't support vision/attachments
         imageAttachmentsEnabled={
           settings.imageAttachmentsEnabled &&
-          (activeSession?.provider
-            ? PROVIDER_CAPABILITIES[activeSession.provider]?.attachments !== false
-            : true)
+          modelAllowsAttachments
         }
         screenshotBehavior={settings.screenshotBehavior}
         onCaptureScreenshot={handleCaptureScreenshot}

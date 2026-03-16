@@ -8,7 +8,11 @@ import type {
   ProviderQuotaStatus,
   SessionType,
 } from '@devmentorai/shared';
-import type { LLMProviderAdapter, ProviderAttachment } from './llm-provider.interface.js';
+import type {
+  LLMProviderAdapter,
+  ProviderAttachment,
+  ProviderSessionRestoreData,
+} from './llm-provider.interface.js';
 
 interface CliCommandProviderOptions {
   id: LLMProvider;
@@ -23,6 +27,7 @@ interface CliSessionState {
   type: SessionType;
   model: string;
   systemPrompt?: string;
+  recoverySummary?: string;
 }
 
 export class CliCommandProviderAdapter implements LLMProviderAdapter {
@@ -89,6 +94,17 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
     return this.sessions.has(sessionId);
   }
 
+  async restoreSession(data: ProviderSessionRestoreData): Promise<boolean> {
+    this.ensureReady();
+    this.sessions.set(data.sessionId, {
+      type: data.type,
+      model: data.model,
+      systemPrompt: data.systemPrompt,
+      recoverySummary: this.buildRecoverySummary(data),
+    });
+    return true;
+  }
+
   async sendMessage(
     sessionId: string,
     prompt: string,
@@ -97,7 +113,7 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
   ): Promise<string> {
     this.ensureReady();
     const session = this.sessions.get(sessionId);
-    const fullPrompt = this.buildPrompt(prompt, context, session?.systemPrompt);
+    const fullPrompt = this.buildPrompt(prompt, context, session?.systemPrompt, session?.recoverySummary);
     const response = await this.invokePrompt(sessionId, fullPrompt);
 
     if (onEvent) {
@@ -119,9 +135,18 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
     prompt: string,
     context?: MessageContext,
     onEvent?: (event: SessionEvent) => void,
-    _attachments?: ProviderAttachment[]
+    attachments?: ProviderAttachment[]
   ): Promise<void> {
-    const response = await this.sendMessage(sessionId, prompt, context);
+    this.ensureReady();
+    const session = this.sessions.get(sessionId);
+    const fullPrompt = this.buildPrompt(
+      prompt,
+      context,
+      session?.systemPrompt,
+      session?.recoverySummary,
+      attachments
+    );
+    const response = await this.invokePrompt(sessionId, fullPrompt);
     if (!onEvent) {
       return;
     }
@@ -173,6 +198,8 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
     return {
       provider: this.id,
       isAuthenticated: this.ready,
+      supportsNativeResume: false,
+      sessionRecoveryMode: 'summary',
       reason: this.ready
         ? `${this.displayName} command detected`
         : `Command '${this.command}' not found. Install and login in your local CLI first.`,
@@ -229,7 +256,13 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
     );
   }
 
-  private buildPrompt(prompt: string, context?: MessageContext, systemPrompt?: string): string {
+  private buildPrompt(
+    prompt: string,
+    context?: MessageContext,
+    systemPrompt?: string,
+    recoverySummary?: string,
+    attachments?: ProviderAttachment[]
+  ): string {
     const contextBlock = context
       ? [
           context.pageUrl ? `Page URL: ${context.pageUrl}` : '',
@@ -241,8 +274,16 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
           .join('\n')
       : '';
 
+    const attachmentBlock = attachments && attachments.length > 0
+      ? attachments
+          .map((attachment) => `- ${attachment.displayName || attachment.path} (${attachment.path})`)
+          .join('\n')
+      : '';
+
     return [
       systemPrompt ? `System:\n${systemPrompt}` : '',
+      recoverySummary ? `Recovered Session Summary:\n${recoverySummary}` : '',
+      attachmentBlock ? `Attached Files:\n${attachmentBlock}` : '',
       contextBlock ? `Context:\n${contextBlock}` : '',
       `User:\n${prompt}`,
     ]
@@ -290,9 +331,39 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
           return;
         }
 
-        reject(new Error(`[${this.id}] CLI process failed (${code}): ${stderr.trim() || 'Unknown error'}`));
+        const normalizedError = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n');
+        reject(
+          new Error(
+            `[${this.id}] CLI process failed (${code}): ${normalizedError || 'Unknown error'}`
+          )
+        );
       });
     });
+  }
+
+  private buildRecoverySummary(data: ProviderSessionRestoreData): string {
+    const relevantMessages = data.messages.filter((message) => message.role !== 'system');
+    const recentMessages = relevantMessages.slice(-12);
+    const olderMessages = relevantMessages.slice(0, -12);
+
+    const recentBlock = recentMessages
+      .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+      .join('\n\n');
+
+    const olderSummary = olderMessages.length > 0
+      ? olderMessages
+          .map((message) => `${message.role.toUpperCase()}: ${message.content.slice(0, 280)}`)
+          .join('\n')
+          .slice(0, 4000)
+      : '';
+
+    return [
+      data.systemPrompt ? `Original system prompt:\n${data.systemPrompt}` : '',
+      olderSummary ? `Earlier conversation summary:\n${olderSummary}` : '',
+      recentBlock ? `Most recent conversation:\n${recentBlock}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
   }
 
   private chunkText(value: string, chunkSize: number): string[] {

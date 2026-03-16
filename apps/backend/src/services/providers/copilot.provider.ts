@@ -9,6 +9,7 @@ import { CopilotService } from '../copilot.service.js';
 import type {
   LLMProviderAdapter,
   ProviderAttachment,
+  ProviderSessionRestoreData,
   ProviderToolDefinition,
   ProviderToolExecutionResult,
 } from './llm-provider.interface.js';
@@ -52,6 +53,10 @@ export class CopilotProviderAdapter implements LLMProviderAdapter {
 
   async resumeSession(sessionId: string): Promise<boolean> {
     return this.copilotService.resumeCopilotSession(sessionId);
+  }
+
+  async restoreSession(_data: ProviderSessionRestoreData): Promise<boolean> {
+    return false;
   }
 
   async sendMessage(

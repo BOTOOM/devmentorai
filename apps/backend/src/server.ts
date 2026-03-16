@@ -10,6 +10,7 @@ import { updatesRoutes } from './routes/updates.js';
 import { providerRoutes } from './routes/providers.js';
 import { registerToolsRoutes } from './routes/tools.js';
 import { CopilotService } from './services/copilot.service.js';
+import { ProviderCredentialService } from './services/credential.service.js';
 import { LLMProviderService, ProviderNotRegisteredError } from './services/llm-provider.service.js';
 import { SessionService } from './services/session.service.js';
 import { initDatabase } from './db/index.js';
@@ -28,6 +29,23 @@ function truncate(str: string | undefined | null, maxLen = 500): string {
   if (!str) return '';
   if (str.length <= maxLen) return str;
   return str.slice(0, maxLen) + `... [truncated ${str.length - maxLen} chars]`;
+}
+
+function sanitizeForLogs(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeForLogs(item));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entryValue]) => [
+      key,
+      /key|secret|token|authorization/i.test(key) ? '[REDACTED]' : sanitizeForLogs(entryValue),
+    ])
+  );
 }
 
 export async function createServer() {
@@ -71,7 +89,7 @@ export async function createServer() {
     
     // Log after body is parsed
     fastify.addHook('preHandler', async (request) => {
-      const body = request.body ? truncate(JSON.stringify(request.body)) : null;
+      const body = request.body ? truncate(JSON.stringify(sanitizeForLogs(request.body))) : null;
       fastify.log.debug({
         type: '→ REQUEST',
         method: request.method,
@@ -125,8 +143,13 @@ export async function createServer() {
 
   // Initialize services
   const sessionService = new SessionService(db);
+  const providerCredentialService = new ProviderCredentialService(db);
   const copilotService = new CopilotService(sessionService);
-  const llmProviderService = new LLMProviderService(copilotService);
+  const llmProviderService = new LLMProviderService(
+    copilotService,
+    sessionService,
+    providerCredentialService
+  );
   
   try {
     await llmProviderService.initialize();
@@ -138,6 +161,7 @@ export async function createServer() {
 
   // Decorate fastify with services
   fastify.decorate('sessionService', sessionService);
+  fastify.decorate('providerCredentialService', providerCredentialService);
   fastify.decorate('llmProviderService', llmProviderService);
 
   // Register plugins
@@ -231,6 +255,7 @@ try {
 declare module 'fastify' {
   interface FastifyInstance {
     sessionService: SessionService;
+    providerCredentialService: ProviderCredentialService;
     llmProviderService: LLMProviderService;
   }
 }

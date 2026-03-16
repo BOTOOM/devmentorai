@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react';
+import type { ProviderCredentialStatus } from '@devmentorai/shared';
 import { useSettings, DEFAULT_SETTINGS, AVAILABLE_LANGUAGES, type Settings } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
+import { storageSet } from '../../lib/browser-utils';
+import { ApiClient } from '../../services/api-client';
 import { EXTENSION_VERSION } from '../../version.js';
+
+type ManagedCredentialProvider = 'openrouter' | 'groq';
+
+const MANAGED_CREDENTIAL_PROVIDERS: ManagedCredentialProvider[] = ['openrouter', 'groq'];
+const PROVIDER_LABELS: Record<ManagedCredentialProvider, string> = {
+  openrouter: 'OpenRouter',
+  groq: 'Groq',
+};
 
 export function OptionsPage() {
   const { settings, isLoaded, saveAllSettings } = useSettings();
@@ -9,6 +20,19 @@ export function OptionsPage() {
   const [localSettings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+  const [providerCredentials, setProviderCredentials] = useState<Record<ManagedCredentialProvider, ProviderCredentialStatus | null>>({
+    openrouter: null,
+    groq: null,
+  });
+  const [providerKeyInputs, setProviderKeyInputs] = useState<Record<ManagedCredentialProvider, string>>({
+    openrouter: '',
+    groq: '',
+  });
+  const [providerCredentialBusy, setProviderCredentialBusy] = useState<Record<ManagedCredentialProvider, boolean>>({
+    openrouter: false,
+    groq: false,
+  });
+  const [providerCredentialMessage, setProviderCredentialMessage] = useState<string | null>(null);
 
   const backendStatusClassByState: Record<typeof backendStatus, string> = {
     connected: 'bg-green-500',
@@ -47,6 +71,38 @@ export function OptionsPage() {
     }
   }, [isLoaded, localSettings.backendUrl]);
 
+  useEffect(() => {
+    if (backendStatus !== 'connected') {
+      return;
+    }
+
+    let cancelled = false;
+    const loadProviderCredentials = async () => {
+      const apiClient = new ApiClient(localSettings.backendUrl);
+      const results = await Promise.all(
+        MANAGED_CREDENTIAL_PROVIDERS.map(async (provider) => {
+          const response = await apiClient.getProviderCredential(provider);
+          return [provider, response.success ? response.data ?? null : null] as const;
+        })
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      setProviderCredentials((prev) => ({
+        ...prev,
+        ...Object.fromEntries(results),
+      }));
+    };
+
+    loadProviderCredentials();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backendStatus, localSettings.backendUrl]);
+
   const saveSettings = async () => {
     await saveAllSettings(localSettings);
     setSaved(true);
@@ -66,14 +122,72 @@ export function OptionsPage() {
     }
   };
 
+  const setProviderBusy = (provider: ManagedCredentialProvider, busy: boolean) => {
+    setProviderCredentialBusy((prev) => ({ ...prev, [provider]: busy }));
+  };
+
+  const handleProviderKeyChange = (provider: ManagedCredentialProvider, value: string) => {
+    setProviderKeyInputs((prev) => ({ ...prev, [provider]: value }));
+  };
+
+  const refreshProviderCredential = async (provider: ManagedCredentialProvider) => {
+    const apiClient = new ApiClient(localSettings.backendUrl);
+    const response = await apiClient.getProviderCredential(provider);
+    if (response.success && response.data) {
+      setProviderCredentials((prev) => ({ ...prev, [provider]: response.data }));
+    }
+  };
+
+  const saveProviderCredential = async (provider: ManagedCredentialProvider) => {
+    const apiKey = providerKeyInputs[provider].trim();
+    if (!apiKey) {
+      setProviderCredentialMessage(`Enter a valid ${PROVIDER_LABELS[provider]} API key first.`);
+      return;
+    }
+
+    const apiClient = new ApiClient(localSettings.backendUrl);
+    setProviderBusy(provider, true);
+    const response = await apiClient.setProviderCredential(provider, { provider, apiKey });
+    setProviderBusy(provider, false);
+
+    if (response.success && response.data) {
+      setProviderCredentials((prev) => ({ ...prev, [provider]: response.data }));
+      setProviderKeyInputs((prev) => ({ ...prev, [provider]: '' }));
+      setProviderCredentialMessage(`${PROVIDER_LABELS[provider]} API key stored securely in the backend.`);
+      return;
+    }
+
+    setProviderCredentialMessage(
+      response.error?.message || `Failed to save ${PROVIDER_LABELS[provider]} API key.`
+    );
+  };
+
+  const deleteProviderCredential = async (provider: ManagedCredentialProvider) => {
+    const apiClient = new ApiClient(localSettings.backendUrl);
+    setProviderBusy(provider, true);
+    const response = await apiClient.deleteProviderCredential(provider);
+    setProviderBusy(provider, false);
+
+    if (response.success && response.data) {
+      setProviderCredentials((prev) => ({ ...prev, [provider]: response.data }));
+      setProviderKeyInputs((prev) => ({ ...prev, [provider]: '' }));
+      setProviderCredentialMessage(`${PROVIDER_LABELS[provider]} API key removed from the backend.`);
+      await refreshProviderCredential(provider);
+      return;
+    }
+
+    setProviderCredentialMessage(
+      response.error?.message || `Failed to remove ${PROVIDER_LABELS[provider]} API key.`
+    );
+  };
+
   const updateLocalSetting = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setLocalSettings(prev => ({ ...prev, [key]: value }));
     
     // Apply theme immediately when changed (don't wait for Save)
     if (key === 'theme') {
       applyTheme(value as Settings['theme']);
-      // Also save to storage immediately so other contexts can react
-      chrome.storage.local.set({ theme: value });
+      void storageSet({ theme: value });
     }
   };
 
@@ -143,6 +257,90 @@ export function OptionsPage() {
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               placeholder="http://localhost:3847"
             />
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Provider Credentials</h2>
+
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              OpenRouter and Groq API keys are stored encrypted in your local backend, not in extension storage.
+            </p>
+
+            {providerCredentialMessage && (
+              <div className="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-700 dark:border-primary-800/50 dark:bg-primary-900/20 dark:text-primary-300">
+                {providerCredentialMessage}
+              </div>
+            )}
+
+            {MANAGED_CREDENTIAL_PROVIDERS.map((provider) => {
+              const credential = providerCredentials[provider];
+              const isBusy = providerCredentialBusy[provider];
+              const isConfigured = credential?.configured ?? false;
+
+              return (
+                <div
+                  key={provider}
+                  className="rounded-xl border border-gray-200 dark:border-gray-700 p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {PROVIDER_LABELS[provider]}
+                      </h3>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {isConfigured
+                          ? `Configured${credential?.keyPreview ? ` • ${credential.keyPreview}` : ''}`
+                          : 'Not configured'}
+                      </p>
+                    </div>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${
+                        isConfigured
+                          ? 'border-green-200 bg-green-50 text-green-700 dark:border-green-700/50 dark:bg-green-900/20 dark:text-green-300'
+                          : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300'
+                      }`}
+                    >
+                      {isConfigured ? 'Stored in backend' : 'Needs API key'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <input
+                      type="password"
+                      value={providerKeyInputs[provider]}
+                      onChange={(e) => handleProviderKeyChange(provider, e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder={`Paste your ${PROVIDER_LABELS[provider]} API key`}
+                    />
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => saveProviderCredential(provider)}
+                        disabled={backendStatus !== 'connected' || isBusy}
+                        className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                      >
+                        {isConfigured ? 'Rotate Key' : 'Save Key'}
+                      </button>
+                      <button
+                        onClick={() => deleteProviderCredential(provider)}
+                        disabled={backendStatus !== 'connected' || !isConfigured || isBusy}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                      >
+                        Delete Key
+                      </button>
+                    </div>
+
+                    {credential?.updatedAt && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Last updated: {new Date(credential.updatedAt).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

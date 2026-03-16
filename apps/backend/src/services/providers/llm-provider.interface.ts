@@ -1,6 +1,7 @@
 import type { SessionEvent } from '@github/copilot-sdk';
 import type {
   LLMProvider,
+  Message,
   MessageContext,
   ModelInfo,
   ProviderAuthStatus,
@@ -25,6 +26,14 @@ export interface ProviderToolExecutionResult {
   error?: string;
 }
 
+export interface ProviderSessionRestoreData {
+  sessionId: string;
+  type: SessionType;
+  model: string;
+  systemPrompt?: string;
+  messages: Message[];
+}
+
 export interface LLMProviderAdapter {
   readonly id: LLMProvider;
   initialize(): Promise<void>;
@@ -46,6 +55,7 @@ export interface LLMProviderAdapter {
   ): Promise<void>;
 
   resumeSession(sessionId: string): Promise<boolean>;
+  restoreSession(data: ProviderSessionRestoreData): Promise<boolean>;
 
   sendMessage(
     sessionId: string,

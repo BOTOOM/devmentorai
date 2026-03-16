@@ -24,6 +24,7 @@ export const API_ENDPOINTS = {
     // Account
     ACCOUNT_AUTH: '/api/account/auth',
     ACCOUNT_QUOTA: '/api/account/quota',
+    ACCOUNT_CREDENTIAL: (provider) => `/api/account/credentials/${encodeURIComponent(provider)}`,
 };
 /**
  * Default configuration values

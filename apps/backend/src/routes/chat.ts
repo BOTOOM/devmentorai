@@ -481,10 +481,31 @@ export async function chatRoutes(fastify: FastifyInstance) {
         .catch((streamError) => {
           console.error(`[ChatRoute] Failed to start stream for provider ${provider}:`, streamError);
           setSseHeaders(reply);
+          
+          const errorMessage = streamError instanceof Error ? streamError.message : 'Failed to start stream';
+          
+          // Persist the error in the session history so it isn't lost on reload
+          if (!assistantMessageId) {
+            const message = fastify.sessionService.addMessage(sessionId, 'assistant', fullContent || '', {
+              error: errorMessage
+            });
+            assistantMessageId = message.id;
+          } else {
+            // Update existing message metadata if message was already created
+            const sessionMessages = fastify.sessionService.listAllMessages(sessionId);
+            const targetMessage = sessionMessages.find(m => m.id === assistantMessageId);
+            if (targetMessage) {
+              fastify.sessionService.updateMessageMetadata(assistantMessageId, {
+                ...targetMessage.metadata,
+                error: errorMessage
+              });
+            }
+          }
+
           sendSse({
             type: 'error',
             data: {
-              error: streamError instanceof Error ? streamError.message : 'Failed to start stream',
+              error: errorMessage,
             },
           });
           finish('provider_error');
@@ -614,7 +635,26 @@ export async function chatRoutes(fastify: FastifyInstance) {
           },
         });
       }
-      throw error;
+      
+      // Global Error Handling for non-streaming route
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[ChatRoute] Global provider error in non-streaming route:`, error);
+      
+      try {
+        const errorAssistantMessage = fastify.sessionService.addMessage(
+          request.params.id,
+          'assistant',
+          '',
+          { error: errorMessage }
+        );
+        
+        return reply.send({
+          success: true, // Devuelve 200 para que la UI renderice el error como un mensaje de la conversación
+          data: errorAssistantMessage,
+        });
+      } catch (dbError) {
+        throw error; // Fallback original si la DB falla
+      }
     }
   });
 
@@ -693,11 +733,31 @@ export async function chatRoutes(fastify: FastifyInstance) {
         });
       }
       
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[ChatRoute] Global stream route error for session ${request.params.id}:`, error);
+
+      // Persist the error as an assistant message in the session
+      let errorAssistantMessageId: string | undefined;
+      try {
+        const errorAssistantMessage = fastify.sessionService.addMessage(
+          request.params.id,
+          'assistant',
+          '',
+          { error: errorMessage }
+        );
+        errorAssistantMessageId = errorAssistantMessage.id;
+      } catch (dbError) {
+        console.error('[ChatRoute] Failed to persist error message to DB:', dbError);
+      }
+
       // Send error via SSE
       setSseHeaders(reply);
       const errorEvent: StreamEvent = {
         type: 'error',
-        data: { error: error instanceof Error ? error.message : 'Unknown error' },
+        data: { 
+          error: errorMessage,
+          messageId: errorAssistantMessageId 
+        },
       };
       reply.raw.write(`data: ${JSON.stringify(errorEvent)}\n\n`);
       reply.raw.write('data: [DONE]\n\n');

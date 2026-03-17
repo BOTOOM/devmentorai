@@ -11,8 +11,8 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   splitting: true,
-  // Bundle @devmentorai/shared into the output (not published separately)
-  noExternal: ['@devmentorai/shared'],
+  // Bundle @devmentorai/shared and @github/copilot-sdk into the output
+  noExternal: ['@devmentorai/shared', '@github/copilot-sdk'],
   // Keep native/binary deps as external — npm installs them with prebuilt binaries
   external: [
     'better-sqlite3',

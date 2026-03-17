@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/BOTOOM/devmentorai/compare/backend-v1.4.0...backend-v1.4.1) (2026-03-17)
+
+### Bug Fixes
+
+* **backend:** bundle @github/copilot-sdk to fix strict ESM module resolution in Node 20+ ([6045f0f](https://github.com/BOTOOM/devmentorai/commit/6045f0fcdeee9937ffca20e74338b848fe9105c2))
+
 ## [1.4.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.3.0...backend-v1.4.0) (2026-03-06)
 
 ### Features

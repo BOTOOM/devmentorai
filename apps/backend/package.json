@@ -50,7 +50,8 @@
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
-    "@github/copilot-sdk": "^0.1.28",
+    "@github/copilot": "^1.0.7",
+    "@github/copilot-sdk": "^0.1.32",
     "better-sqlite3": "^11.7.0",
     "drizzle-orm": "^0.38.4",
     "fastify": "^5.8.1",

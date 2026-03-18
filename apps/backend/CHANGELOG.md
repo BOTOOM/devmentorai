@@ -1,3 +1,13 @@
+## [1.5.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.4.1...backend-v1.5.0) (2026-03-18)
+
+### Features
+
+* **backend:** add ESM require polyfill and SonarQube MCP integration guidelines ([f54773d](https://github.com/BOTOOM/devmentorai/commit/f54773d89b9e9e711701a09e5d02114d509b3226))
+
+### Bug Fixes
+
+* **backend:** update @github/copilot-sdk to 0.1.32 to support protocol version 3 ([fc2cce9](https://github.com/BOTOOM/devmentorai/commit/fc2cce9bab95a8aa2b6dad84cb2eddea05f33aab))
+
 ## [1.4.1](https://github.com/BOTOOM/devmentorai/compare/backend-v1.4.0...backend-v1.4.1) (2026-03-17)
 
 ### Bug Fixes

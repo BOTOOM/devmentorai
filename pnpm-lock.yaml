@@ -17,9 +17,12 @@ importers:
       '@fastify/cors':
         specifier: ^10.0.2
         version: 10.1.0
+      '@github/copilot':
+        specifier: ^1.0.7
+        version: 1.0.7
       '@github/copilot-sdk':
-        specifier: ^0.1.28
-        version: 0.1.28
+        specifier: ^0.1.32
+        version: 0.1.32
       better-sqlite3:
         specifier: ^11.7.0
         version: 11.10.0
@@ -1226,48 +1229,48 @@ packages:
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
 
-  '@github/copilot-darwin-arm64@0.0.416':
-    resolution: {integrity: sha512-mipNAS3Pi8Eu2TA9rTHdjEMaDZNNKJl29rL5cvs9imjshsQJBwiJD3zIV/XQvqsFB8IWngn5ZFT9ybML4milkg==}
+  '@github/copilot-darwin-arm64@1.0.7':
+    resolution: {integrity: sha512-yQITowpkQYamww59CwcG5JTWV9ahj7nMH6oqObMJaeqXnG7j7dqE/YhLkujQZ3XR8VXAoIa1rZ3TahdMu94gOA==}
     cpu: [arm64]
     os: [darwin]
     hasBin: true
 
-  '@github/copilot-darwin-x64@0.0.416':
-    resolution: {integrity: sha512-22Q1rkpYflX5XMfmfvA/uZ/9ME43rUARy6rQZ+tfl2/Xg2FFR8NXyvhtatqVZ5v+N2DE81IrYUG3V0wfX0U8Iw==}
+  '@github/copilot-darwin-x64@1.0.7':
+    resolution: {integrity: sha512-23vP5bHaFA030nB3tr+dUUdRm2SqmQbs2fZUQ4F7JeYy59jp9hi8lBdaZp/TeQnjEirAUU9H2HZxsGRIIUWp7g==}
     cpu: [x64]
     os: [darwin]
     hasBin: true
 
-  '@github/copilot-linux-arm64@0.0.416':
-    resolution: {integrity: sha512-iLFzBpjSNQOqOvBIq4AxlSWDGlAW5+Ri0Qz2h1CVBb5JcUOdfSL22Fz/3wWzrV1quvnkVyJQ45tL9zS117DhcA==}
+  '@github/copilot-linux-arm64@1.0.7':
+    resolution: {integrity: sha512-g0mB98oyXKcpd4sMNBc5n1h3UhLy9AGRlT//VL8BXPSzvlTH/dJP3fdx74pbLSgvz105to/YUMmEAFfv25VNaw==}
     cpu: [arm64]
     os: [linux]
     hasBin: true
 
-  '@github/copilot-linux-x64@0.0.416':
-    resolution: {integrity: sha512-+dSZOLaCr+A/WJLE++4lCC13PziIO64PzFGJsEmSedQkqw2dnXrAYbsp+cbtXJJ6w0DZpHigeifhn1m3sAWUvw==}
+  '@github/copilot-linux-x64@1.0.7':
+    resolution: {integrity: sha512-TRxzvTo9I4ehYJLFHTCJSJYQ4QnO/V9zebqwszxHpJRxuBd7FV4cxLmfOBqZcUpEpZgBH+VJ4OG98BPW7YEtJQ==}
     cpu: [x64]
     os: [linux]
     hasBin: true
 
-  '@github/copilot-sdk@0.1.28':
-    resolution: {integrity: sha512-dJpg5IWCdwc5YLqT0VB6yGF7Alx86kJyajxwxp33Y1q0dl5ZMqOFq/Cbe2yOAhO5dv9a6eZdgpBWHjPTKONebQ==}
+  '@github/copilot-sdk@0.1.32':
+    resolution: {integrity: sha512-mPWM0fw1Gqc/SW8nl45K8abrFH+92fO7y6tRtRl5imjS5hGapLf/dkX5WDrgPtlsflD0c41lFXVUri5NVJwtoA==}
     engines: {node: '>=20.0.0'}
 
-  '@github/copilot-win32-arm64@0.0.416':
-    resolution: {integrity: sha512-jeTroTL5CeAysbl3GJeLyPMsb2fEP16Iqo7faeozlbyU9BD5GjaLKtEApmFCE2hP0/CNcJVg1K5cZLTaKYOXCw==}
+  '@github/copilot-win32-arm64@1.0.7':
+    resolution: {integrity: sha512-4yFgW1K0MlKBrK5BwMIj4nMu5KSFfytNXrs8iOpVgp7erEvKVyN7VXb6SWkoU3M9TfeNlqP6Uje2rxDvgR1u5w==}
     cpu: [arm64]
     os: [win32]
     hasBin: true
 
-  '@github/copilot-win32-x64@0.0.416':
-    resolution: {integrity: sha512-62kv5dMNZ+7unVi3puK16trlOItLldFgQEkk2mVqAsRzEA9XqxArNeN+lG6kAIHNbiKA+OKVafdkzy104kHy4w==}
+  '@github/copilot-win32-x64@1.0.7':
+    resolution: {integrity: sha512-RDZlvPf/q6B54wLXJRmI39fc9+pwfcAjSwUqw0FeQruCTQgoUl8eo9NqeVWDFlr3RdzgVSMUiJHc3aiifVG6lA==}
     cpu: [x64]
     os: [win32]
     hasBin: true
 
-  '@github/copilot@0.0.416':
-    resolution: {integrity: sha512-rohH9dEeLRkYD31BUL7RFnGz2ZU/7CVkNdZlWEut+CSXgha6uhb3GPmIAPty1gZyUeMeHqJOwu+SSEjAxVaXEg==}
+  '@github/copilot@1.0.7':
+    resolution: {integrity: sha512-KHBaJ1kbc19pqUMnB9LubPtwWVOaDCzWbzwsJss+DvHyCpr8wP8jR3GEZUnhq3rsuXI96ZKEeEozXM0NqxCAiw==}
     hasBin: true
 
   '@humanfs/core@0.19.1':
@@ -5498,7 +5501,7 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
-    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
 
   temp-dir@3.0.0:
     resolution: {integrity: sha512-nHc6S/bwIilKHNRgK/3jlhDoIHcp45YgyiwcAk46Tr0LfEqGBVpmiAyuiuxeVE44m3mXnEeVhaipLOEWmH+Njw==}
@@ -6750,38 +6753,38 @@ snapshots:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.3.0
 
-  '@github/copilot-darwin-arm64@0.0.416':
+  '@github/copilot-darwin-arm64@1.0.7':
     optional: true
 
-  '@github/copilot-darwin-x64@0.0.416':
+  '@github/copilot-darwin-x64@1.0.7':
     optional: true
 
-  '@github/copilot-linux-arm64@0.0.416':
+  '@github/copilot-linux-arm64@1.0.7':
     optional: true
 
-  '@github/copilot-linux-x64@0.0.416':
+  '@github/copilot-linux-x64@1.0.7':
     optional: true
 
-  '@github/copilot-sdk@0.1.28':
+  '@github/copilot-sdk@0.1.32':
     dependencies:
-      '@github/copilot': 0.0.416
+      '@github/copilot': 1.0.7
       vscode-jsonrpc: 8.2.1
       zod: 4.3.6
 
-  '@github/copilot-win32-arm64@0.0.416':
+  '@github/copilot-win32-arm64@1.0.7':
     optional: true
 
-  '@github/copilot-win32-x64@0.0.416':
+  '@github/copilot-win32-x64@1.0.7':
     optional: true
 
-  '@github/copilot@0.0.416':
+  '@github/copilot@1.0.7':
     optionalDependencies:
-      '@github/copilot-darwin-arm64': 0.0.416
-      '@github/copilot-darwin-x64': 0.0.416
-      '@github/copilot-linux-arm64': 0.0.416
-      '@github/copilot-linux-x64': 0.0.416
-      '@github/copilot-win32-arm64': 0.0.416
-      '@github/copilot-win32-x64': 0.0.416
+      '@github/copilot-darwin-arm64': 1.0.7
+      '@github/copilot-darwin-x64': 1.0.7
+      '@github/copilot-linux-arm64': 1.0.7
+      '@github/copilot-linux-x64': 1.0.7
+      '@github/copilot-win32-arm64': 1.0.7
+      '@github/copilot-win32-x64': 1.0.7
 
   '@humanfs/core@0.19.1': {}
 

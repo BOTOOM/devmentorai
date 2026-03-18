@@ -8,6 +8,7 @@ export default defineConfig({
   format: ['esm'],
   target: 'node20',
   platform: 'node',
+  shims: true,
   sourcemap: true,
   clean: true,
   splitting: true,
@@ -19,7 +20,8 @@ export default defineConfig({
     'sharp',
   ],
   banner: {
-    // shebang for CLI entry point is added via esbuild plugin below
+    // Inject a require polyfill for bundled CJS modules that use require('util') etc.
+    js: `import { createRequire as __createRequire } from 'module';\nif (typeof require === 'undefined') { globalThis.require = __createRequire(import.meta.url); }`,
   },
   esbuildPlugins: [
     {

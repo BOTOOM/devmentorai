@@ -282,7 +282,7 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
 
     return [
       systemPrompt ? `System:\n${systemPrompt}` : '',
-      recoverySummary ? `Recovered Session Summary:\n${recoverySummary}` : '',
+      recoverySummary ? `--- PREVIOUS CONVERSATION HISTORY ---\n${recoverySummary}\n--- END OF HISTORY ---` : '',
       attachmentBlock ? `Attached Files:\n${attachmentBlock}` : '',
       contextBlock ? `Context:\n${contextBlock}` : '',
       `User:\n${prompt}`,
@@ -358,24 +358,18 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
       : '';
 
     return [
-      data.systemPrompt ? `Original system prompt:\n${data.systemPrompt}` : '',
       olderSummary ? `Earlier conversation summary:\n${olderSummary}` : '',
-      recentBlock ? `Most recent conversation:\n${recentBlock}` : '',
+      recentBlock ? `${recentBlock}` : '',
     ]
       .filter(Boolean)
       .join('\n\n');
   }
 
-  private chunkText(value: string, chunkSize: number): string[] {
-    if (value.length <= chunkSize) {
-      return [value];
+  private chunkText(text: string, size: number): string[] {
+    const chunks = [];
+    for (let i = 0; i < text.length; i += size) {
+      chunks.push(text.slice(i, i + size));
     }
-
-    const chunks: string[] = [];
-    for (let i = 0; i < value.length; i += chunkSize) {
-      chunks.push(value.slice(i, i + chunkSize));
-    }
-
     return chunks;
   }
 }

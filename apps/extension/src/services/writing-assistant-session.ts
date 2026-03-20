@@ -48,26 +48,66 @@ function getErrorMessage(error: unknown): string {
   }
 }
 
-async function resolveProviderForModel(
+export async function getBestAvailableModel(
   apiClient: ApiClient,
-  model: string,
-  provider?: LLMProvider
-): Promise<LLMProvider | undefined> {
-  if (provider) {
-    return provider;
-  }
-
+  requestedModel?: string,
+  requestedProvider?: LLMProvider
+): Promise<{ model: string; provider?: LLMProvider }> {
   try {
     const modelsResponse = await apiClient.getModels();
-    const matchedProvider = modelsResponse.data?.models.find((item) => item.id === model)?.provider;
-    if (matchedProvider && SUPPORTED_LLM_PROVIDERS.includes(matchedProvider as LLMProvider)) {
-      return matchedProvider as LLMProvider;
+    const allModels = modelsResponse.data?.models || [];
+    const availableModels = allModels.filter((m) => m.available !== false);
+
+    // 1. If provider is explicitly requested, try to honor it
+    if (requestedProvider && requestedModel) {
+       return { model: requestedModel, provider: requestedProvider };
+    }
+
+    // 2. If requested model is available, use it
+    if (requestedModel) {
+      const matched = availableModels.find((m) => m.id === requestedModel);
+      if (matched) {
+        return { model: requestedModel, provider: matched.provider as LLMProvider };
+      }
+    }
+
+    // 3. Priority list
+    const providerPriority: LLMProvider[] = [
+      'copilot',
+      'ollama',
+      'lmstudio',
+      'openrouter',
+      'groq',
+      'claude-code',
+      'gemini-cli',
+      'kilo-code',
+      'bedrock',
+      'vertex-ai',
+      'azure-foundry'
+    ];
+
+    for (const provider of providerPriority) {
+      const providerModels = availableModels.filter((m) => m.provider === provider);
+      if (providerModels.length > 0) {
+        // Prefer default model or first one
+        const defaultModel = providerModels.find((m) => m.isDefault) || providerModels[0];
+        return { model: defaultModel.id, provider: defaultModel.provider as LLMProvider };
+      }
+    }
+
+    // 4. Fallback to first available
+    if (availableModels.length > 0) {
+      return { model: availableModels[0].id, provider: availableModels[0].provider as LLMProvider };
     }
   } catch (error) {
-    console.warn('[WritingAssistant] Failed to resolve provider from model, using default provider:', error);
+    console.warn('[WritingAssistant] Failed to get best available model:', error);
   }
 
-  return undefined;
+  // If nothing available or error, return requested or copilot default
+  return { 
+    model: requestedModel || 'gpt-4.1', 
+    provider: requestedProvider || 'copilot' 
+  };
 }
 
 function isRecoverableSessionError(error: unknown): boolean {
@@ -309,8 +349,12 @@ export async function streamQuickAction(
   provider?: LLMProvider
 ): Promise<void> {
   const apiClient = ApiClient.getInstance();
-  const resolvedProvider = await resolveProviderForModel(apiClient, model, provider);
-  const session = await getOrCreateWritingAssistantSession(model, resolvedProvider);
+  const bestConfig = await getBestAvailableModel(apiClient, model, provider);
+  
+  const targetModel = bestConfig.model;
+  const targetProvider = bestConfig.provider;
+
+  const session = await getOrCreateWritingAssistantSession(targetModel, targetProvider);
   
   if (!session) {
     onEvent({ type: 'error', error: 'Failed to get Writing Assistant session' });
@@ -318,7 +362,7 @@ export async function streamQuickAction(
   }
   
   try {
-    await streamQuickActionWithRecovery(apiClient, session, prompt, model, onEvent, signal, resolvedProvider);
+    await streamQuickActionWithRecovery(apiClient, session, prompt, targetModel, onEvent, signal, targetProvider);
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       onEvent({ type: 'error', error: 'Request cancelled' });

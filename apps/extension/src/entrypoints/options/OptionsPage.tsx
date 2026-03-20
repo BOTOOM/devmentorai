@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { ProviderCredentialStatus } from '@devmentorai/shared';
+import { PROVIDER_DISPLAY, SUPPORTED_LLM_PROVIDERS, type ProviderCredentialStatus, type ModelInfo, type LLMProvider } from '@devmentorai/shared';
 import { useSettings, DEFAULT_SETTINGS, AVAILABLE_LANGUAGES, type Settings } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
 import { storageSet } from '../../lib/browser-utils';
@@ -13,6 +13,24 @@ const PROVIDER_LABELS: Record<ManagedCredentialProvider, string> = {
   openrouter: 'OpenRouter',
   groq: 'Groq',
 };
+
+function getUnavailableProviderMessage(providerId: LLMProvider): string {
+  const display = PROVIDER_DISPLAY[providerId];
+
+  if (providerId === 'copilot') {
+    return chrome.i18n.getMessage('model_unavailable_copilot') || 'This option is disabled. Requires GitHub Copilot authentication.';
+  }
+
+  if (display.category === 'cloud') {
+    return `${display.name}: ${chrome.i18n.getMessage('model_unavailable_api_key') || 'This option is disabled. Requires API Key. Configure in Settings.'}`;
+  }
+
+  if (display.category === 'local-server') {
+    return `${display.name}: ${chrome.i18n.getMessage('model_unavailable_local') || 'This option is disabled. Requires local application running.'}`;
+  }
+
+  return `${display.name}: ${chrome.i18n.getMessage('model_unavailable_cli') || 'This option is disabled. Requires CLI installed and running.'}`;
+}
 
 export function OptionsPage() {
   const { settings, isLoaded, saveAllSettings } = useSettings();
@@ -33,6 +51,7 @@ export function OptionsPage() {
     groq: false,
   });
   const [providerCredentialMessage, setProviderCredentialMessage] = useState<string | null>(null);
+  const [quickActionModels, setQuickActionModels] = useState<ModelInfo[]>([]);
 
   const backendStatusClassByState: Record<typeof backendStatus, string> = {
     connected: 'bg-green-500',
@@ -73,35 +92,63 @@ export function OptionsPage() {
 
   useEffect(() => {
     if (backendStatus !== 'connected') {
+      setQuickActionModels([]);
       return;
     }
 
     let cancelled = false;
-    const loadProviderCredentials = async () => {
+    const loadProviderData = async () => {
       const apiClient = new ApiClient(localSettings.backendUrl);
-      const results = await Promise.all(
-        MANAGED_CREDENTIAL_PROVIDERS.map(async (provider) => {
-          const response = await apiClient.getProviderCredential(provider);
-          return [provider, response.success ? response.data ?? null : null] as const;
-        })
-      );
+      const credentialPromises = MANAGED_CREDENTIAL_PROVIDERS.map(async (provider) => {
+        const response = await apiClient.getProviderCredential(provider);
+        return [provider, response.success ? response.data ?? null : null] as const;
+      });
+
+      const modelsResponse = await apiClient.getModels();
+      const credentialResults = await Promise.all(credentialPromises);
 
       if (cancelled) {
         return;
       }
 
+      if (modelsResponse.success && modelsResponse.data) {
+        setQuickActionModels(modelsResponse.data.models);
+      } else {
+        setQuickActionModels([]);
+      }
+
       setProviderCredentials((prev) => ({
         ...prev,
-        ...Object.fromEntries(results),
+        ...Object.fromEntries(credentialResults),
       }));
     };
 
-    loadProviderCredentials();
+    loadProviderData();
 
     return () => {
       cancelled = true;
     };
   }, [backendStatus, localSettings.backendUrl]);
+
+  const availableQuickActionModels = quickActionModels.filter((model) => model.available !== false);
+  const unavailableQuickActionProviders = SUPPORTED_LLM_PROVIDERS.filter((providerId) => {
+    const providerModels = quickActionModels.filter((model) => model.provider === providerId);
+    return providerModels.length > 0 && providerModels.every((model) => model.available === false);
+  });
+
+  useEffect(() => {
+    if (availableQuickActionModels.length === 0) {
+      return;
+    }
+
+    const hasSelectedModel = availableQuickActionModels.some((model) => model.id === localSettings.quickActionModel);
+    if (!hasSelectedModel) {
+      setLocalSettings((prev) => ({
+        ...prev,
+        quickActionModel: availableQuickActionModels[0].id,
+      }));
+    }
+  }, [availableQuickActionModels, localSettings.quickActionModel]);
 
   const saveSettings = async () => {
     await saveAllSettings(localSettings);
@@ -643,19 +690,32 @@ export function OptionsPage() {
               </label>
               <select
                 id="quick-action-model"
-                value={localSettings.quickActionModel}
+                value={availableQuickActionModels.some((model) => model.id === localSettings.quickActionModel) ? localSettings.quickActionModel : ''}
                 onChange={(e) => updateLocalSetting('quickActionModel', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                disabled={backendStatus !== 'connected' || availableQuickActionModels.length === 0}
               >
-                <option value="gpt-4.1">GPT-4.1 (Fast)</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-                <option value="claude-3-5-haiku">Claude 3.5 Haiku (Fast)</option>
+                {availableQuickActionModels.length === 0 && (
+                  <option value="">No available models</option>
+                )}
+                {availableQuickActionModels.map((model) => (
+                  <option key={`${model.provider}:${model.id}`} value={model.id}>
+                    {model.name} ({PROVIDER_DISPLAY[model.provider as LLMProvider]?.name || model.provider})
+                  </option>
+                ))}
               </select>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Model used for quick actions like grammar fix, rewrite, translate
               </p>
+              {unavailableQuickActionProviders.length > 0 && (
+                <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-900/20">
+                  {unavailableQuickActionProviders.map((providerId) => (
+                    <p key={providerId} className="text-xs text-amber-700 dark:text-amber-300">
+                      {getUnavailableProviderMessage(providerId)}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

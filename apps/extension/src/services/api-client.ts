@@ -17,7 +17,7 @@ import type {
   StreamEvent,
 } from '@devmentorai/shared';
 
-interface ModelsResponse {
+export interface ModelsResponse {
   models: ModelInfo[];
   default: string;
 }

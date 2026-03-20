@@ -98,5 +98,21 @@
   "error_generic": {
     "message": "Algo salió mal. Por favor, intenta de nuevo.",
     "description": "Mensaje de error genérico"
+  },
+  "model_unavailable_api_key": {
+    "message": "Esta opción no está habilitada. Requiere API Key. Configúrala en Ajustes.",
+    "description": "Message shown when provider is unavailable due to missing API key"
+  },
+  "model_unavailable_cli": {
+    "message": "Esta opción no está habilitada. Requiere instalar y ejecutar la CLI.",
+    "description": "Message shown when provider is unavailable due to missing CLI tool"
+  },
+  "model_unavailable_copilot": {
+    "message": "Esta opción no está habilitada. Requiere autenticación con GitHub Copilot.",
+    "description": "Message shown when provider is unavailable due to missing Copilot auth"
+  },
+  "model_unavailable_local": {
+    "message": "Esta opción no está habilitada. Requiere la aplicación local en ejecución.",
+    "description": "Message shown when provider is unavailable due to missing local app"
   }
 }

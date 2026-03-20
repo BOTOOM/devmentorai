@@ -285,19 +285,44 @@ export function SidePanel() {
       // Extract context when enabling
       await extractContext(activeSession.id);
       
-      // Handle screenshot based on behavior setting
-      if (settings.screenshotBehavior === 'auto') {
-        // Auto-capture screenshot
-        await handleScreenshotForContextMode();
-      } else if (settings.screenshotBehavior === 'ask') {
-        // Show confirmation dialog
-        setShowScreenshotConfirm(true);
+      // Determine if current model allows attachments
+      const activeModelInfo = availableModels.find(
+        (m) => m.provider === activeSession.provider && m.id === activeSession.model
+      );
+      const providerAllowsAttachments = activeSession.provider
+        ? PROVIDER_CAPABILITIES[activeSession.provider]?.attachments !== false
+        : true;
+      const modelAllowsAttachments =
+        activeModelInfo?.supportsAttachments ??
+        activeModelInfo?.supportsVision ??
+        providerAllowsAttachments;
+
+      // Only handle screenshot if model supports it
+      if (modelAllowsAttachments) {
+        // Handle screenshot based on behavior setting
+        if (settings.screenshotBehavior === 'auto') {
+          // Auto-capture screenshot
+          await handleScreenshotForContextMode();
+        } else if (settings.screenshotBehavior === 'ask') {
+          // Show confirmation dialog
+          setShowScreenshotConfirm(true);
+        }
       }
     } else {
       // Clear context when disabling
       clearContext();
     }
-  }, [contextModeEnabled, activeSession?.id, extractContext, clearContext, settings.screenshotBehavior, handleScreenshotForContextMode]);
+  }, [
+    contextModeEnabled,
+    activeSession?.id,
+    activeSession?.provider,
+    activeSession?.model,
+    extractContext,
+    clearContext,
+    settings.screenshotBehavior,
+    handleScreenshotForContextMode,
+    availableModels
+  ]);
 
   // Handle screenshot confirm response
   const handleScreenshotConfirmResponse = useCallback(async (include: boolean) => {

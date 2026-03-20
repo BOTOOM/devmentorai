@@ -4,7 +4,7 @@ import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
 import { useImageAttachments } from '../hooks/useImageAttachments';
-import { SUPPORTED_LLM_PROVIDERS, PROVIDER_DISPLAY, type Session, type Message, type ContextPayload, type PlatformDetection, type ImagePayload, type ModelInfo } from '@devmentorai/shared';
+import { SUPPORTED_LLM_PROVIDERS, PROVIDER_DISPLAY, type Session, type Message, type ContextPayload, type PlatformDetection, type ImagePayload, type ModelInfo, type LLMProvider } from '@devmentorai/shared';
 
 const PRICING_BADGES: Record<string, { label: string; color: string }> = {
   free: { label: 'Free', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
@@ -13,6 +13,23 @@ const PRICING_BADGES: Record<string, { label: string; color: string }> = {
   premium: { label: 'Premium', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
 };
 
+function getUnavailableMessage(providerId: LLMProvider): string {
+  const display = PROVIDER_DISPLAY[providerId];
+
+  if (providerId === 'copilot') {
+    return chrome.i18n.getMessage('model_unavailable_copilot') || 'This option is disabled. Requires GitHub Copilot authentication.';
+  }
+
+  if (display.category === 'cloud') {
+    return `${display.name}: ${chrome.i18n.getMessage('model_unavailable_api_key') || 'This option is disabled. Requires API Key. Configure in Settings.'}`;
+  }
+
+  if (display.category === 'local-server') {
+    return `${display.name}: ${chrome.i18n.getMessage('model_unavailable_local') || 'This option is disabled. Requires local application running.'}`;
+  }
+
+  return `${display.name}: ${chrome.i18n.getMessage('model_unavailable_cli') || 'This option is disabled. Requires CLI installed and running.'}`;
+}
 
 interface ChatViewProps {
   session: Session | null;
@@ -372,7 +389,8 @@ export function ChatView({
                 const providerModels = filteredModels.filter((m) => m.provider === providerId);
                 if (providerModels.length === 0) return null;
                 const display = PROVIDER_DISPLAY[providerId];
-                const hasAvailable = providerModels.some((m) => m.available !== false);
+                const availableProviderModels = providerModels.filter((m) => m.available !== false);
+                const hasAvailable = availableProviderModels.length > 0;
 
                 return (
                   <div key={providerId}>
@@ -384,29 +402,26 @@ export function ChatView({
                       <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">
                         {display.name}
                       </span>
-                      {!hasAvailable && (
-                        <span className="ml-auto text-[9px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full">
-                          Offline
-                        </span>
-                      )}
                     </div>
 
-                    {providerModels.map((model) => (
+                    {!hasAvailable && (
+                      <div className="px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-900/40">
+                        {getUnavailableMessage(providerId)}
+                      </div>
+                    )}
+
+                    {availableProviderModels.map((model) => (
                       <button
                         key={model.id}
                         type="button"
-                        disabled={model.available === false}
                         onClick={() => {
-                          if (model.available === false) return;
                           onChangeModel?.(model.id);
                           setShowModelPicker(false);
                           setModelSearch('');
                         }}
                         className={cn(
                           'w-full px-3 py-2 text-left text-xs transition-colors',
-                          model.available === false
-                            ? 'cursor-not-allowed opacity-60'
-                            : 'hover:bg-gray-100 dark:hover:bg-gray-700',
+                          'hover:bg-gray-100 dark:hover:bg-gray-700',
                           model.id === session.model && 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
                         )}
                       >
@@ -418,11 +433,6 @@ export function ChatView({
                               PRICING_BADGES[model.pricingTier]?.color || PRICING_BADGES.standard.color
                             )}>
                               {PRICING_BADGES[model.pricingTier]?.label || 'Standard'}
-                            </span>
-                          )}
-                          {model.available === false && (
-                            <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
-                              Unavailable
                             </span>
                           )}
                         </div>

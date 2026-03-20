@@ -98,5 +98,21 @@
   "error_generic": {
     "message": "Something went wrong. Please try again.",
     "description": "Generic error message"
+  },
+  "model_unavailable_api_key": {
+    "message": "This option is disabled. Requires API Key. Configure in Settings.",
+    "description": "Message shown when provider is unavailable due to missing API key"
+  },
+  "model_unavailable_cli": {
+    "message": "This option is disabled. Requires CLI installed and running.",
+    "description": "Message shown when provider is unavailable due to missing CLI tool"
+  },
+  "model_unavailable_copilot": {
+    "message": "This option is disabled. Requires GitHub Copilot authentication.",
+    "description": "Message shown when provider is unavailable due to missing Copilot auth"
+  },
+  "model_unavailable_local": {
+    "message": "This option is disabled. Requires local application running.",
+    "description": "Message shown when provider is unavailable due to missing local app"
   }
 }

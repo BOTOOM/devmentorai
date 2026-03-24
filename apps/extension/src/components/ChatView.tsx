@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Loader2, Cpu, ChevronDown, Brain, Sparkles, Globe, AlertTriangle, ImagePlus, Upload } from 'lucide-react';
+import { Send, Square, Loader2, Cpu, ChevronDown, ChevronRight, Brain, Sparkles, Globe, AlertTriangle, ImagePlus, Upload } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
@@ -84,6 +84,7 @@ export function ChatView({
   const [input, setInput] = useState('');
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
+  const [collapsedProviders, setCollapsedProviders] = useState<Partial<Record<LLMProvider, boolean>>>({});
   const [showContextPreview, setShowContextPreview] = useState(false);
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -291,6 +292,7 @@ export function ChatView({
   };
 
   const normalizedQuery = modelSearch.trim().toLowerCase();
+  const isSearching = normalizedQuery.length > 0;
   const filteredModels = normalizedQuery
     ? availableModels.filter((model) => {
         const searchSource = [
@@ -304,6 +306,28 @@ export function ChatView({
         return searchSource.includes(normalizedQuery);
       })
     : availableModels;
+
+  const currentProviderId = session?.provider;
+
+  const isProviderCollapsed = (providerId: LLMProvider): boolean => {
+    if (isSearching) {
+      return false;
+    }
+
+    const storedValue = collapsedProviders[providerId];
+    if (typeof storedValue === 'boolean') {
+      return storedValue;
+    }
+
+    return providerId !== currentProviderId;
+  };
+
+  const toggleProvider = (providerId: LLMProvider) => {
+    setCollapsedProviders((current) => ({
+      ...current,
+      [providerId]: !isProviderCollapsed(providerId),
+    }));
+  };
 
   const hasStartedChat = messages.length > 0;
   const canUseModelPicker = Boolean(onChangeModel) && !disabled && !isStreaming && !hasStartedChat;
@@ -391,26 +415,39 @@ export function ChatView({
                 const display = PROVIDER_DISPLAY[providerId];
                 const availableProviderModels = providerModels.filter((m) => m.available !== false);
                 const hasAvailable = availableProviderModels.length > 0;
+                const isCollapsed = isProviderCollapsed(providerId);
 
                 return (
                   <div key={providerId}>
-                    <div className={cn(
-                      'px-2.5 py-1.5 border-y border-gray-200 dark:border-gray-700 flex items-center gap-1.5',
-                      hasAvailable ? 'bg-gray-50 dark:bg-gray-900' : 'bg-gray-100 dark:bg-gray-900/60'
-                    )}>
+                    <button
+                      type="button"
+                      onClick={() => toggleProvider(providerId)}
+                      className={cn(
+                        'w-full px-2.5 py-1.5 border-y border-gray-200 dark:border-gray-700 flex items-center gap-1.5 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/70',
+                        hasAvailable ? 'bg-gray-50 dark:bg-gray-900' : 'bg-gray-100 dark:bg-gray-900/60'
+                      )}
+                    >
+                      {isCollapsed ? (
+                        <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                      )}
                       <span className="text-xs" aria-hidden>{display.icon}</span>
                       <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">
                         {display.name}
                       </span>
-                    </div>
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                        {providerModels.length}
+                      </span>
+                    </button>
 
-                    {!hasAvailable && (
+                    {!isCollapsed && !hasAvailable && (
                       <div className="px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-900/40">
                         {getUnavailableMessage(providerId)}
                       </div>
                     )}
 
-                    {availableProviderModels.map((model) => (
+                    {!isCollapsed && availableProviderModels.map((model) => (
                       <button
                         key={model.id}
                         type="button"

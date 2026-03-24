@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
   SESSION_TYPE_CONFIGS,
@@ -31,6 +31,7 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
+  const [collapsedProviders, setCollapsedProviders] = useState<Partial<Record<LLMProvider, boolean>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -92,7 +93,9 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
 
   const sessionTypes = Object.entries(SESSION_TYPE_CONFIGS) as [SessionType, typeof SESSION_TYPE_CONFIGS[SessionType]][];
   const selectedModel = models.find(m => m.id === model);
+  const selectedProviderId = selectedModel?.provider;
   const normalizedQuery = modelSearch.trim().toLowerCase();
+  const isSearching = normalizedQuery.length > 0;
   const filteredModels = normalizedQuery
     ? models.filter((modelItem) => {
         const searchSource = [
@@ -106,6 +109,26 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
         return searchSource.includes(normalizedQuery);
       })
     : models;
+
+  const isProviderCollapsed = (providerId: LLMProvider): boolean => {
+    if (isSearching) {
+      return false;
+    }
+
+    const storedValue = collapsedProviders[providerId];
+    if (typeof storedValue === 'boolean') {
+      return storedValue;
+    }
+
+    return providerId !== selectedProviderId;
+  };
+
+  const toggleProvider = (providerId: LLMProvider) => {
+    setCollapsedProviders((current) => ({
+      ...current,
+      [providerId]: !isProviderCollapsed(providerId),
+    }));
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -242,18 +265,31 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                     if (providerModels.length === 0) return null;
                     const display = PROVIDER_DISPLAY[providerId];
                     const hasAvailable = providerModels.some(m => m.available !== false);
+                    const isCollapsed = isProviderCollapsed(providerId);
 
                     return (
                       <div key={providerId}>
-                        <div className={cn(
-                          'px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2',
-                          hasAvailable
-                            ? 'bg-gray-50 dark:bg-gray-900'
-                            : 'bg-gray-100 dark:bg-gray-900/60'
-                        )}>
+                        <button
+                          type="button"
+                          onClick={() => toggleProvider(providerId)}
+                          className={cn(
+                            'w-full px-3 py-1.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/70',
+                            hasAvailable
+                              ? 'bg-gray-50 dark:bg-gray-900'
+                              : 'bg-gray-100 dark:bg-gray-900/60'
+                          )}
+                        >
+                          {isCollapsed ? (
+                            <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                          )}
                           <span className="text-sm" aria-hidden>{display.icon}</span>
                           <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                             {display.name}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                            {providerModels.length}
                           </span>
                           {!hasAvailable && (
                             <span className="ml-auto text-[10px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 rounded-full">
@@ -265,8 +301,8 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                               Ready
                             </span>
                           )}
-                        </div>
-                        {providerModels.map((m) => (
+                        </button>
+                        {!isCollapsed && providerModels.map((m) => (
                           <button
                             key={m.id}
                             type="button"

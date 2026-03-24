@@ -50,6 +50,45 @@ function getLoginLabel(
   return `${providerDisplayName || providerName} login required`;
 }
 
+function getRecoveryBadge(
+  authStatus: ProviderAuthStatus | null | undefined
+): { label: string; className: string; title: string } | null {
+  const mode = authStatus?.sessionRecoveryMode;
+  if (!mode) {
+    return null;
+  }
+
+  if (mode === 'native') {
+    return {
+      label: 'Native resume',
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300',
+      title: 'Provider supports native session continuation.',
+    };
+  }
+
+  if (mode === 'replay') {
+    return {
+      label: 'Replay recovery',
+      className: 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-700/50 dark:bg-cyan-900/20 dark:text-cyan-300',
+      title: 'DevMentorAI restores the conversation by replaying persisted history.',
+    };
+  }
+
+  if (mode === 'summary') {
+    return {
+      label: 'Summary recovery',
+      className: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700/50 dark:bg-violet-900/20 dark:text-violet-300',
+      title: 'DevMentorAI restores the conversation using a compact summary fallback.',
+    };
+  }
+
+  return {
+    label: 'No recovery',
+    className: 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
+    title: 'This provider does not expose session recovery metadata.',
+  };
+}
+
 export function Header({
   connectionStatus,
   authStatus,
@@ -85,10 +124,11 @@ export function Header({
   const providerName = authStatus?.provider || 'copilot';
   const providerDisplay = PROVIDER_DISPLAY[providerName as LLMProvider];
   const loginLabel = getLoginLabel(authStatus, providerName, providerDisplay?.name);
+  const recoveryBadge = getRecoveryBadge(authStatus);
 
   return (
     <header className="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
@@ -141,11 +181,23 @@ export function Header({
                   Quota {quotaLabel}
                 </span>
               )}
+
+              {recoveryBadge && (
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border max-w-full truncate',
+                    recoveryBadge.className
+                  )}
+                  title={recoveryBadge.title}
+                >
+                  {recoveryBadge.label}
+                </span>
+              )}
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center justify-end gap-1 shrink-0 self-end sm:self-start">
         {/* D.1 - View current page */}
         {/* D.2 - Help */}
         <button

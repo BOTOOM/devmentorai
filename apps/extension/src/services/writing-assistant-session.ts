@@ -5,7 +5,6 @@
 
 import { ApiClient } from './api-client';
 import {
-  SUPPORTED_LLM_PROVIDERS,
   type Session,
   type LLMProvider,
 } from '@devmentorai/shared';

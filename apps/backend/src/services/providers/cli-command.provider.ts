@@ -28,6 +28,19 @@ interface CliSessionState {
   model: string;
   systemPrompt?: string;
   recoverySummary?: string;
+  history: CliSessionMessage[];
+}
+
+interface CliSessionMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface KiloJsonEvent {
+  type?: string;
+  part?: {
+    text?: string;
+  };
 }
 
 export class CliCommandProviderAdapter implements LLMProviderAdapter {
@@ -77,7 +90,7 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
     systemPrompt?: string
   ): Promise<void> {
     this.ensureReady();
-    this.sessions.set(sessionId, { type, model, systemPrompt });
+    this.sessions.set(sessionId, { type, model, systemPrompt, history: [] });
   }
 
   async switchSessionModel(
@@ -87,7 +100,14 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
     systemPrompt?: string
   ): Promise<void> {
     this.ensureReady();
-    this.sessions.set(sessionId, { type, model, systemPrompt });
+    const existing = this.sessions.get(sessionId);
+    this.sessions.set(sessionId, {
+      type,
+      model,
+      systemPrompt,
+      recoverySummary: existing?.recoverySummary,
+      history: existing?.history ?? [],
+    });
   }
 
   async resumeSession(sessionId: string): Promise<boolean> {
@@ -101,6 +121,7 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
       model: data.model,
       systemPrompt: data.systemPrompt,
       recoverySummary: this.buildRecoverySummary(data),
+      history: [],
     });
     return true;
   }
@@ -113,8 +134,15 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
   ): Promise<string> {
     this.ensureReady();
     const session = this.sessions.get(sessionId);
-    const fullPrompt = this.buildPrompt(prompt, context, session?.systemPrompt, session?.recoverySummary);
+    const userTurn = this.buildUserTurnContent(prompt, context);
+    const fullPrompt = this.buildPrompt(
+      userTurn,
+      session?.systemPrompt,
+      session?.recoverySummary,
+      this.buildRecentHistoryBlock(session?.history)
+    );
     const response = await this.invokePrompt(sessionId, fullPrompt);
+    this.recordSessionExchange(sessionId, userTurn, response);
 
     if (onEvent) {
       onEvent({
@@ -139,14 +167,23 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
   ): Promise<void> {
     this.ensureReady();
     const session = this.sessions.get(sessionId);
+    const userTurn = this.buildUserTurnContent(prompt, context, attachments);
     const fullPrompt = this.buildPrompt(
-      prompt,
-      context,
+      userTurn,
       session?.systemPrompt,
       session?.recoverySummary,
-      attachments
+      this.buildRecentHistoryBlock(session?.history)
     );
+
+    if (this.id === 'kilo-code') {
+      const response = await this.streamKiloPrompt(sessionId, fullPrompt, onEvent);
+      this.recordSessionExchange(sessionId, userTurn, response);
+      return;
+    }
+
     const response = await this.invokePrompt(sessionId, fullPrompt);
+    this.recordSessionExchange(sessionId, userTurn, response);
+
     if (!onEvent) {
       return;
     }
@@ -201,8 +238,8 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
       supportsNativeResume: false,
       sessionRecoveryMode: 'summary',
       reason: this.ready
-        ? `${this.displayName} command detected`
-        : `Command '${this.command}' not found. Install and login in your local CLI first.`,
+        ? this.getReadyReason()
+        : this.getUnavailableReason(),
     };
   }
 
@@ -251,16 +288,28 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
       return;
     }
 
-    throw new Error(
-      `[${this.id}] Provider is unavailable. Install '${this.command}' CLI and authenticate locally before using this provider.`
-    );
+    throw new Error(`[${this.id}] ${this.getUnavailableReason()}`);
   }
 
   private buildPrompt(
-    prompt: string,
-    context?: MessageContext,
+    userTurn: string,
     systemPrompt?: string,
     recoverySummary?: string,
+    recentHistory?: string
+  ): string {
+    return [
+      systemPrompt ? `System:\n${systemPrompt}` : '',
+      recoverySummary ? `--- PREVIOUS CONVERSATION HISTORY ---\n${recoverySummary}\n--- END OF HISTORY ---` : '',
+      recentHistory ? `--- RECENT SESSION TURNS ---\n${recentHistory}\n--- END RECENT SESSION TURNS ---` : '',
+      userTurn,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
+  private buildUserTurnContent(
+    prompt: string,
+    context?: MessageContext,
     attachments?: ProviderAttachment[]
   ): string {
     const contextBlock = context
@@ -281,8 +330,6 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
       : '';
 
     return [
-      systemPrompt ? `System:\n${systemPrompt}` : '',
-      recoverySummary ? `--- PREVIOUS CONVERSATION HISTORY ---\n${recoverySummary}\n--- END OF HISTORY ---` : '',
       attachmentBlock ? `Attached Files:\n${attachmentBlock}` : '',
       contextBlock ? `Context:\n${contextBlock}` : '',
       `User:\n${prompt}`,
@@ -291,9 +338,168 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
       .join('\n\n');
   }
 
-  private invokePrompt(sessionId: string, prompt: string): Promise<string> {
+  private buildRecentHistoryBlock(history?: CliSessionMessage[]): string {
+    if (!history || history.length === 0) {
+      return '';
+    }
+
+    return history
+      .slice(-12)
+      .map((message) => `${message.role.toUpperCase()}:\n${message.content}`)
+      .join('\n\n');
+  }
+
+  private async invokePrompt(sessionId: string, prompt: string): Promise<string> {
+    const attempts = this.getInvocationAttempts(prompt);
+    let lastError: Error | null = null;
+
+    for (const args of attempts) {
+      try {
+        return await this.runCliAttempt(sessionId, args);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+      }
+    }
+
+    throw lastError ?? new Error(`[${this.id}] CLI invocation failed`);
+  }
+
+  private streamKiloPrompt(
+    sessionId: string,
+    prompt: string,
+    onEvent?: (event: SessionEvent) => void
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
-      const args = [this.promptFlag, prompt];
+      const child = spawn(this.command, ['run', '--auto', '--format', 'json', '--', prompt], {
+        env: process.env,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+
+      this.runningProcesses.set(sessionId, child);
+
+      let stdout = '';
+      let stderr = '';
+      let fullContent = '';
+      let buffer = '';
+
+      const emitText = (text: string) => {
+        if (!text) {
+          return;
+        }
+
+        fullContent += text;
+        if (!onEvent) {
+          return;
+        }
+
+        onEvent({
+          type: 'assistant.message_delta',
+          data: { deltaContent: text },
+        } as SessionEvent);
+      };
+
+      const parseBufferedLines = () => {
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            continue;
+          }
+
+          try {
+            const parsed = JSON.parse(trimmed) as KiloJsonEvent;
+            if (parsed.type === 'text' && parsed.part?.text) {
+              emitText(parsed.part.text);
+              continue;
+            }
+
+            if (onEvent) {
+              onEvent({
+                type: 'assistant.message_delta',
+                data: { deltaContent: '' },
+              } as SessionEvent);
+            }
+          } catch {
+            emitText(`${trimmed}\n`);
+          }
+        }
+      };
+
+      child.stdout.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        stdout += text;
+        buffer += text;
+        parseBufferedLines();
+      });
+
+      child.stderr.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
+
+      child.on('error', (error) => {
+        this.runningProcesses.delete(sessionId);
+        reject(error);
+      });
+
+      child.on('close', (code) => {
+        this.runningProcesses.delete(sessionId);
+
+        if (buffer.trim()) {
+          buffer = `${buffer}\n`;
+          parseBufferedLines();
+
+          if (buffer.trim()) {
+            emitText(buffer.trim());
+          }
+        }
+
+        if (code === 0) {
+          if (fullContent && onEvent) {
+            onEvent({
+              type: 'assistant.message',
+              data: { content: fullContent },
+            } as SessionEvent);
+          }
+
+          if (onEvent) {
+            onEvent({
+              type: 'session.idle',
+              data: {},
+            } as SessionEvent);
+          }
+
+          resolve(fullContent);
+          return;
+        }
+
+        reject(new Error(this.normalizeCliFailure(code, stdout, stderr)));
+      });
+    });
+  }
+
+  private recordSessionExchange(sessionId: string, userTurn: string, assistantTurn: string): void {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      return;
+    }
+
+    if (userTurn.trim()) {
+      session.history.push({ role: 'user', content: userTurn.trim() });
+    }
+
+    if (assistantTurn.trim()) {
+      session.history.push({ role: 'assistant', content: assistantTurn.trim() });
+    }
+
+    if (session.history.length > 24) {
+      session.history.splice(0, session.history.length - 24);
+    }
+  }
+
+  private runCliAttempt(sessionId: string, args: string[]): Promise<string> {
+    return new Promise((resolve, reject) => {
       const child = spawn(this.command, args, {
         env: process.env,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -331,14 +537,56 @@ export class CliCommandProviderAdapter implements LLMProviderAdapter {
           return;
         }
 
-        const normalizedError = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n');
-        reject(
-          new Error(
-            `[${this.id}] CLI process failed (${code}): ${normalizedError || 'Unknown error'}`
-          )
-        );
+        reject(new Error(this.normalizeCliFailure(code, stdout, stderr)));
       });
     });
+  }
+
+  private getInvocationAttempts(prompt: string): string[][] {
+    if (this.id === 'kilo-code') {
+      return [
+        ['run', '--auto', '--', prompt],
+        ['run', '--auto', prompt],
+      ];
+    }
+
+    if (this.id === 'gemini-cli') {
+      return [[`--prompt=${prompt}`]];
+    }
+
+    return [[this.promptFlag, prompt]];
+  }
+
+  private normalizeCliFailure(code: number | null, stdout: string, stderr: string): string {
+    const combinedOutput = [stderr.trim(), stdout.trim()].filter(Boolean).join('\n');
+
+    if (this.id === 'kilo-code') {
+      const baseMessage = `[${this.id}] Kilo CLI failed (${code ?? 'unknown'}). DevMentorAI uses a non-interactive invocation. Verify Kilo is authenticated and that autonomous or gateway mode is configured for local CLI usage.`;
+
+      if (!combinedOutput || /unknown error/i.test(combinedOutput)) {
+        return baseMessage;
+      }
+
+      return `${baseMessage}\n${combinedOutput}`;
+    }
+
+    return `[${this.id}] CLI process failed (${code ?? 'unknown'}): ${combinedOutput || 'Unknown error'}`;
+  }
+
+  private getReadyReason(): string {
+    if (this.id === 'kilo-code') {
+      return `${this.displayName} command detected. DevMentorAI will use 'kilo run --auto' for non-interactive execution and summarize history when recovering sessions.`;
+    }
+
+    return `${this.displayName} command detected`;
+  }
+
+  private getUnavailableReason(): string {
+    if (this.id === 'kilo-code') {
+      return `Command '${this.command}' not found. Install Kilo CLI and authenticate locally before using this provider.`;
+    }
+
+    return `Command '${this.command}' not found. Install and login in your local CLI first.`;
   }
 
   private buildRecoverySummary(data: ProviderSessionRestoreData): string {

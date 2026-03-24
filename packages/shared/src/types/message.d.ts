@@ -28,6 +28,8 @@ export interface ImageAttachment {
     thumbnailUrl?: string;
     /** Backend-provided full image URL for lightbox view */
     fullImageUrl?: string;
+    /** Backend-local full image path for provider recovery/replay */
+    fullImagePath?: string;
 }
 /** Image data sent in message request (before processing) */
 export interface ImagePayload {

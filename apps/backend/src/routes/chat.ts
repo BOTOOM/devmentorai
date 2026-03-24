@@ -210,6 +210,15 @@ function parseToolExecutionPayload(data: unknown): ToolExecutionPayload {
 export async function chatRoutes(fastify: FastifyInstance) {
   const STREAM_TIMEOUT_MS = 120000;
   const IDLE_TIMEOUT_MS = 30000;
+  const CLI_AGENT_IDLE_TIMEOUT_MS = 90000;
+
+  const getIdleTimeoutMs = (provider: string): number => {
+    if (provider === 'kilo-code' || provider === 'gemini-cli' || provider === 'claude-code') {
+      return CLI_AGENT_IDLE_TIMEOUT_MS;
+    }
+
+    return IDLE_TIMEOUT_MS;
+  };
 
   const setSseHeaders = (reply: FastifyReply): void => {
     if (reply.raw.headersSent) {
@@ -259,6 +268,38 @@ export async function chatRoutes(fastify: FastifyInstance) {
     }
   };
 
+  const persistAssistantErrorMessage = (
+    sessionId: string,
+    content: string,
+    errorMessage: string,
+    assistantMessageId?: string | null
+  ): string => {
+    if (!assistantMessageId) {
+      const message = fastify.sessionService.addMessage(sessionId, 'assistant', content, {
+        error: errorMessage,
+      });
+      return message.id;
+    }
+
+    const sessionMessages = fastify.sessionService.listAllMessages(sessionId);
+    const targetMessage = sessionMessages.find((message) => message.id === assistantMessageId);
+
+    if (!targetMessage) {
+      const message = fastify.sessionService.addMessage(sessionId, 'assistant', content, {
+        error: errorMessage,
+      });
+      return message.id;
+    }
+
+    fastify.sessionService.updateMessageContent(assistantMessageId, content);
+    fastify.sessionService.updateMessageMetadata(assistantMessageId, {
+      ...targetMessage.metadata,
+      error: errorMessage,
+    });
+
+    return assistantMessageId;
+  };
+
   const prepareProviderAttachments = async (
     sessionId: string,
     userMessage: Message,
@@ -283,6 +324,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
         timestamp: new Date().toISOString(),
         thumbnailUrl: img.thumbnailUrl,
         fullImageUrl: img.fullImageUrl,
+        fullImagePath: img.fullImagePath,
       }));
 
       fastify.sessionService.updateMessageMetadata(userMessage.id, {
@@ -340,6 +382,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
     let lastActivityTime = Date.now();
     let globalTimeout: ReturnType<typeof setTimeout> | undefined;
     let idleCheckInterval: ReturnType<typeof setInterval> | undefined;
+    const idleTimeoutMs = getIdleTimeoutMs(provider);
 
     const cleanupTimers = () => {
       if (globalTimeout) clearTimeout(globalTimeout);
@@ -377,6 +420,41 @@ export async function chatRoutes(fastify: FastifyInstance) {
       fastify.llmProviderService.abortRequest(sessionId, provider).catch((abortError) => {
         console.warn('[ChatRoute] Failed to abort provider request:', abortError);
       });
+    };
+
+    const failStream = (reason: string, errorMessage: string, abortProvider = false) => {
+      if (streamEnded) {
+        return;
+      }
+
+      cleanupTimers();
+
+      try {
+        assistantMessageId = persistAssistantErrorMessage(
+          sessionId,
+          fullContent || '',
+          errorMessage,
+          assistantMessageId
+        );
+      } catch (persistError) {
+        console.error('[ChatRoute] Failed to persist assistant error message:', persistError);
+      }
+
+      sendSse({
+        type: 'error',
+        data: {
+          error: errorMessage,
+          messageId: assistantMessageId || undefined,
+        },
+      });
+
+      endStream(reason);
+
+      if (abortProvider) {
+        abortProviderRequest();
+      }
+
+      resolveStreamCompleteOnce();
     };
 
     let resolveStreamComplete: (() => void) | null = null;
@@ -458,14 +536,22 @@ export async function chatRoutes(fastify: FastifyInstance) {
 
       globalTimeout = setTimeout(() => {
         console.warn('[ChatRoute] Global stream timeout reached');
-        finish('timeout', true);
+        failStream(
+          'timeout',
+          `The ${provider} response timed out before a complete reply was received.`,
+          true
+        );
       }, STREAM_TIMEOUT_MS);
 
       idleCheckInterval = setInterval(() => {
         const idleTime = Date.now() - lastActivityTime;
-        if (idleTime > IDLE_TIMEOUT_MS && !streamEnded) {
+        if (idleTime > idleTimeoutMs && !streamEnded) {
           console.warn(`[ChatRoute] Stream idle for ${idleTime}ms, ending`);
-          finish('idle_timeout', true);
+          failStream(
+            'idle_timeout',
+            `The ${provider} stream became idle and was closed before a complete reply was received.`,
+            true
+          );
         }
       }, 5000);
 
@@ -479,36 +565,15 @@ export async function chatRoutes(fastify: FastifyInstance) {
           providerAttachments.length > 0 ? providerAttachments : undefined
         )
         .catch((streamError) => {
+          if (streamEnded) {
+            return;
+          }
+
           console.error(`[ChatRoute] Failed to start stream for provider ${provider}:`, streamError);
           setSseHeaders(reply);
           
           const errorMessage = streamError instanceof Error ? streamError.message : 'Failed to start stream';
-          
-          // Persist the error in the session history so it isn't lost on reload
-          if (!assistantMessageId) {
-            const message = fastify.sessionService.addMessage(sessionId, 'assistant', fullContent || '', {
-              error: errorMessage
-            });
-            assistantMessageId = message.id;
-          } else {
-            // Update existing message metadata if message was already created
-            const sessionMessages = fastify.sessionService.listAllMessages(sessionId);
-            const targetMessage = sessionMessages.find(m => m.id === assistantMessageId);
-            if (targetMessage) {
-              fastify.sessionService.updateMessageMetadata(assistantMessageId, {
-                ...targetMessage.metadata,
-                error: errorMessage
-              });
-            }
-          }
-
-          sendSse({
-            type: 'error',
-            data: {
-              error: errorMessage,
-            },
-          });
-          finish('provider_error');
+          failStream('provider_error', errorMessage);
         });
     });
 
@@ -652,7 +717,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
           success: true, // Devuelve 200 para que la UI renderice el error como un mensaje de la conversación
           data: errorAssistantMessage,
         });
-      } catch (dbError) {
+      } catch (_dbError) {
         throw error; // Fallback original si la DB falla
       }
     }

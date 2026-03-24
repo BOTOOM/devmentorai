@@ -305,8 +305,25 @@ export class LLMProviderService {
     const previousAdapter = previousProvider ? this.getProvider(previousProvider) : nextAdapter;
 
     if (previousAdapter.id !== nextAdapter.id) {
-      await previousAdapter.destroySession(sessionId);
-      await nextAdapter.createSession(sessionId, type, model, systemPrompt);
+      const messages = this.sessionService.listAllMessages(sessionId);
+      const restored = await nextAdapter.restoreSession({
+        sessionId,
+        type,
+        model,
+        systemPrompt,
+        messages,
+      });
+
+      if (!restored) {
+        await nextAdapter.createSession(sessionId, type, model, systemPrompt);
+      }
+
+      try {
+        await previousAdapter.destroySession(sessionId);
+      } catch (error) {
+        await nextAdapter.destroySession(sessionId).catch(() => undefined);
+        throw error;
+      }
       return;
     }
 

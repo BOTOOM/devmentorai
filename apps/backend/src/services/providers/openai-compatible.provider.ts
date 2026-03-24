@@ -664,6 +664,7 @@ export class OpenAICompatibleProviderAdapter implements LLMProviderAdapter {
       (message) =>
         message.role === 'system' || message.role === 'user' || message.role === 'assistant'
     );
+    const supportsRecoveredImages = this.inferVisionSupport(data.model);
 
     const recoveredMessages: ChatMessage[] = [];
     if (data.systemPrompt) {
@@ -688,11 +689,36 @@ export class OpenAICompatibleProviderAdapter implements LLMProviderAdapter {
 
       recoveredMessages.push({
         role: message.role,
-        content: message.content,
+        content: this.buildRecoveredMessageContent(message, supportsRecoveredImages),
       });
     }
 
     return recoveredMessages;
+  }
+
+  private buildRecoveredMessageContent(message: Message, supportsRecoveredImages: boolean): ChatMessageContent {
+    if (message.role !== 'user' || !supportsRecoveredImages) {
+      return message.content;
+    }
+
+    const imageParts = (message.metadata?.images ?? [])
+      .filter((image) => Boolean(image.fullImagePath))
+      .map((image, index) => this.attachmentToImagePart({
+        type: 'file',
+        path: image.fullImagePath!,
+        displayName: `recovered_image_${index + 1}`,
+      }))
+      .filter((value): value is ChatImagePart => value !== null);
+
+    if (imageParts.length === 0) {
+      return message.content;
+    }
+
+    if (message.content.trim().length === 0) {
+      return imageParts;
+    }
+
+    return [{ type: 'text', text: message.content }, ...imageParts];
   }
 
   private summarizeMessages(messages: Message[]): string {

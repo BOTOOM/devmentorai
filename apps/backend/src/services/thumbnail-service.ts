@@ -62,7 +62,7 @@ export interface ProcessedImage {
  * Extract base64 data and mime type from a data URL
  */
 function parseDataUrl(dataUrl: string): { buffer: Buffer; mimeType: string } | null {
-  const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  const match = /^data:(image\/[^;]+);base64,(.+)$/.exec(dataUrl);
   if (!match) return null;
   
   const [, mimeType, base64Data] = match;
@@ -254,6 +254,7 @@ export function toImageAttachments(processedImages: ProcessedImage[]): ImageAtta
     timestamp: img.timestamp,
     thumbnailUrl: img.thumbnailUrl,
     fullImageUrl: img.fullImageUrl,
+    fullImagePath: img.fullImagePath,
     // Note: dataUrl is NOT included - it's only used during processing
   }));
 }

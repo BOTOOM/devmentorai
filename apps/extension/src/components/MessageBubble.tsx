@@ -15,11 +15,12 @@ export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const hasError = Boolean(message.metadata?.error);
   const images = message.metadata?.images || [];
   const hasImages = images.length > 0;
   
   // Don't render empty assistant messages (A.2 fix) - but allow if has images
-  if (message.role === 'assistant' && !message.content.trim() && !hasImages) {
+  if (message.role === 'assistant' && !message.content.trim() && !hasImages && !hasError) {
     return null;
   }
 
@@ -96,7 +97,9 @@ export function MessageBubble({ message, onReplaceText }: MessageBubbleProps) {
             ? 'bg-primary-600 text-white rounded-tr-md'
             : isSystem
               ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-md'
+              : hasError
+                ? 'bg-red-50 dark:bg-red-900/20 text-red-900 dark:text-red-100 border border-red-200 dark:border-red-800/60 rounded-tl-md'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-md'
         )}>
           {/* Image attachments */}
           {hasImages && (

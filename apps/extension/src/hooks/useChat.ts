@@ -345,6 +345,9 @@ export function useChat(sessionId: string | undefined) {
                       m.id === assistantMessageId
                         ? {
                             ...m,
+                            id: event.data.messageId || m.id,
+                            content: currentMessageRef.current,
+                            timestamp: formatDate(),
                             metadata: {
                               ...m.metadata,
                               error: streamError,
@@ -353,12 +356,24 @@ export function useChat(sessionId: string | undefined) {
                         : m
                     )
                   );
+
+                  if (event.data.messageId) {
+                    void loadMessages(requestSessionId);
+                  }
                 }
                 break;
               }
 
               case 'done':
                 setIsStreaming(false);
+                if (
+                  event.data.reason &&
+                  (event.data.reason === 'provider_error' ||
+                    event.data.reason === 'timeout' ||
+                    event.data.reason === 'idle_timeout')
+                ) {
+                  void loadMessages(requestSessionId);
+                }
                 break;
             }
           },
@@ -418,6 +433,7 @@ export function useChat(sessionId: string | undefined) {
               : m
           )
         );
+        void loadMessages(requestSessionId);
       }
     } finally {
       setIsStreaming(false);

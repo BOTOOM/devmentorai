@@ -96,6 +96,8 @@ export class CopilotProviderAdapter implements LLMProviderAdapter {
       provider: this.id,
       isAuthenticated: status.isAuthenticated,
       login: status.login,
+      supportsNativeResume: true,
+      sessionRecoveryMode: 'native',
       reason: status.reason,
     };
   }

@@ -52,7 +52,7 @@ function getLoginLabel(
 
 function getRecoveryBadge(
   authStatus: ProviderAuthStatus | null | undefined
-): { label: string; className: string; title: string } | null {
+): { label: string; shortLabel: string; className: string; title: string } | null {
   const mode = authStatus?.sessionRecoveryMode;
   if (!mode) {
     return null;
@@ -61,6 +61,7 @@ function getRecoveryBadge(
   if (mode === 'native') {
     return {
       label: 'Native resume',
+      shortLabel: 'Native',
       className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300',
       title: 'Provider supports native session continuation.',
     };
@@ -69,6 +70,7 @@ function getRecoveryBadge(
   if (mode === 'replay') {
     return {
       label: 'Replay recovery',
+      shortLabel: 'Replay',
       className: 'border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-700/50 dark:bg-cyan-900/20 dark:text-cyan-300',
       title: 'DevMentorAI restores the conversation by replaying persisted history.',
     };
@@ -77,6 +79,7 @@ function getRecoveryBadge(
   if (mode === 'summary') {
     return {
       label: 'Summary recovery',
+      shortLabel: 'Summary',
       className: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700/50 dark:bg-violet-900/20 dark:text-violet-300',
       title: 'DevMentorAI restores the conversation using a compact summary fallback.',
     };
@@ -84,6 +87,7 @@ function getRecoveryBadge(
 
   return {
     label: 'No recovery',
+    shortLabel: 'No recovery',
     className: 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
     title: 'This provider does not expose session recovery metadata.',
   };
@@ -125,108 +129,132 @@ export function Header({
   const providerDisplay = PROVIDER_DISPLAY[providerName as LLMProvider];
   const loginLabel = getLoginLabel(authStatus, providerName, providerDisplay?.name);
   const recoveryBadge = getRecoveryBadge(authStatus);
+  const statusLabel = connectionStatus === 'connected'
+    ? 'Online'
+    : connectionStatus === 'connecting'
+      ? 'Syncing'
+      : 'Offline';
+  const chipBaseClassName = 'inline-flex h-6 shrink-0 items-center gap-1 rounded-full border px-2 text-[10px] font-medium transition-colors';
 
   return (
-    <header className="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <header className="border-b border-gray-200 bg-white/95 px-3 py-2.5 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
+      <div className="flex items-start gap-2.5">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
-              DevMentorAI
-            </span>
-            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-              <span className={cn('w-2 h-2 rounded-full', status.dotClassName)} />
-              <StatusIcon className={cn('w-3.5 h-3.5', status.className)} />
-              <span>{status.text}</span>
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <span className="block truncate text-[20px] font-semibold leading-tight tracking-tight text-gray-950 dark:text-white">
+                DevMentorAI
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0 rounded-full border border-gray-200 bg-gray-50/95 p-1 dark:border-gray-700 dark:bg-gray-900/70">
+              <button
+                onClick={onNewSession}
+                className="flex h-8 items-center gap-1.5 rounded-full bg-primary-600 px-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-primary-700"
+                aria-label="New session"
+                title={chrome.i18n.getMessage('btn_new_session') || 'New session'}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>{chrome.i18n.getMessage('btn_new_session') || 'New'}</span>
+              </button>
+
+              <button
+                onClick={onOpenSettings}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                title="Settings"
+                aria-label="Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+              <button
+                onClick={onOpenHelp}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                title="Help & shortcuts"
+                aria-label="Help & shortcuts"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
             </div>
           </div>
 
-          {connectionStatus === 'connected' && (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 min-w-0">
-              {providerDisplay && (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                  title={providerDisplay.description}
-                >
-                  <span aria-hidden>{providerDisplay.icon}</span>
-                  <span className="truncate max-w-[140px]">{providerDisplay.name}</span>
-                </span>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1 pr-1">
+            <span
+              className={cn(
+                chipBaseClassName,
+                'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300'
               )}
-              {authStatus?.isAuthenticated ? (
-                <div className="relative group">
-                  <button
-                    type="button"
-                    className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-green-200 bg-green-50 text-green-700 dark:border-green-700/50 dark:bg-green-900/20 dark:text-green-300"
-                    title={loginLabel}
-                    aria-label={`${providerName} account ${loginLabel}`}
-                  >
-                    <User className="w-3.5 h-3.5" />
-                  </button>
+              title={status.text}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full', status.dotClassName)} />
+              <StatusIcon className={cn('h-3 w-3', status.className)} />
+              <span>{statusLabel}</span>
+            </span>
 
-                  <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-medium text-gray-700 opacity-0 shadow-sm transition-all group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                    {loginLabel}
-                  </span>
-                </div>
-              ) : (
-                <span
-                  className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border max-w-full truncate border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300"
-                  title={authStatus?.reason || loginLabel}
+            {connectionStatus === 'connected' && providerDisplay && (
+              <span
+                className={cn(
+                  chipBaseClassName,
+                  'max-w-[128px] border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-900/70 dark:text-gray-300'
+                )}
+                title={providerDisplay.description}
+              >
+                <span aria-hidden>{providerDisplay.icon}</span>
+                <span className="truncate">{providerDisplay.name}</span>
+              </span>
+            )}
+
+            {connectionStatus === 'connected' && authStatus?.isAuthenticated ? (
+              <div className="relative shrink-0 group">
+                <button
+                  type="button"
+                  className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-green-200 bg-green-50 px-1.5 text-green-700 transition-colors hover:bg-green-100 dark:border-green-700/50 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30"
+                  title={loginLabel}
+                  aria-label={`${providerName} account ${loginLabel}`}
                 >
+                  <User className="h-3.5 w-3.5" />
+                </button>
+
+                <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-medium text-gray-700 opacity-0 shadow-sm transition-all group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
                   {loginLabel}
                 </span>
-              )}
+              </div>
+            ) : connectionStatus === 'connected' ? (
+              <span
+                className={cn(
+                  chipBaseClassName,
+                  'max-w-[148px] border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300'
+                )}
+                title={authStatus?.reason || loginLabel}
+              >
+                <span className="truncate">{loginLabel}</span>
+              </span>
+            ) : null}
 
-              {quotaLabel && (
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700/50 dark:bg-blue-900/20 dark:text-blue-300 max-w-full truncate">
-                  Quota {quotaLabel}
-                </span>
-              )}
+            {connectionStatus === 'connected' && quotaLabel && (
+              <span
+                className={cn(
+                  chipBaseClassName,
+                  'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-700/50 dark:bg-blue-900/20 dark:text-blue-300'
+                )}
+                title={`Quota ${quotaLabel}`}
+              >
+                <span>{typeof quotaStatus?.percentageRemaining === 'number' ? `${Math.max(0, Math.round(quotaStatus.percentageRemaining))}%` : 'Quota'}</span>
+              </span>
+            )}
 
-              {recoveryBadge && (
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border max-w-full truncate',
-                    recoveryBadge.className
-                  )}
-                  title={recoveryBadge.title}
-                >
-                  {recoveryBadge.label}
-                </span>
-              )}
-            </div>
-          )}
+            {connectionStatus === 'connected' && recoveryBadge && (
+              <span
+                className={cn(
+                  chipBaseClassName,
+                  recoveryBadge.className
+                )}
+                title={recoveryBadge.title}
+              >
+                <span>{recoveryBadge.shortLabel}</span>
+              </span>
+            )}
+          </div>
         </div>
-
-        <div className="flex items-center justify-end gap-1 shrink-0 self-end sm:self-start">
-        {/* D.1 - View current page */}
-        {/* D.2 - Help */}
-        <button
-          onClick={onNewSession}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
-          aria-label="New session"
-          title={chrome.i18n.getMessage('btn_new_session') || 'New session'}
-        >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">
-            {chrome.i18n.getMessage('btn_new_session') || 'New'}
-          </span>
-        </button>
-
-        <button
-          onClick={onOpenSettings}
-          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          title="Settings"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
-        <button
-          onClick={onOpenHelp}
-          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          title="Help & shortcuts"
-        >
-          <HelpCircle className="w-4.5 h-4.5" />
-        </button>
-      </div>
       </div>
     </header>
   );

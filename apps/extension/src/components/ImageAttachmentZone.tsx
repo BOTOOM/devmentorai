@@ -139,12 +139,12 @@ export function ImageAttachmentZone({
         ref={dropZoneRef}
         className={cn(
           'transition-all duration-200 overflow-hidden',
-          showZone ? 'max-h-40 opacity-100 mb-3' : 'max-h-0 opacity-0'
+          showZone ? 'max-h-32 opacity-100 mb-2.5' : 'max-h-0 opacity-0'
         )}
       >
         <div
           className={cn(
-            'rounded-xl border-2 border-dashed p-3 transition-colors',
+            'rounded-xl border-2 border-dashed p-2.5 transition-colors',
             isDragOver
               ? 'border-primary-400 bg-primary-50 dark:border-primary-500 dark:bg-primary-900/20'
               : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'
@@ -166,8 +166,8 @@ export function ImageAttachmentZone({
 
           {/* Content: either drop indicator or thumbnails */}
           {isDragOver && !hasImages ? (
-            <div className="flex flex-col items-center justify-center py-4 text-primary-600 dark:text-primary-400">
-              <ImagePlus className="w-8 h-8 mb-2" />
+            <div className="flex flex-col items-center justify-center py-3 text-primary-600 dark:text-primary-400">
+              <ImagePlus className="w-7 h-7 mb-1.5" />
               <p className="text-sm font-medium">Drop images here</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {IMAGE_CONSTANTS.SUPPORTED_MIME_TYPES.map(t => t.split('/')[1].toUpperCase()).join(', ')}
@@ -182,7 +182,7 @@ export function ImageAttachmentZone({
                   src={image.dataUrl}
                   alt={`Attachment ${index + 1}`}
                   source={image.source}
-                  size="md"
+                  size="sm"
                   showRemove
                   isDraft
                   onRemove={() => onRemoveImage(image.id)}
@@ -194,15 +194,15 @@ export function ImageAttachmentZone({
               {!isAtLimit && hasImages && (
                 <div
                   className={cn(
-                    'w-16 h-16 rounded-lg border-2 border-dashed',
+                    'w-12 h-12 rounded-lg border-2 border-dashed',
                     'border-gray-300 dark:border-gray-600',
                     'flex flex-col items-center justify-center',
                     'text-gray-400 dark:text-gray-500 text-xs',
                     isDragOver && 'border-primary-400 dark:border-primary-500 text-primary-500'
                   )}
                 >
-                  <ImagePlus className="w-5 h-5 mb-0.5" />
-                  <span>+{remainingSlots}</span>
+                  <ImagePlus className="w-4 h-4 mb-0.5" />
+                  <span className="text-[10px]">+{remainingSlots}</span>
                 </div>
               )}
 

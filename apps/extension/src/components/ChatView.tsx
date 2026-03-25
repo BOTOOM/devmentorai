@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Loader2, Cpu, ChevronDown, ChevronRight, Brain, Sparkles, Globe, AlertTriangle, ImagePlus, Upload } from 'lucide-react';
+import { Send, Square, Loader2, Cpu, ChevronDown, ChevronRight, Brain, Sparkles, Globe, AlertTriangle, ImagePlus, Upload, Camera } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { MessageBubble } from './MessageBubble';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
@@ -12,6 +12,9 @@ const PRICING_BADGES: Record<string, { label: string; color: string }> = {
   standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' },
   premium: { label: 'Premium', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
 };
+
+const MIN_TEXTAREA_HEIGHT = 44;
+const MAX_TEXTAREA_HEIGHT = 144;
 
 function getUnavailableMessage(providerId: LLMProvider): string {
   const display = PROVIDER_DISPLAY[providerId];
@@ -181,6 +184,20 @@ export function ChatView({
     updateCursorSelection(e.currentTarget);
   };
 
+  const resizeTextarea = useCallback(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = 'auto';
+    const nextHeight = Math.min(MAX_TEXTAREA_HEIGHT, Math.max(MIN_TEXTAREA_HEIGHT, textarea.scrollHeight));
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > MAX_TEXTAREA_HEIGHT ? 'auto' : 'hidden';
+  }, []);
+
+  useEffect(() => {
+    resizeTextarea();
+  }, [input, resizeTextarea]);
+
   // Handle paste event for images
   const handleInputPaste = useCallback(async (e: React.ClipboardEvent) => {
     if (!imageAttachmentsEnabled) return;
@@ -275,19 +292,32 @@ export function ChatView({
     clearImages();
   };
 
+  const openImagePicker = useCallback(() => {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/png,image/jpeg,image/webp';
+    fileInput.multiple = true;
+    fileInput.onchange = async (event) => {
+      const files = (event.target as HTMLInputElement).files;
+      if (!files) return;
+
+      for (const file of Array.from(files)) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          if (reader.result) {
+            await addImage(reader.result as string, 'drop');
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+    fileInput.click();
+  }, [addImage]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
-    }
-  };
-
-  const getSessionIcon = (type: Session['type']) => {
-    switch (type) {
-      case 'devops': return '🔧';
-      case 'writing': return '✍️';
-      case 'development': return '💻';
-      default: return '🤖';
     }
   };
 
@@ -329,8 +359,20 @@ export function ChatView({
     }));
   };
 
+  const activeModelInfo = session
+    ? availableModels.find((model) => model.provider === session.provider && model.id === session.model)
+    : null;
+
   const hasStartedChat = messages.length > 0;
   const canUseModelPicker = Boolean(onChangeModel) && !disabled && !isStreaming && !hasStartedChat;
+  const canCaptureScreenshot = Boolean(
+    imageAttachmentsEnabled &&
+    screenshotBehavior !== 'disabled' &&
+    onCaptureScreenshot &&
+    !isStreaming &&
+    !disabled &&
+    !isAtLimit
+  );
 
   useEffect(() => {
     if (hasStartedChat && showModelPicker) {
@@ -365,125 +407,6 @@ export function ChatView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Session info bar - C.1: clickeable model selector */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2 text-sm">
-          <span>{getSessionIcon(session.type)}</span>
-          <span className="font-medium text-gray-700 dark:text-gray-300">{session.name}</span>
-        </div>
-        
-        {/* Model selector */}
-        <div className="relative">
-          <button
-            onClick={() => {
-              if (canUseModelPicker) {
-                setShowModelPicker(!showModelPicker);
-              }
-            }}
-            disabled={!canUseModelPicker}
-            className={cn(
-              "flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors",
-              canUseModelPicker
-                ? "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
-                : "text-gray-400 dark:text-gray-500 cursor-default"
-            )}
-          >
-            {!hasStartedChat && <Cpu className="w-3.5 h-3.5" />}
-            <span>{session.model}</span>
-            {!hasStartedChat && onChangeModel && <ChevronDown className="w-3 h-3" />}
-          </button>
-          
-          {showModelPicker && canUseModelPicker && availableModels.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[240px] max-h-72 overflow-y-auto">
-              <div className="sticky top-0 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <input
-                  type="text"
-                  value={modelSearch}
-                  onChange={(event) => setModelSearch(event.target.value)}
-                  placeholder="Search models..."
-                  className="w-full px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
-              </div>
-
-              {filteredModels.length === 0 && (
-                <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No models found</p>
-              )}
-
-              {SUPPORTED_LLM_PROVIDERS.map((providerId) => {
-                const providerModels = filteredModels.filter((m) => m.provider === providerId);
-                if (providerModels.length === 0) return null;
-                const display = PROVIDER_DISPLAY[providerId];
-                const availableProviderModels = providerModels.filter((m) => m.available !== false);
-                const hasAvailable = availableProviderModels.length > 0;
-                const isCollapsed = isProviderCollapsed(providerId);
-
-                return (
-                  <div key={providerId}>
-                    <button
-                      type="button"
-                      onClick={() => toggleProvider(providerId)}
-                      className={cn(
-                        'w-full px-2.5 py-1.5 border-y border-gray-200 dark:border-gray-700 flex items-center gap-1.5 text-left transition-colors hover:bg-gray-100 dark:hover:bg-gray-700/70',
-                        hasAvailable ? 'bg-gray-50 dark:bg-gray-900' : 'bg-gray-100 dark:bg-gray-900/60'
-                      )}
-                    >
-                      {isCollapsed ? (
-                        <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
-                      )}
-                      <span className="text-xs" aria-hidden>{display.icon}</span>
-                      <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">
-                        {display.name}
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                        {providerModels.length}
-                      </span>
-                    </button>
-
-                    {!isCollapsed && !hasAvailable && (
-                      <div className="px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-900/40">
-                        {getUnavailableMessage(providerId)}
-                      </div>
-                    )}
-
-                    {!isCollapsed && availableProviderModels.map((model) => (
-                      <button
-                        key={model.id}
-                        type="button"
-                        onClick={() => {
-                          onChangeModel?.(model.id);
-                          setShowModelPicker(false);
-                          setModelSearch('');
-                        }}
-                        className={cn(
-                          'w-full px-3 py-2 text-left text-xs transition-colors',
-                          'hover:bg-gray-100 dark:hover:bg-gray-700',
-                          model.id === session.model && 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                        )}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{model.name}</span>
-                          {model.pricingTier && (
-                            <span className={cn(
-                              'text-[9px] px-1.5 py-0.5 rounded-full',
-                              PRICING_BADGES[model.pricingTier]?.color || PRICING_BADGES.standard.color
-                            )}>
-                              {PRICING_BADGES[model.pricingTier]?.label || 'Standard'}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-gray-500 dark:text-gray-400">{model.id}</div>
-                      </button>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
@@ -572,7 +495,7 @@ export function ChatView({
         onDragOver={handleFormDragOver}
         onDrop={handleFormDrop}
         className={cn(
-          "border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800 relative",
+          "border-t border-gray-200 dark:border-gray-700 px-3.5 py-3 bg-white dark:bg-gray-800 relative",
           isDraggingOver && "ring-2 ring-primary-400 ring-inset"
         )}
       >
@@ -597,28 +520,28 @@ export function ChatView({
             error={lastError}
             onClearError={clearError}
             enabled={imageAttachmentsEnabled && !disabled && !isStreaming}
-            onCaptureScreenshot={screenshotBehavior === 'disabled' ? undefined : handleCaptureScreenshot}
+            onCaptureScreenshot={undefined}
             isCapturingScreenshot={isCapturingScreenshot}
-            showScreenshotButton={screenshotBehavior !== 'disabled' && !!onCaptureScreenshot}
+            showScreenshotButton={false}
           />
         )}
 
         {/* Context preview bar (shows when context is enabled) */}
         {contextEnabled && extractedContext && (
-          <div className="mb-3 p-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+          <div className="mb-3 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 dark:border-indigo-800 dark:bg-indigo-900/20">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex min-w-0 items-center gap-2 text-xs">
                 <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                <span className="font-medium text-indigo-700 dark:text-indigo-300">
+                <span className="truncate font-medium text-indigo-700 dark:text-indigo-300">
                   {platform?.specificProduct || platform?.type || 'Page Context'}
                 </span>
                 {platform && platform.confidence >= 0.7 && (
-                  <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-800/50 text-indigo-600 dark:text-indigo-400 rounded text-[10px]">
+                  <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] text-indigo-600 dark:bg-indigo-800/50 dark:text-indigo-400">
                     {Math.round(platform.confidence * 100)}% match
                   </span>
                 )}
                 {errorCount > 0 && (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded text-[10px]">
+                  <span className="flex items-center gap-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
                     <AlertTriangle className="w-3 h-3" />
                     {errorCount} errors detected
                   </span>
@@ -634,7 +557,7 @@ export function ChatView({
             </div>
             
             {showContextPreview && (
-              <div className="mt-2 pt-2 border-t border-indigo-200 dark:border-indigo-700 space-y-1 text-xs text-gray-600 dark:text-gray-400">
+              <div className="mt-2 space-y-1 border-t border-indigo-200 pt-2 text-xs text-gray-600 dark:border-indigo-700 dark:text-gray-400">
                 <div className="truncate">
                   <span className="font-medium">URL:</span> {extractedContext.page.url}
                 </div>
@@ -653,32 +576,178 @@ export function ChatView({
           </div>
         )}
 
-        <div className="flex items-center gap-2" style={{ alignItems: 'stretch' }}>
-          {/* Context toggle button */}
-          {onToggleContext && (
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            {onToggleContext && (
+              <button
+                type="button"
+                onClick={onToggleContext}
+                disabled={isStreaming || isExtractingContext}
+                className={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-xl border transition-all shrink-0',
+                  contextEnabled
+                    ? 'border-indigo-300 bg-indigo-50 text-indigo-600 ring-1 ring-indigo-400 dark:border-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 dark:ring-indigo-700'
+                    : 'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                  (isStreaming || isExtractingContext) && 'opacity-50 cursor-not-allowed'
+                )}
+                title={contextEnabled
+                  ? (chrome.i18n.getMessage('context_mode_on') || 'Context mode ON - Click to disable')
+                  : (chrome.i18n.getMessage('context_mode_off') || 'Use page context')}
+              >
+                {isExtractingContext ? (
+                  <Loader2 className="h-4.5 w-4.5 animate-spin" />
+                ) : (
+                  <Sparkles className={cn('h-4.5 w-4.5', contextEnabled && 'animate-pulse')} />
+                )}
+              </button>
+            )}
+
+            {imageAttachmentsEnabled && (
+              <button
+                type="button"
+                onClick={openImagePicker}
+                disabled={disabled || isStreaming || isAtLimit}
+                className={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-xl border transition-colors shrink-0',
+                  'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                  (disabled || isStreaming || isAtLimit) && 'opacity-50 cursor-not-allowed'
+                )}
+                title="Attach images"
+              >
+                <ImagePlus className="h-4.5 w-4.5" />
+              </button>
+            )}
+
+            {canCaptureScreenshot && (
+              <button
+                type="button"
+                onClick={() => handleCaptureScreenshot('visible')}
+                disabled={isCapturingScreenshot}
+                className={cn(
+                  'flex h-10 w-10 items-center justify-center rounded-xl border transition-colors shrink-0',
+                  'border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800',
+                  isCapturingScreenshot && 'opacity-50 cursor-not-allowed'
+                )}
+                title="Capture screenshot"
+              >
+                <Camera className={cn('h-4.5 w-4.5', isCapturingScreenshot && 'animate-pulse')} />
+              </button>
+            )}
+          </div>
+
+          <div className="relative shrink-0">
             <button
               type="button"
-              onClick={onToggleContext}
-              disabled={isStreaming || isExtractingContext}
+              onClick={() => {
+                if (canUseModelPicker) {
+                  setShowModelPicker(!showModelPicker);
+                }
+              }}
+              disabled={!canUseModelPicker}
               className={cn(
-                'flex items-center justify-center w-12 h-12 rounded-xl transition-all shrink-0',
-                contextEnabled
-                  ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 ring-2 ring-indigo-500'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
-                (isStreaming || isExtractingContext) && 'opacity-50 cursor-not-allowed'
+                'flex max-w-[160px] items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[11px] transition-colors',
+                canUseModelPicker
+                  ? 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:bg-gray-800 cursor-pointer'
+                  : 'border-gray-200 bg-gray-50/80 text-gray-400 dark:border-gray-700 dark:bg-gray-900/80 dark:text-gray-500 cursor-default'
               )}
-              title={contextEnabled 
-                ? (chrome.i18n.getMessage('context_mode_on') || 'Context mode ON - Click to disable')
-                : (chrome.i18n.getMessage('context_mode_off') || 'Use page context')}
+              title={activeModelInfo?.name || session.model}
             >
-              {isExtractingContext ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Sparkles className={cn('w-5 h-5', contextEnabled && 'animate-pulse')} />
-              )}
+              <Cpu className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">{activeModelInfo?.name || session.model}</span>
+              {canUseModelPicker && <ChevronDown className="h-3 w-3 shrink-0" />}
             </button>
-          )}
 
+            {showModelPicker && canUseModelPicker && availableModels.length > 0 && (
+              <div className="absolute bottom-full right-0 z-50 mb-2 w-[280px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800 max-h-[52vh]">
+                <div className="sticky top-0 border-b border-gray-200 bg-white/95 px-2.5 py-2 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-800/95">
+                  <input
+                    type="text"
+                    value={modelSearch}
+                    onChange={(event) => setModelSearch(event.target.value)}
+                    placeholder="Search models..."
+                    className="w-full rounded-md border border-gray-200 bg-gray-50 px-2.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-700 dark:bg-gray-900"
+                  />
+                </div>
+
+                {filteredModels.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No models found</p>
+                )}
+
+                {SUPPORTED_LLM_PROVIDERS.map((providerId) => {
+                  const providerModels = filteredModels.filter((m) => m.provider === providerId);
+                  if (providerModels.length === 0) return null;
+                  const display = PROVIDER_DISPLAY[providerId];
+                  const availableProviderModels = providerModels.filter((m) => m.available !== false);
+                  const hasAvailable = availableProviderModels.length > 0;
+                  const isCollapsed = isProviderCollapsed(providerId);
+
+                  return (
+                    <div key={providerId}>
+                      <button
+                        type="button"
+                        onClick={() => toggleProvider(providerId)}
+                        className={cn(
+                          'flex w-full items-center gap-1.5 border-y border-gray-200 px-2.5 py-1.5 text-left transition-colors hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-700/70',
+                          hasAvailable ? 'bg-gray-50 dark:bg-gray-900' : 'bg-gray-100 dark:bg-gray-900/60'
+                        )}
+                      >
+                        {isCollapsed ? (
+                          <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                        )}
+                        <span className="text-xs" aria-hidden>{display.icon}</span>
+                        <span className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">
+                          {display.name}
+                        </span>
+                        <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[9px] text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                          {providerModels.length}
+                        </span>
+                      </button>
+
+                      {!isCollapsed && !hasAvailable && (
+                        <div className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
+                          {getUnavailableMessage(providerId)}
+                        </div>
+                      )}
+
+                      {!isCollapsed && availableProviderModels.map((model) => (
+                        <button
+                          key={model.id}
+                          type="button"
+                          onClick={() => {
+                            onChangeModel?.(model.id);
+                            setShowModelPicker(false);
+                            setModelSearch('');
+                          }}
+                          className={cn(
+                            'w-full px-3 py-2 text-left text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-700',
+                            model.id === session.model && 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400'
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="truncate font-medium">{model.name}</span>
+                            {model.pricingTier && (
+                              <span className={cn(
+                                'rounded-full px-1.5 py-0.5 text-[9px]',
+                                PRICING_BADGES[model.pricingTier]?.color || PRICING_BADGES.standard.color
+                              )}>
+                                {PRICING_BADGES[model.pricingTier]?.label || 'Standard'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{model.id}</div>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
@@ -694,79 +763,36 @@ export function ChatView({
               disabled={disabled || isStreaming || isSending}
               rows={1}
               className={cn(
-                'w-full px-4 text-sm rounded-xl border resize-none',
+                'w-full resize-none rounded-2xl border px-4 py-3 text-sm',
                 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700',
                 'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
-                'max-h-32',
+                'leading-5',
                 contextEnabled && 'ring-1 ring-indigo-300 dark:ring-indigo-700',
                 images.length > 0 && 'ring-1 ring-primary-300 dark:ring-primary-700'
               )}
               style={{
-                height: '48px',
-                minHeight: '48px',
-                maxHeight: '128px',
-                paddingTop: '12px',
-                paddingBottom: '12px',
-                lineHeight: '24px',
+                minHeight: `${MIN_TEXTAREA_HEIGHT}px`,
+                maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
                 boxSizing: 'border-box',
               }}
             />
           </div>
-
-          {/* Image attachment button (when no images yet) */}
-          {imageAttachmentsEnabled && images.length === 0 && !isStreaming && (
-            <button
-              type="button"
-              onClick={() => {
-                // Create a hidden file input and trigger it
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/png,image/jpeg,image/webp';
-                input.multiple = true;
-                input.onchange = async (e) => {
-                  const files = (e.target as HTMLInputElement).files;
-                  if (files) {
-                    for (const file of Array.from(files)) {
-                      const reader = new FileReader();
-                      reader.onload = async () => {
-                        if (reader.result) {
-                          await addImage(reader.result as string, 'drop');
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }
-                };
-                input.click();
-              }}
-              disabled={disabled}
-              className={cn(
-                'flex items-center justify-center w-12 h-12 rounded-xl transition-colors shrink-0',
-                'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400',
-                'hover:bg-gray-200 dark:hover:bg-gray-600',
-                disabled && 'opacity-50 cursor-not-allowed'
-              )}
-              title="Attach images"
-            >
-              <ImagePlus className="w-5 h-5" />
-            </button>
-          )}
 
           {isStreaming || isSending ? (
             <button
               type="button"
               onClick={onAbort}
               className={cn(
-                "flex items-center justify-center w-12 h-12 rounded-xl text-white transition-colors shrink-0",
+                "flex h-11 w-11 items-center justify-center rounded-2xl text-white transition-colors shrink-0",
                 isStreaming ? "bg-red-500 hover:bg-red-600" : "bg-amber-500 hover:bg-amber-600"
               )}
               title={isStreaming ? "Stop" : "Cancel"}
             >
               {isSending && !isStreaming ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="h-4.5 w-4.5 animate-spin" />
               ) : (
-                <Square className="w-5 h-5" />
+                <Square className="h-4.5 w-4.5" />
               )}
             </button>
           ) : (
@@ -774,31 +800,17 @@ export function ChatView({
               type="submit"
               disabled={(!input.trim() && images.length === 0) || disabled}
               className={cn(
-                'flex items-center justify-center w-12 h-12 rounded-xl transition-colors shrink-0',
+                'flex h-11 w-11 items-center justify-center rounded-2xl transition-colors shrink-0',
                 (input.trim() || images.length > 0) && !disabled
                   ? 'bg-primary-600 hover:bg-primary-700 text-white'
                   : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
               )}
               title={chrome.i18n.getMessage('btn_send') || 'Send'}
             >
-              <Send className="w-5 h-5" />
+              <Send className="h-4.5 w-4.5" />
             </button>
           )}
         </div>
-        
-        {/* Context mode indicator text */}
-        {contextEnabled && (
-          <div className="mt-2 text-[10px] text-center text-indigo-600 dark:text-indigo-400">
-            {chrome.i18n.getMessage('context_mode_hint') || 'Context mode: AI will analyze the current page'}
-          </div>
-        )}
-
-        {/* Image attachment hint */}
-        {imageAttachmentsEnabled && !contextEnabled && images.length === 0 && (
-          <div className="mt-2 text-[10px] text-center text-gray-400 dark:text-gray-500">
-            Paste or drag images to attach
-          </div>
-        )}
       </form>
     </div>
   );

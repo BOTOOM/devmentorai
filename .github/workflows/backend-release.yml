@@ -2,7 +2,7 @@ name: Backend Release
 
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
     paths:
       - 'apps/backend/**'
       - 'packages/shared/**'
@@ -60,7 +60,7 @@ jobs:
   release:
     name: Release & Publish
     needs: test
-    if: ${{ github.event_name != 'pull_request' && (always() && (needs.test.result == 'success' || inputs.skip_tests)) }}
+    if: ${{ github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && (always() && (needs.test.result == 'success' || inputs.skip_tests)) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

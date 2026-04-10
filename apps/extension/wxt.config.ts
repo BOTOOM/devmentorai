@@ -1,8 +1,54 @@
 import { defineConfig } from 'wxt';
+import { copyFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 
 export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-react'],
+  vite: () => ({
+    publicDir: resolve('src/public'),
+  }),
+  hooks: {
+    'build:done': (_wxt, output) => {
+      const publicDir = resolve('src/public');
+      const resolvedOutput = output as { dir?: string; outDir?: string };
+      const configuredOutDir = resolvedOutput.dir ?? resolvedOutput.outDir;
+      const knownOutputDirs = [resolve('.output/chrome-mv3'), resolve('.output/chrome-mv3-dev')].filter(
+        (dir) => existsSync(dir)
+      );
+      const outDirs = Array.from(
+        new Set(
+          [configuredOutDir ? resolve(configuredOutDir) : null, ...knownOutputDirs].filter(
+            (dir): dir is string => dir !== null
+          )
+        )
+      );
+
+      if (outDirs.length === 0) {
+        outDirs.push(resolve('.output/chrome-mv3'));
+      }
+      
+      function copyDir(src: string, dest: string) {
+        if (!existsSync(src)) return;
+        mkdirSync(dest, { recursive: true });
+        const entries = readdirSync(src, { withFileTypes: true });
+        for (const entry of entries) {
+          const srcPath = join(src, entry.name);
+          const destPath = join(dest, entry.name);
+          if (entry.isDirectory()) {
+            copyDir(srcPath, destPath);
+          } else {
+            copyFileSync(srcPath, destPath);
+          }
+        }
+      }
+      
+      for (const outDir of outDirs) {
+        copyDir(publicDir, outDir);
+        console.log('[wxt] Copied public files to', outDir);
+      }
+    },
+  },
   manifest: {
     name: 'DevMentorAI',
     description: 'DevOps mentoring and writing assistant powered by GitHub Copilot',
@@ -51,7 +97,7 @@ export default defineConfig({
       open_in_tab: true,
     },
   },
-  runner: {
+  webExt: {
     startUrls: ['https://github.com'],
   },
 });

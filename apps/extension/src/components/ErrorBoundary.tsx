@@ -1,5 +1,5 @@
+import { AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react';
 import React from 'react';
-import { AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
 import { EXTENSION_VERSION } from '../version.js';
 
 interface ErrorBoundaryProps {
@@ -35,12 +35,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   handleReportIssue = () => {
     const errorDetails = encodeURIComponent(
       `**Error Message:**\n\`\`\`\n${this.state.error?.message || 'Unknown error'}\n\`\`\`\n\n` +
-      `**Stack Trace:**\n\`\`\`\n${this.state.error?.stack || 'No stack trace'}\n\`\`\`\n\n` +
-      `**Component Stack:**\n\`\`\`\n${this.state.errorInfo?.componentStack || 'No component stack'}\n\`\`\`\n\n` +
-      `**Browser:** ${navigator.userAgent}\n` +
-      `**Extension Version:** ${EXTENSION_VERSION}`
+        `**Stack Trace:**\n\`\`\`\n${this.state.error?.stack || 'No stack trace'}\n\`\`\`\n\n` +
+        `**Component Stack:**\n\`\`\`\n${this.state.errorInfo?.componentStack || 'No component stack'}\n\`\`\`\n\n` +
+        `**Browser:** ${navigator.userAgent}\n` +
+        `**Extension Version:** ${EXTENSION_VERSION}`
     );
-    
+
     const issueUrl = `https://github.com/BOTOOM/devmentorai/issues/new?title=${encodeURIComponent('[Bug] Extension Error')}&body=${errorDetails}&labels=bug,extension`;
     globalThis.open(issueUrl, '_blank');
   };

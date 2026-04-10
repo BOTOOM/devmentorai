@@ -4,7 +4,7 @@
  */
 
 import type { SelectionContext, TextReplacementBehavior } from '@devmentorai/shared';
-import { replaceSelectedText, copyTextToClipboard } from '../../lib/text-replacer';
+import { copyTextToClipboard, replaceSelectedText } from '../../lib/text-replacer';
 
 let popupContainer: HTMLDivElement | null = null;
 let currentContent = '';
@@ -19,6 +19,15 @@ interface PopupPosition {
   y: number;
 }
 
+interface PopupContainerWithHandlers extends HTMLDivElement {
+  __keydownHandler?: (event: KeyboardEvent) => void;
+}
+
+interface PopupContentWithHandlers extends HTMLElement {
+  __clickHandler?: (event: Event) => void;
+  __mouseDownHandler?: (event: Event) => void;
+}
+
 /**
  * Create and show the floating response popup
  */
@@ -29,14 +38,14 @@ export function createFloatingResponsePopup(
   onDismiss?: () => void
 ): void {
   removeFloatingResponsePopup();
-  
+
   anchorPosition = position;
   currentContext = context;
   currentContent = '';
   isComplete = false;
   onDismissCallback = onDismiss || null;
   hasBeenDragged = false;
-  
+
   // Create shadow host for style isolation
   popupContainer = document.createElement('div');
   popupContainer.id = 'devmentorai-response-popup';
@@ -45,36 +54,36 @@ export function createFloatingResponsePopup(
     z-index: 2147483646;
     font-family: system-ui, -apple-system, sans-serif;
   `;
-  
+
   const shadow = popupContainer.attachShadow({ mode: 'open' });
-  
+
   // Inject styles
   const styles = document.createElement('style');
   styles.textContent = getStyles();
   shadow.appendChild(styles);
-  
+
   // Create popup element
   const popup = document.createElement('div');
   popup.className = 'popup';
   popup.id = 'popup-content';
   renderLoadingState(popup);
   shadow.appendChild(popup);
-  
+
   document.body.appendChild(popupContainer);
-  
+
   // Position popup
   positionPopup(position);
   requestAnimationFrame(() => positionPopup());
-  
+
   // Setup keyboard handlers
   setupKeyboardHandlers(shadow);
-  
+
   // Attach button handlers for initial loading state (dismiss button)
   attachButtonHandlers(shadow);
-  
+
   // Setup drag handlers
   setupDragHandlers(shadow);
-  
+
   // Auto-replace if behavior is 'auto'
   if (behavior === 'auto') {
     // Will be handled when content is complete
@@ -85,30 +94,34 @@ export function createFloatingResponsePopup(
  * Update the popup with streaming content
  */
 export function updateFloatingResponseContent(content: string, isStreaming: boolean): void {
-  console.log('[FloatingPopup] updateContent:', { hasContainer: !!popupContainer, contentLength: content.length, isStreaming });
-  
+  console.log('[FloatingPopup] updateContent:', {
+    hasContainer: !!popupContainer,
+    contentLength: content.length,
+    isStreaming,
+  });
+
   if (!popupContainer) {
     console.warn('[FloatingPopup] No container, cannot update content');
     return;
   }
-  
+
   currentContent = content;
   isComplete = !isStreaming;
-  
+
   const shadow = popupContainer.shadowRoot;
   if (!shadow) {
     console.warn('[FloatingPopup] No shadowRoot');
     return;
   }
-  
+
   const popup = shadow.getElementById('popup-content');
   if (!popup) {
     console.warn('[FloatingPopup] No popup element');
     return;
   }
-  
+
   renderContentState(popup, content, isStreaming ? 'streaming' : 'complete');
-  
+
   // Attach button handlers
   attachButtonHandlers(shadow);
 
@@ -121,17 +134,17 @@ export function updateFloatingResponseContent(content: string, isStreaming: bool
  */
 export function showFloatingResponseError(error: string): void {
   if (!popupContainer) return;
-  
+
   isComplete = true;
-  
+
   const shadow = popupContainer.shadowRoot;
   if (!shadow) return;
-  
+
   const popup = shadow.getElementById('popup-content');
   if (!popup) return;
-  
+
   renderErrorState(popup, error);
-  
+
   // Attach button handlers
   attachButtonHandlers(shadow);
 
@@ -144,15 +157,15 @@ export function showFloatingResponseError(error: string): void {
  */
 export function showSuccessNotice(message: string): void {
   if (!popupContainer) return;
-  
+
   const shadow = popupContainer.shadowRoot;
   if (!shadow) return;
-  
+
   const popup = shadow.getElementById('popup-content');
   if (!popup) return;
-  
+
   renderSuccessState(popup, message);
-  
+
   // Auto-dismiss after delay
   setTimeout(() => {
     removeFloatingResponsePopup();
@@ -164,7 +177,8 @@ export function showSuccessNotice(message: string): void {
  */
 export function removeFloatingResponsePopup(): void {
   if (popupContainer) {
-    const keydownHandler = (popupContainer as { __keydownHandler?: (e: KeyboardEvent) => void }).__keydownHandler;
+    const keydownHandler = (popupContainer as { __keydownHandler?: (e: KeyboardEvent) => void })
+      .__keydownHandler;
     if (keydownHandler) {
       document.removeEventListener('keydown', keydownHandler);
     }
@@ -207,19 +221,19 @@ function positionPopup(position?: PopupPosition): void {
 
   const popupElement = popupContainer.shadowRoot?.getElementById('popup-content');
   const popupRect = popupElement?.getBoundingClientRect();
-  
+
   const popupWidth = popupRect?.width || 360;
   const popupHeight = popupRect?.height || 260;
   const padding = 10;
   const toolbarOffset = 60; // Avoid collision with selection toolbar
-  
+
   let left = referencePosition.x - popupWidth / 2;
   let top = referencePosition.y + toolbarOffset; // Prefer below toolbar
-  
+
   // Ensure popup stays within viewport
   const maxX = Math.max(padding, window.innerWidth - popupWidth - padding);
   const maxY = Math.max(padding, window.innerHeight - popupHeight - padding);
-  
+
   left = Math.max(padding, Math.min(left, maxX));
 
   // If it does not fit below, try placing above the anchor
@@ -229,7 +243,7 @@ function positionPopup(position?: PopupPosition): void {
   }
 
   top = Math.max(padding, Math.min(top, maxY));
-  
+
   popupContainer.style.left = `${left}px`;
   popupContainer.style.top = `${top}px`;
 }
@@ -246,12 +260,12 @@ function setupKeyboardHandlers(_shadow: ShadowRoot): void {
       handleReplace();
     }
   };
-  
+
   document.addEventListener('keydown', handleKeydown);
-  
+
   // Cleanup on popup removal (stored in container for access)
   if (popupContainer) {
-    (popupContainer as any).__keydownHandler = handleKeydown;
+    (popupContainer as PopupContainerWithHandlers).__keydownHandler = handleKeydown;
   }
 }
 
@@ -266,27 +280,32 @@ function setupDragHandlers(shadow: ShadowRoot): void {
   let initialTop = 0;
 
   header.addEventListener('pointerdown', (e) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button, a, input, textarea, select, [data-no-drag="true"]')) {
+      return;
+    }
+
     isDragging = true;
     hasBeenDragged = true;
     startX = e.clientX;
     startY = e.clientY;
-    
-    const rect = popupContainer!.getBoundingClientRect();
+
+    const rect = popupContainer.getBoundingClientRect();
     initialLeft = rect.left;
     initialTop = rect.top;
-    
+
     header.setPointerCapture(e.pointerId);
   });
 
   header.addEventListener('pointermove', (e) => {
     if (!isDragging || !popupContainer) return;
-    
+
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
-    
+
     const newLeft = initialLeft + dx;
     const newTop = initialTop + dy;
-    
+
     popupContainer.style.left = `${newLeft}px`;
     popupContainer.style.top = `${newTop}px`;
   });
@@ -295,7 +314,7 @@ function setupDragHandlers(shadow: ShadowRoot): void {
     isDragging = false;
     header.releasePointerCapture(e.pointerId);
   });
-  
+
   header.addEventListener('pointercancel', (e) => {
     isDragging = false;
     header.releasePointerCapture(e.pointerId);
@@ -304,21 +323,23 @@ function setupDragHandlers(shadow: ShadowRoot): void {
 
 function attachButtonHandlers(shadow: ShadowRoot): void {
   console.log('[FloatingPopup] attachButtonHandlers called');
-  
+
   // Use event delegation on the popup content instead of individual button handlers
-  const popup = shadow.getElementById('popup-content');
+  const popup = shadow.getElementById('popup-content') as PopupContentWithHandlers | null;
   if (!popup) {
     console.warn('[FloatingPopup] No popup element for event delegation');
     return;
   }
-  
+
   // Remove existing handler if any
-  const existingHandler = (popup as any).__clickHandler;
+  const existingHandler = popup.__clickHandler;
   if (existingHandler) {
     popup.removeEventListener('click', existingHandler);
-    popup.removeEventListener('mousedown', (popup as any).__mouseDownHandler);
+    if (popup.__mouseDownHandler) {
+      popup.removeEventListener('mousedown', popup.__mouseDownHandler);
+    }
   }
-  
+
   // Prevent focus loss from the active element when clicking buttons
   const mouseDownHandler = (e: Event) => {
     const target = e.target as HTMLElement;
@@ -334,18 +355,18 @@ function attachButtonHandlers(shadow: ShadowRoot): void {
     const target = e.target as HTMLElement;
     const button = target.closest('button');
     if (!button) return;
-    
+
     const buttonId = button.id;
-    console.log('[FloatingPopup] Button clicked:', buttonId, { 
-      currentContent: currentContent?.substring(0, 50), 
+    console.log('[FloatingPopup] Button clicked:', buttonId, {
+      currentContent: currentContent?.substring(0, 50),
       isComplete,
-      hasContext: !!currentContext 
+      hasContext: !!currentContext,
     });
-    
+
     // Also prevent default here just in case
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (buttonId === 'btn-replace') {
       handleReplace();
     } else if (buttonId === 'btn-copy') {
@@ -354,28 +375,40 @@ function attachButtonHandlers(shadow: ShadowRoot): void {
       removeFloatingResponsePopup();
     }
   };
-  
-  (popup as any).__clickHandler = clickHandler;
-  (popup as any).__mouseDownHandler = mouseDownHandler;
+
+  popup.__clickHandler = clickHandler;
+  popup.__mouseDownHandler = mouseDownHandler;
   popup.addEventListener('mousedown', mouseDownHandler);
   popup.addEventListener('click', clickHandler);
 }
 
-async function handleReplace(): Promise<void> {
-  console.log('[FloatingPopup] handleReplace:', { 
-    hasContext: !!currentContext, 
-    contentLength: currentContent?.length,
-    targetId: currentContext?.targetElementId 
+function attachDismissHandler(button: HTMLButtonElement): void {
+  button.dataset.noDrag = 'true';
+  button.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
   });
-  
+  button.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    removeFloatingResponsePopup();
+  });
+}
+
+async function handleReplace(): Promise<void> {
+  console.log('[FloatingPopup] handleReplace:', {
+    hasContext: !!currentContext,
+    contentLength: currentContent?.length,
+    targetId: currentContext?.targetElementId,
+  });
+
   if (!currentContext || !currentContent) {
     console.warn('[FloatingPopup] Cannot replace - missing context or content');
     return;
   }
-  
+
   const result = await replaceSelectedText(currentContext, currentContent);
   console.log('[FloatingPopup] Replace result:', result);
-  
+
   if (result.success) {
     showSuccessNotice('Text replaced ✓');
   } else if (result.copiedToClipboard) {
@@ -387,15 +420,15 @@ async function handleReplace(): Promise<void> {
 
 async function handleCopy(): Promise<void> {
   console.log('[FloatingPopup] handleCopy:', { contentLength: currentContent?.length });
-  
+
   if (!currentContent) {
     console.warn('[FloatingPopup] Cannot copy - no content');
     return;
   }
-  
+
   const success = await copyTextToClipboard(currentContent);
   console.log('[FloatingPopup] Copy success:', success);
-  
+
   if (success) {
     showSuccessNotice('Copied to clipboard ✓');
   } else {
@@ -486,7 +519,21 @@ function getStyles(): string {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 20px;
+      padding: 20px 20px 12px;
+      color: #6b7280;
+    }
+
+    .loading-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .loading-note {
+      margin: 0;
+      padding: 0 20px 16px;
+      font-size: 12px;
+      line-height: 1.45;
       color: #6b7280;
     }
     
@@ -615,6 +662,10 @@ function getStyles(): string {
       .loading {
         color: #9ca3af;
       }
+
+      .loading-note {
+        color: #9ca3af;
+      }
       
       .actions {
         background: #111827;
@@ -653,6 +704,7 @@ function createHeader(): HTMLDivElement {
   dismissBtn.id = 'btn-dismiss';
   dismissBtn.title = 'Dismiss (Esc)';
   dismissBtn.textContent = '✕';
+  attachDismissHandler(dismissBtn);
 
   header.appendChild(title);
   header.appendChild(dismissBtn);
@@ -661,6 +713,9 @@ function createHeader(): HTMLDivElement {
 }
 
 function renderLoadingState(popup: HTMLElement): void {
+  const loadingStack = document.createElement('div');
+  loadingStack.className = 'loading-stack';
+
   const loading = document.createElement('div');
   loading.className = 'loading';
 
@@ -673,10 +728,32 @@ function renderLoadingState(popup: HTMLElement): void {
   loading.appendChild(spinner);
   loading.appendChild(text);
 
-  popup.replaceChildren(createHeader(), loading);
+  const note = document.createElement('p');
+  note.className = 'loading-note';
+  note.textContent =
+    'If this gets stuck, you can close this popup with the X or Esc and continue working. You can retry the action from chat if needed.';
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'action-btn btn-secondary';
+  dismissBtn.id = 'btn-dismiss';
+  dismissBtn.textContent = 'Close popup';
+  attachDismissHandler(dismissBtn);
+  actions.appendChild(dismissBtn);
+
+  loadingStack.appendChild(loading);
+  loadingStack.appendChild(note);
+
+  popup.replaceChildren(createHeader(), loadingStack, actions);
 }
 
-function renderContentState(popup: HTMLElement, content: string, status: 'streaming' | 'complete'): void {
+function renderContentState(
+  popup: HTMLElement,
+  content: string,
+  status: 'streaming' | 'complete'
+): void {
   const isStreaming = status === 'streaming';
 
   const contentWrapper = document.createElement('div');

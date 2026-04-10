@@ -7,7 +7,7 @@ import { storageGet, storageSet } from '../../lib/browser-utils';
 
 let bubbleContainer: HTMLDivElement | null = null;
 let isDragging = false;
-let dragOffset = { x: 0, y: 0 };
+const dragOffset = { x: 0, y: 0 };
 
 export function createFloatingBubble() {
   if (bubbleContainer) return;
@@ -162,7 +162,7 @@ export function removeFloatingBubble() {
 
 function handleBubbleClick(e: MouseEvent) {
   if (isDragging) return;
-  
+
   e.preventDefault();
   e.stopPropagation();
 
@@ -172,32 +172,33 @@ function handleBubbleClick(e: MouseEvent) {
 
 function handleMouseDown(e: MouseEvent) {
   if (e.button !== 0) return; // Only left click
-  
+  if (!bubbleContainer) return;
+
   const bubble = e.currentTarget as HTMLElement;
-  const rect = bubbleContainer!.getBoundingClientRect();
-  
+  const rect = bubbleContainer.getBoundingClientRect();
+
   dragOffset.x = e.clientX - rect.left;
   dragOffset.y = e.clientY - rect.top;
-  
+
   isDragging = false;
-  
+
   // Set dragging after a small movement
   const startX = e.clientX;
   const startY = e.clientY;
-  
+
   const checkDrag = (moveEvent: MouseEvent) => {
     const dx = Math.abs(moveEvent.clientX - startX);
     const dy = Math.abs(moveEvent.clientY - startY);
-    
+
     if (dx > 5 || dy > 5) {
       isDragging = true;
       bubble.classList.add('dragging');
       document.removeEventListener('mousemove', checkDrag);
     }
   };
-  
+
   document.addEventListener('mousemove', checkDrag);
-  
+
   setTimeout(() => {
     document.removeEventListener('mousemove', checkDrag);
   }, 200);
@@ -205,14 +206,14 @@ function handleMouseDown(e: MouseEvent) {
 
 function handleMouseMove(e: MouseEvent) {
   if (!isDragging || !bubbleContainer) return;
-  
+
   const x = e.clientX - dragOffset.x;
   const y = e.clientY - dragOffset.y;
-  
+
   // Constrain to viewport
   const maxX = window.innerWidth - 56;
   const maxY = window.innerHeight - 56;
-  
+
   bubbleContainer.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
   bubbleContainer.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
   bubbleContainer.style.right = 'auto';
@@ -223,11 +224,11 @@ function handleMouseUp() {
   if (isDragging && bubbleContainer) {
     const bubble = bubbleContainer.shadowRoot?.querySelector('.bubble');
     bubble?.classList.remove('dragging');
-    
+
     // Save position
     saveBubblePosition();
   }
-  
+
   setTimeout(() => {
     isDragging = false;
   }, 10);
@@ -235,7 +236,7 @@ function handleMouseUp() {
 
 function saveBubblePosition() {
   if (!bubbleContainer) return;
-  
+
   const rect = bubbleContainer.getBoundingClientRect();
   void storageSet({
     bubblePosition: {

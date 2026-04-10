@@ -1,31 +1,31 @@
 /**
  * Context Aggregator Service
- * 
+ *
  * Aggregates context from content scripts and prepares the context payload
  * for the backend.
- * 
+ *
  * PHASE 3 DESIGN PRINCIPLE:
  * =========================
  * This service provides PURELY FACTUAL context data. It does NOT attempt to:
  * - Detect user intent (let the LLM decide)
  * - Parse user messages for keywords (multilingual users, agent autonomy)
  * - Infer session types from message content (agent's responsibility)
- * 
+ *
  * The agent (Copilot) is fully autonomous and decides:
  * - What the user wants
  * - How to respond
  * - What context is relevant
- * 
+ *
  * Platform detection is kept because it's based on URL patterns (factual),
  * NOT on interpreting user intent.
  */
 
 import type {
-  ContextPayload,
   ContextExtractionRequest,
   ContextExtractionResponse,
-  ContextSessionType,
   ContextMessage,
+  ContextPayload,
+  ContextSessionType,
 } from '@devmentorai/shared';
 import { getBestActiveTab, isBrowserInternalUrl } from '../lib/browser-utils';
 
@@ -35,7 +35,7 @@ import { getBestActiveTab, isBrowserInternalUrl } from '../lib/browser-utils';
 
 /**
  * Infer session type from platform ONLY.
- * 
+ *
  * This is based purely on where the user IS (URL), not what they SAY.
  * The agent decides what to do with the user's message.
  */
@@ -49,7 +49,16 @@ export function inferSessionTypeFromPlatform(
   }
 
   // Infer from platform (factual URL-based detection)
-  const devopsPlatforms = ['azure', 'aws', 'gcp', 'jenkins', 'kubernetes', 'docker', 'datadog', 'grafana'];
+  const devopsPlatforms = [
+    'azure',
+    'aws',
+    'gcp',
+    'jenkins',
+    'kubernetes',
+    'docker',
+    'datadog',
+    'grafana',
+  ];
   if (devopsPlatforms.includes(platform)) {
     return 'devops';
   }
@@ -81,7 +90,7 @@ async function ensureContentScriptInjected(tabId: number): Promise<boolean> {
     // First, try to ping the content script to see if it's already loaded
     const isLoaded = await new Promise<boolean>((resolve) => {
       const timeout = setTimeout(() => resolve(false), 500);
-      
+
       chrome.tabs.sendMessage(tabId, { type: 'PING' }, (response) => {
         clearTimeout(timeout);
         if (chrome.runtime.lastError) {
@@ -91,15 +100,15 @@ async function ensureContentScriptInjected(tabId: number): Promise<boolean> {
         }
       });
     });
-    
+
     if (isLoaded) {
       console.log('[context-aggregator] Content script already loaded in tab:', tabId);
       return true;
     }
-    
+
     // Content script not loaded, inject it programmatically
     console.log('[context-aggregator] Injecting content script into tab:', tabId);
-    
+
     const scriptingApi = (
       chrome as typeof chrome & {
         scripting?: {
@@ -118,11 +127,7 @@ async function ensureContentScriptInjected(tabId: number): Promise<boolean> {
       });
     } else {
       const tabsApi = chrome.tabs as typeof chrome.tabs & {
-        executeScript?: (
-          tabId: number,
-          details: { file: string },
-          callback?: () => void
-        ) => void;
+        executeScript?: (tabId: number, details: { file: string }, callback?: () => void) => void;
       };
 
       if (!tabsApi.executeScript) {
@@ -133,17 +138,19 @@ async function ensureContentScriptInjected(tabId: number): Promise<boolean> {
       await new Promise<void>((resolve, reject) => {
         tabsApi.executeScript?.(tabId, { file: 'content-scripts/content.js' }, () => {
           if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message || 'Failed to execute content script'));
+            reject(
+              new Error(chrome.runtime.lastError.message || 'Failed to execute content script')
+            );
           } else {
             resolve();
           }
         });
       });
     }
-    
+
     // Wait a bit for the script to initialize
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     console.log('[context-aggregator] Content script injected successfully');
     return true;
   } catch (error) {
@@ -167,7 +174,7 @@ export interface AggregatedContext extends ContextPayload {
 export async function requestContextFromTab(
   tabId: number,
   options: ContextExtractionRequest = {},
-  retryCount: number = 2
+  retryCount = 2
 ): Promise<ContextExtractionResponse> {
   const attemptExtraction = (): Promise<ContextExtractionResponse> => {
     return new Promise((resolve) => {
@@ -187,12 +194,16 @@ export async function requestContextFromTab(
           { type: 'EXTRACT_CONTEXT', options },
           (response: ContextExtractionResponse | undefined) => {
             clearTimeout(timeout);
-            
+
             if (chrome.runtime.lastError) {
-              console.error('[context-aggregator] chrome.runtime.lastError:', chrome.runtime.lastError);
+              console.error(
+                '[context-aggregator] chrome.runtime.lastError:',
+                chrome.runtime.lastError
+              );
               resolve({
                 success: false,
-                error: chrome.runtime.lastError.message || 'Failed to communicate with content script',
+                error:
+                  chrome.runtime.lastError.message || 'Failed to communicate with content script',
                 extractionTimeMs: 0,
               });
               return;
@@ -230,28 +241,32 @@ export async function requestContextFromTab(
 
   // First attempt
   let result = await attemptExtraction();
-  
+
   // If failed due to connection error, try injecting content script and retry
-  if (!result.success && result.error?.includes('Could not establish connection') && retryCount > 0) {
+  if (
+    !result.success &&
+    result.error?.includes('Could not establish connection') &&
+    retryCount > 0
+  ) {
     console.log('[context-aggregator] Connection failed, attempting to inject content script...');
-    
+
     const injected = await ensureContentScriptInjected(tabId);
     if (injected) {
       // Retry with exponential backoff
       for (let i = 0; i < retryCount; i++) {
-        const delay = Math.pow(2, i) * 200; // 200ms, 400ms
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
+        const delay = 2 ** i * 200; // 200ms, 400ms
+        await new Promise((resolve) => setTimeout(resolve, delay));
+
         console.log(`[context-aggregator] Retry attempt ${i + 1}/${retryCount}`);
         result = await attemptExtraction();
-        
+
         if (result.success) {
           break;
         }
       }
     }
   }
-  
+
   return result;
 }
 
@@ -264,13 +279,13 @@ export async function getContextFromActiveTab(
   try {
     console.log('[context-aggregator] Getting active tab...');
     const tab = await getBestActiveTab();
-    
+
     console.log('[context-aggregator] Active tab:', {
       id: tab?.id,
       url: tab?.url?.substring(0, 50),
       title: tab?.title?.substring(0, 50),
     });
-    
+
     if (!tab?.id) {
       return {
         success: false,
@@ -323,7 +338,7 @@ export async function getContextFromActiveTab(
 
 /**
  * Aggregate context with session information.
- * 
+ *
  * PHASE 3: This function provides PURELY FACTUAL data.
  * - NO intent detection from user message
  * - NO keyword parsing
@@ -353,7 +368,7 @@ export function aggregateContext(
       // Phase 3: Simplified intent - agent decides, we just provide data
       intent: {
         primary: 'help', // Default, agent will interpret actual intent
-        keywords: [],    // No keyword extraction - agent's job
+        keywords: [], // No keyword extraction - agent's job
         implicitSignals: [],
       },
       previousMessages: {
@@ -389,36 +404,32 @@ export async function getQuickContext(tabId: number): Promise<QuickContext | nul
     }, 1000);
 
     try {
-      chrome.tabs.sendMessage(
-        tabId,
-        { type: 'GET_PAGE_CONTEXT' },
-        (response) => {
-          clearTimeout(timeout);
-          
-          if (chrome.runtime.lastError || !response) {
-            // Fallback to tab info
-            chrome.tabs.get(tabId, (tab) => {
-              if (chrome.runtime.lastError || !tab) {
-                resolve(null);
-                return;
-              }
-              resolve({
-                url: tab.url || '',
-                title: tab.title || '',
-                hostname: tab.url ? new URL(tab.url).hostname : '',
-              });
-            });
-            return;
-          }
+      chrome.tabs.sendMessage(tabId, { type: 'GET_PAGE_CONTEXT' }, (response) => {
+        clearTimeout(timeout);
 
-          resolve({
-            url: response.url,
-            title: response.title,
-            hostname: new URL(response.url).hostname,
-            selectedText: response.selectedText || undefined,
+        if (chrome.runtime.lastError || !response) {
+          // Fallback to tab info
+          chrome.tabs.get(tabId, (tab) => {
+            if (chrome.runtime.lastError || !tab) {
+              resolve(null);
+              return;
+            }
+            resolve({
+              url: tab.url || '',
+              title: tab.title || '',
+              hostname: tab.url ? new URL(tab.url).hostname : '',
+            });
           });
+          return;
         }
-      );
+
+        resolve({
+          url: response.url,
+          title: response.title,
+          hostname: new URL(response.url).hostname,
+          selectedText: response.selectedText || undefined,
+        });
+      });
     } catch (error) {
       clearTimeout(timeout);
       resolve(null);

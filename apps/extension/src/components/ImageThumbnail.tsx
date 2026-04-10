@@ -1,13 +1,13 @@
 /**
  * ImageThumbnail Component
- * 
+ *
  * Displays a single image thumbnail with optional remove button.
  * Used in both the attachment zone and message history.
  */
 
-import { X, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { cn } from '../lib/utils';
 import type { ImageSource } from '@devmentorai/shared';
+import { Image as ImageIcon, Loader2, X } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface ImageThumbnailProps {
   /** Image source URL (data URL or backend URL) */
@@ -88,12 +88,7 @@ export function ImageThumbnail({
             <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
           </div>
         ) : src ? (
-          <img
-            src={src}
-            alt={alt}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
+          <img src={src} alt={alt} className="w-full h-full object-cover" loading="lazy" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-gray-800">
             <ImageIcon className="w-5 h-5 text-gray-400" />

@@ -3,8 +3,8 @@
  * Manages the special "Writing Assistant" session used for quick actions
  */
 
-import { ApiClient } from './api-client';
 import type { Session } from '@devmentorai/shared';
+import { ApiClient } from './api-client';
 
 const WRITING_ASSISTANT_SESSION_NAME = 'Writing Assistant';
 const WRITING_ASSISTANT_SESSION_TYPE = 'writing';
@@ -66,7 +66,10 @@ async function streamQuickActionOnce(
 
         case 'message_complete': {
           const finalContent = event.data.content || fullContent;
-          console.log('[WritingAssistant] Complete event, finalContent length:', finalContent.length);
+          console.log(
+            '[WritingAssistant] Complete event, finalContent length:',
+            finalContent.length
+          );
           onEvent({ type: 'complete', content: finalContent });
           break;
         }
@@ -97,39 +100,38 @@ async function streamQuickActionOnce(
  * Get or create the Writing Assistant session
  * This session is used for all quick actions to provide fast AI responses
  */
-export async function getOrCreateWritingAssistantSession(
-  model?: string
-): Promise<Session | null> {
+export async function getOrCreateWritingAssistantSession(model?: string): Promise<Session | null> {
   const apiClient = ApiClient.getInstance();
-  
+
   // Check cache
   const now = Date.now();
-  if (cachedSession && (now - lastFetchTime) < CACHE_TTL_MS) {
+  if (cachedSession && now - lastFetchTime < CACHE_TTL_MS) {
     return cachedSession;
   }
-  
+
   try {
     // Fetch all sessions
     const response = await apiClient.listSessions();
-    
+
     if (!response.success || !response.data) {
       console.error('[WritingAssistant] Failed to list sessions:', response.error);
       return null;
     }
-    
+
     // Look for existing Writing Assistant session
     const existingSession = response.data.items.find(
-      session => session.name === WRITING_ASSISTANT_SESSION_NAME && 
-                 session.type === WRITING_ASSISTANT_SESSION_TYPE
+      (session) =>
+        session.name === WRITING_ASSISTANT_SESSION_NAME &&
+        session.type === WRITING_ASSISTANT_SESSION_TYPE
     );
-    
+
     if (existingSession) {
       cachedSession = existingSession;
       lastFetchTime = now;
       console.log('[WritingAssistant] Found existing session:', existingSession.id);
       return existingSession;
     }
-    
+
     // Create new Writing Assistant session
     console.log('[WritingAssistant] Creating new session with model:', model);
     const createResponse = await apiClient.createSession({
@@ -137,17 +139,16 @@ export async function getOrCreateWritingAssistantSession(
       type: WRITING_ASSISTANT_SESSION_TYPE,
       model: model,
     });
-    
+
     if (!createResponse.success || !createResponse.data) {
       console.error('[WritingAssistant] Failed to create session:', createResponse.error);
       return null;
     }
-    
+
     cachedSession = createResponse.data;
     lastFetchTime = now;
     console.log('[WritingAssistant] Created new session:', createResponse.data.id);
     return createResponse.data;
-    
   } catch (error) {
     console.error('[WritingAssistant] Error getting/creating session:', error);
     return null;
@@ -158,8 +159,10 @@ export async function getOrCreateWritingAssistantSession(
  * Check if a session is the Writing Assistant session
  */
 export function isWritingAssistantSession(session: Session): boolean {
-  return session.name === WRITING_ASSISTANT_SESSION_NAME && 
-         session.type === WRITING_ASSISTANT_SESSION_TYPE;
+  return (
+    session.name === WRITING_ASSISTANT_SESSION_NAME &&
+    session.type === WRITING_ASSISTANT_SESSION_TYPE
+  );
 }
 
 /**
@@ -188,14 +191,14 @@ export async function streamQuickAction(
   signal?: AbortSignal
 ): Promise<void> {
   let session = await getOrCreateWritingAssistantSession(model);
-  
+
   if (!session) {
     onEvent({ type: 'error', error: 'Failed to get Writing Assistant session' });
     return;
   }
-  
+
   const apiClient = ApiClient.getInstance();
-  
+
   try {
     try {
       await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
@@ -205,7 +208,10 @@ export async function streamQuickAction(
         throw error;
       }
 
-      console.warn('[WritingAssistant] Recoverable session error detected, attempting one recovery cycle:', error);
+      console.warn(
+        '[WritingAssistant] Recoverable session error detected, attempting one recovery cycle:',
+        error
+      );
 
       let resumeSucceeded = false;
       try {

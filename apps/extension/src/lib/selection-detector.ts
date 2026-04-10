@@ -33,12 +33,12 @@ function isElementEditable(element: HTMLElement): boolean {
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
     return !element.disabled && !element.readOnly;
   }
-  
+
   // For contenteditable, check the attribute
   if (element.isContentEditable) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -81,26 +81,26 @@ export function findElementByTargetId(targetId: string): HTMLElement | null {
 export function detectSelection(): SelectionContext | null {
   const selection = window.getSelection();
   const selectedText = selection?.toString().trim() || '';
-  
+
   if (!selectedText) {
     return null;
   }
-  
+
   // Get the active element (where focus is)
   const activeElement = document.activeElement;
-  
+
   // Check for input/textarea selection
   if (activeElement instanceof HTMLInputElement && isTextInput(activeElement)) {
     const selectionStart = activeElement.selectionStart ?? 0;
     const selectionEnd = activeElement.selectionEnd ?? 0;
-    
+
     // Verify there's actually a selection
     if (selectionStart === selectionEnd) {
       return null;
     }
-    
+
     const isEditable = isElementEditable(activeElement);
-    
+
     return {
       selectedText: activeElement.value.substring(selectionStart, selectionEnd),
       elementType: 'input',
@@ -111,18 +111,18 @@ export function detectSelection(): SelectionContext | null {
       targetElementId: isEditable ? getOrCreateTargetId(activeElement) : undefined,
     };
   }
-  
+
   if (activeElement instanceof HTMLTextAreaElement) {
     const selectionStart = activeElement.selectionStart ?? 0;
     const selectionEnd = activeElement.selectionEnd ?? 0;
-    
+
     // Verify there's actually a selection
     if (selectionStart === selectionEnd) {
       return null;
     }
-    
+
     const isEditable = isElementEditable(activeElement);
-    
+
     return {
       selectedText: activeElement.value.substring(selectionStart, selectionEnd),
       elementType: 'textarea',
@@ -133,21 +133,21 @@ export function detectSelection(): SelectionContext | null {
       targetElementId: isEditable ? getOrCreateTargetId(activeElement) : undefined,
     };
   }
-  
+
   // Check for contenteditable selection
   if (selection && selection.rangeCount > 0) {
     const range = selection.getRangeAt(0);
     const startContainer = range.startContainer;
-    const startElement = startContainer instanceof Element 
-      ? startContainer 
-      : startContainer.parentElement;
-    
+    const startElement =
+      startContainer instanceof Element ? startContainer : startContainer.parentElement;
+
     const contentEditableElement = findContentEditableAncestor(startElement);
-    
+
     if (contentEditableElement) {
-      const isEditable = !contentEditableElement.hasAttribute('contenteditable') || 
-                         contentEditableElement.getAttribute('contenteditable') !== 'false';
-      
+      const isEditable =
+        !contentEditableElement.hasAttribute('contenteditable') ||
+        contentEditableElement.getAttribute('contenteditable') !== 'false';
+
       return {
         selectedText,
         elementType: 'contenteditable',
@@ -157,7 +157,7 @@ export function detectSelection(): SelectionContext | null {
       };
     }
   }
-  
+
   // Selection is in a non-editable element
   return {
     selectedText,
@@ -173,21 +173,21 @@ export function detectSelection(): SelectionContext | null {
  */
 export function getInputSelectionInfo(): { start: number; end: number } | null {
   const activeElement = document.activeElement;
-  
+
   if (activeElement instanceof HTMLInputElement && isTextInput(activeElement)) {
     return {
       start: activeElement.selectionStart ?? 0,
       end: activeElement.selectionEnd ?? 0,
     };
   }
-  
+
   if (activeElement instanceof HTMLTextAreaElement) {
     return {
       start: activeElement.selectionStart ?? 0,
       end: activeElement.selectionEnd ?? 0,
     };
   }
-  
+
   return null;
 }
 
@@ -199,58 +199,59 @@ export function validateSelectionForReplacement(context: SelectionContext): bool
   if (!context.isReplaceable || !context.targetElementId) {
     return false;
   }
-  
+
   const element = findElementByTargetId(context.targetElementId);
   if (!element) {
     return false;
   }
-  
+
   // Check if element is still in DOM and editable
   if (!document.contains(element)) {
     return false;
   }
-  
+
   if (!isElementEditable(element)) {
     return false;
   }
-  
+
   // For input/textarea, verify selection positions are still valid
   if (context.elementType === 'input' || context.elementType === 'textarea') {
     const inputElement = element as HTMLInputElement | HTMLTextAreaElement;
     const currentStart = inputElement.selectionStart ?? 0;
     const currentEnd = inputElement.selectionEnd ?? 0;
-    
+
     // Selection must still exist and match original positions
     if (currentStart === currentEnd) {
       return false;
     }
-    
+
     if (context.selectionStart !== undefined && context.selectionEnd !== undefined) {
       // Allow some tolerance - the important thing is that text is selected
       // The user might have adjusted the selection slightly
       return currentStart !== currentEnd;
     }
   }
-  
+
   // For contenteditable, check if there's still an active selection
   if (context.elementType === 'contenteditable') {
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed) {
       return false;
     }
-    
+
     // Verify selection is still within the same contenteditable element
     const range = selection.getRangeAt(0);
-    const startElement = range.startContainer instanceof Element 
-      ? range.startContainer 
-      : range.startContainer.parentElement;
-    
+    const startElement =
+      range.startContainer instanceof Element
+        ? range.startContainer
+        : range.startContainer.parentElement;
+
     const contentEditableAncestor = findContentEditableAncestor(startElement);
     if (!contentEditableAncestor || contentEditableAncestor !== element) {
       return false;
     }
   }
-  
+
   return true;
 }
 

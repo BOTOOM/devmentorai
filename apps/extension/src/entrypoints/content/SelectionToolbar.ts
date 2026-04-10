@@ -258,7 +258,7 @@ export function createSelectionToolbar(
   actionsContainer.className = 'actions-container';
 
   // Add action buttons
-  QUICK_ACTIONS.forEach((action) => {
+  for (const action of QUICK_ACTIONS) {
     const btn = document.createElement('button');
     btn.className = 'action-btn';
     btn.textContent = action.label;
@@ -273,7 +273,7 @@ export function createSelectionToolbar(
       onAction(action.id);
     });
     actionsContainer.appendChild(btn);
-  });
+  }
 
   // Add divider
   const divider = document.createElement('div');
@@ -325,22 +325,22 @@ export function createSelectionToolbar(
     e.preventDefault();
     e.stopPropagation();
     const isVisible = toneMenu.classList.contains('visible');
-    
+
     if (!isVisible) {
       // Decide direction: check if there's enough space above the toolbar
       const btnRect = toneBtn.getBoundingClientRect();
       const menuHeight = 280; // approximate height of 6 tone items
       const spaceAbove = btnRect.top;
-      
+
       if (spaceAbove < menuHeight) {
         toneMenu.classList.add('drop-down');
       } else {
         toneMenu.classList.remove('drop-down');
       }
     }
-    
+
     toneMenu.classList.toggle('visible');
-    
+
     // Only add close handler when opening the menu
     if (!isVisible) {
       setTimeout(() => {
@@ -370,9 +370,9 @@ export function createSelectionToolbar(
   chatBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    chrome.runtime.sendMessage({ 
+    chrome.runtime.sendMessage({
       type: 'OPEN_SIDE_PANEL_WITH_TEXT',
-      selectedText 
+      selectedText,
     });
     removeSelectionToolbar();
   });

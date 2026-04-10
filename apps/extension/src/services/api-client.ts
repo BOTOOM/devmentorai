@@ -1,19 +1,20 @@
-import { DEFAULT_CONFIG, API_ENDPOINTS } from '@devmentorai/shared';
-import { storageGet } from '../lib/browser-utils';
+import { API_ENDPOINTS, DEFAULT_CONFIG } from '@devmentorai/shared';
 import type {
   ApiResponse,
-  PaginatedResponse,
-  HealthResponse,
-  ModelInfo,
   CopilotAuthStatus,
   CopilotQuotaStatus,
-  Session,
   CreateSessionRequest,
-  UpdateSessionRequest,
+  HealthResponse,
   Message,
+  ModelInfo,
+  PaginatedResponse,
+  ReasoningEffort,
   SendMessageRequest,
+  Session,
   StreamEvent,
+  UpdateSessionRequest,
 } from '@devmentorai/shared';
+import { storageGet } from '../lib/browser-utils';
 
 interface ModelsResponse {
   models: ModelInfo[];
@@ -54,10 +55,7 @@ export class ApiClient {
     return ApiClient.instance;
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     try {
       const baseUrl = await this.resolveBaseUrl();
       const response = await fetch(`${baseUrl}${endpoint}`, {
@@ -121,10 +119,28 @@ export class ApiClient {
     return this.request<Session>(API_ENDPOINTS.SESSION(sessionId));
   }
 
-  async updateSession(sessionId: string, data: UpdateSessionRequest): Promise<ApiResponse<Session>> {
+  async updateSession(
+    sessionId: string,
+    data: UpdateSessionRequest
+  ): Promise<ApiResponse<Session>> {
     return this.request<Session>(API_ENDPOINTS.SESSION(sessionId), {
       method: 'PATCH',
       body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Switch model for an existing session with optional reasoning effort
+   * This uses the SDK v0.2.x setModel() for seamless model switching
+   */
+  async switchSessionModel(
+    sessionId: string,
+    model: string,
+    reasoningEffort?: ReasoningEffort
+  ): Promise<ApiResponse<Session>> {
+    return this.request<Session>(`/api/sessions/${sessionId}/switch-model`, {
+      method: 'POST',
+      body: JSON.stringify({ model, reasoningEffort }),
     });
   }
 
@@ -169,14 +185,14 @@ export class ApiClient {
   ): Promise<void> {
     const baseUrl = await this.resolveBaseUrl();
     console.log('[ApiClient] streamChat called for session:', sessionId);
-    console.log('[ApiClient] Request data:', { 
-      prompt: data.prompt.substring(0, 100), 
+    console.log('[ApiClient] Request data:', {
+      prompt: data.prompt.substring(0, 100),
       hasContext: !!data.context,
       hasFullContext: !!data.fullContext,
       useContextAwareMode: data.useContextAwareMode,
       imageCount: data.images?.length || 0,
     });
-    
+
     const response = await fetch(`${baseUrl}${API_ENDPOINTS.CHAT_STREAM(sessionId)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -185,7 +201,7 @@ export class ApiClient {
     });
 
     console.log('[ApiClient] Response status:', response.status, response.statusText);
-    
+
     if (!response.ok) {
       throw new Error(`Stream request failed: ${response.status}`);
     }
@@ -195,7 +211,7 @@ export class ApiClient {
     }
 
     console.log('[ApiClient] Starting to read SSE stream...');
-    
+
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -203,7 +219,7 @@ export class ApiClient {
     try {
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           console.log('[ApiClient] Stream done (reader.read() returned done)');
           onEvent({ type: 'done', data: {} });
@@ -222,13 +238,13 @@ export class ApiClient {
               onEvent({ type: 'done', data: {} });
               return;
             }
-            
+
             try {
               const event = JSON.parse(data) as StreamEvent;
               console.log('[ApiClient] Parsed SSE event:', event.type);
               onEvent(event);
-            } catch (e) {
-              console.error('[ApiClient] Failed to parse SSE event:', data);
+            } catch (error) {
+              console.error('[ApiClient] Failed to parse SSE event:', data, error);
             }
           }
         }
@@ -247,19 +263,21 @@ export class ApiClient {
     sessionId: string,
     messageId: string,
     images: Array<{ id: string; dataUrl: string; mimeType: string; source: string }>
-  ): Promise<ApiResponse<{
-    images: Array<{
-      id: string;
-      thumbnailUrl: string;
-      fullImageUrl: string;
-      fullImagePath: string;
-      mimeType: string;
-      dimensions: { width: number; height: number };
-      fileSize: number;
-    }>;
-  }>> {
+  ): Promise<
+    ApiResponse<{
+      images: Array<{
+        id: string;
+        thumbnailUrl: string;
+        fullImageUrl: string;
+        fullImagePath: string;
+        mimeType: string;
+        dimensions: { width: number; height: number };
+        fileSize: number;
+      }>;
+    }>
+  > {
     const baseUrl = await this.resolveBaseUrl();
-    
+
     // Upload images one at a time to avoid payload limits
     const allProcessed: Array<{
       id: string;
@@ -273,20 +291,17 @@ export class ApiClient {
 
     // Upload in parallel (each image is its own request)
     const uploadPromises = images.map(async (image) => {
-      const response = await fetch(
-        `${baseUrl}/api/images/upload/${sessionId}/${messageId}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ images: [image] }),
-        }
-      );
+      const response = await fetch(`${baseUrl}/api/images/upload/${sessionId}/${messageId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: [image] }),
+      });
 
       if (!response.ok) {
         throw new Error(`Image upload failed: ${response.status} ${response.statusText}`);
       }
 
-      const result = await response.json() as ApiResponse<{ images: typeof allProcessed }>;
+      const result = (await response.json()) as ApiResponse<{ images: typeof allProcessed }>;
       if (result.success && result.data?.images) {
         return result.data.images;
       }

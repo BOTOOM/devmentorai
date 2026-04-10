@@ -154,16 +154,16 @@ class NativeMessagingHost {
     try {
       // Route the request through Fastify's inject method
       const response = await this.app.inject({
-        method: message.method as any,
+        method: message.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
         url: message.path,
-        payload: message.body as any,
+        payload: message.body as Record<string, unknown> | undefined,
         headers: {
           'content-type': 'application/json',
         },
       });
 
       // Check if this is a streaming response
-      const contentType = (response.headers as any)['content-type'];
+      const contentType = response.headers['content-type'];
       if (message.type === 'stream' && contentType?.includes('text/event-stream')) {
         // Handle SSE streaming
         await this.handleStreamResponse(message.id, String(response.payload));

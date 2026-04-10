@@ -1,19 +1,19 @@
 /**
  * Native Messaging Host for DevMentorAI
- * 
+ *
  * This module implements Chrome Native Messaging protocol for direct
  * communication between the extension and local Node.js backend.
- * 
+ *
  * Protocol: Messages are prefixed with 4-byte length (little-endian uint32)
- * 
+ *
  * Usage:
  *   node native-host.js
- * 
+ *
  * The host reads JSON messages from stdin and writes responses to stdout.
  */
 
-import { createServer } from '../server.js';
 import type { FastifyInstance } from 'fastify';
+import { createServer } from '../server.js';
 
 interface NativeMessage {
   id: string;
@@ -73,7 +73,7 @@ class NativeMessagingHost {
         }
 
         const messageLength = lengthBuffer.readUInt32LE(0);
-        
+
         if (messageLength === 0) {
           resolve(null);
           return;
@@ -81,11 +81,11 @@ class NativeMessagingHost {
 
         // Read message body
         let messageBuffer = Buffer.alloc(0);
-        
+
         const readBody = () => {
           const remaining = messageLength - messageBuffer.length;
           const bodyChunk = process.stdin.read(remaining);
-          
+
           if (bodyChunk === null) {
             process.stdin.once('readable', readBody);
             return;
@@ -200,7 +200,7 @@ class NativeMessagingHost {
     this.activeStreams.set(id, controller);
 
     const lines = payload.split('\n');
-    
+
     for (const line of lines) {
       if (controller.signal.aborted) break;
 
@@ -253,7 +253,7 @@ class NativeMessagingHost {
           // Connection closed
           break;
         }
-        
+
         // Process message asynchronously but catch synchronous errors from the promise initialization
         try {
           this.handleMessage(message).catch((err) => {

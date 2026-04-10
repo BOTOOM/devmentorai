@@ -1,23 +1,23 @@
-import type { FastifyInstance } from 'fastify';
-import { z } from 'zod';
-import type { SessionEvent } from '@github/copilot-sdk';
 import type {
   ApiResponse,
+  ImageAttachment,
   Message,
   SendMessageRequest,
   StreamEvent,
-  ImageAttachment,
 } from '@devmentorai/shared';
+import type { SessionEvent } from '@github/copilot-sdk';
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import {
   buildContextAwarePrompt,
   buildSimplePrompt,
-  validateContext,
   sanitizeContext,
+  validateContext,
 } from '../services/context-prompt-builder.js';
 import {
+  type ProcessedImage,
   processMessageImages,
   toImageAttachments,
-  type ProcessedImage,
 } from '../services/thumbnail-service.js';
 
 // Schema for simple context (backward compatible)
@@ -25,92 +25,100 @@ const simpleContextSchema = z.object({
   pageUrl: z.string().optional(),
   pageTitle: z.string().optional(),
   selectedText: z.string().optional(),
-  action: z.enum([
-    'explain',
-    'translate',
-    'rewrite',
-    'fix_grammar',
-    'summarize',
-    'expand',
-    'analyze_config',
-    'diagnose_error',
-  ]).optional(),
+  action: z
+    .enum([
+      'explain',
+      'translate',
+      'rewrite',
+      'fix_grammar',
+      'summarize',
+      'expand',
+      'analyze_config',
+      'diagnose_error',
+    ])
+    .optional(),
 });
 
 // Schema for full context payload
-const fullContextSchema = z.object({
-  metadata: z.object({
-    captureTimestamp: z.string(),
-    captureMode: z.enum(['auto', 'manual']),
-    browserInfo: z.object({
-      userAgent: z.string(),
-      viewport: z.object({ width: z.number(), height: z.number() }),
-      language: z.string(),
-    }),
-  }),
-  page: z.object({
-    url: z.string(),
-    urlParsed: z.object({
-      protocol: z.string(),
-      hostname: z.string(),
-      pathname: z.string(),
-      search: z.string(),
-      hash: z.string(),
-    }),
-    title: z.string(),
-    platform: z.object({
-      type: z.string(),
-      confidence: z.number(),
-      indicators: z.array(z.string()),
-      specificProduct: z.string().optional(),
-    }),
-  }),
-  text: z.object({
-    selectedText: z.string().optional(),
-    visibleText: z.string(),
-    headings: z.array(z.object({
-      level: z.number(),
-      text: z.string(),
-    })),
-    errors: z.array(z.object({
-      type: z.enum(['error', 'warning', 'info']),
-      message: z.string(),
-      source: z.enum(['console', 'ui', 'network', 'dom']).optional(),
-      severity: z.enum(['critical', 'high', 'medium', 'low']),
-      context: z.string().optional(),
-    })),
+const fullContextSchema = z
+  .object({
     metadata: z.object({
-      totalLength: z.number(),
-      truncated: z.boolean(),
+      captureTimestamp: z.string(),
+      captureMode: z.enum(['auto', 'manual']),
+      browserInfo: z.object({
+        userAgent: z.string(),
+        viewport: z.object({ width: z.number(), height: z.number() }),
+        language: z.string(),
+      }),
     }),
-  }),
-  structure: z.object({
-    relevantSections: z.array(z.any()),
-    errorContainers: z.array(z.any()),
-    activeElements: z.any(),
-    metadata: z.any(),
-  }),
-  session: z.object({
-    sessionId: z.string(),
-    sessionType: z.string(),
-    intent: z.object({
-      primary: z.string(),
-      keywords: z.array(z.string()),
-      implicitSignals: z.array(z.string()),
-      explicitGoal: z.string().optional(),
+    page: z.object({
+      url: z.string(),
+      urlParsed: z.object({
+        protocol: z.string(),
+        hostname: z.string(),
+        pathname: z.string(),
+        search: z.string(),
+        hash: z.string(),
+      }),
+      title: z.string(),
+      platform: z.object({
+        type: z.string(),
+        confidence: z.number(),
+        indicators: z.array(z.string()),
+        specificProduct: z.string().optional(),
+      }),
     }),
-    previousMessages: z.object({
-      count: z.number(),
-      lastN: z.array(z.any()),
+    text: z.object({
+      selectedText: z.string().optional(),
+      visibleText: z.string(),
+      headings: z.array(
+        z.object({
+          level: z.number(),
+          text: z.string(),
+        })
+      ),
+      errors: z.array(
+        z.object({
+          type: z.enum(['error', 'warning', 'info']),
+          message: z.string(),
+          source: z.enum(['console', 'ui', 'network', 'dom']).optional(),
+          severity: z.enum(['critical', 'high', 'medium', 'low']),
+          context: z.string().optional(),
+        })
+      ),
+      metadata: z.object({
+        totalLength: z.number(),
+        truncated: z.boolean(),
+      }),
     }),
-  }),
-  privacy: z.object({
-    redactedFields: z.array(z.string()),
-    sensitiveDataDetected: z.boolean(),
-    consentGiven: z.boolean(),
-    dataRetention: z.enum(['session', 'none']),
-  }),
-}).passthrough();
+    structure: z.object({
+      relevantSections: z.array(z.any()),
+      errorContainers: z.array(z.any()),
+      activeElements: z.any(),
+      metadata: z.any(),
+    }),
+    session: z.object({
+      sessionId: z.string(),
+      sessionType: z.string(),
+      intent: z.object({
+        primary: z.string(),
+        keywords: z.array(z.string()),
+        implicitSignals: z.array(z.string()),
+        explicitGoal: z.string().optional(),
+      }),
+      previousMessages: z.object({
+        count: z.number(),
+        lastN: z.array(z.any()),
+      }),
+    }),
+    privacy: z.object({
+      redactedFields: z.array(z.string()),
+      sensitiveDataDetected: z.boolean(),
+      consentGiven: z.boolean(),
+      dataRetention: z.enum(['session', 'none']),
+    }),
+  })
+  .passthrough();
 
 // Schema for image payload (inline data URL - legacy / small images)
 const imagePayloadSchema = z.object({
@@ -145,9 +153,12 @@ export async function chatRoutes(fastify: FastifyInstance) {
   // Helper to build the appropriate prompt based on context type
   // Returns userPrompt (enriched with context) and promptType
   // systemPrompt is always null - we don't override Copilot's default
-  const buildPrompt = (
-    body: { prompt: string; context?: any; fullContext?: any; useContextAwareMode?: boolean }
-  ): { userPrompt: string; promptType: string } => {
+  const buildPrompt = (body: {
+    prompt: string;
+    context?: any;
+    fullContext?: any;
+    useContextAwareMode?: boolean;
+  }): { userPrompt: string; promptType: string } => {
     // If full context is provided and context-aware mode is enabled
     if (body.fullContext && body.useContextAwareMode !== false) {
       if (validateContext(body.fullContext)) {
@@ -156,7 +167,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
         return { userPrompt, promptType: 'context-aware' };
       }
     }
-    
+
     // Fall back to simple prompt
     const { userPrompt } = buildSimplePrompt(
       body.prompt,
@@ -197,11 +208,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
         sessionId,
         'user',
         body.prompt,
-        body.context ? {
-          pageUrl: body.context.pageUrl,
-          selectedText: body.context.selectedText,
-          action: body.context.action,
-        } : undefined
+        body.context
+          ? {
+              pageUrl: body.context.pageUrl,
+              selectedText: body.context.selectedText,
+              action: body.context.action,
+            }
+          : undefined
       );
 
       // Persist context if fullContext is provided (Phase 5)
@@ -230,11 +243,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
       );
 
       // Save assistant message
-      const assistantMessage = fastify.sessionService.addMessage(
-        sessionId,
-        'assistant',
-        response
-      );
+      const assistantMessage = fastify.sessionService.addMessage(sessionId, 'assistant', response);
 
       return reply.send({
         success: true,
@@ -286,19 +295,21 @@ export async function chatRoutes(fastify: FastifyInstance) {
       // Build backend URL with port for image serving
       const host = request.headers.host || `${request.hostname}:3847`;
       const backendUrl = `http://${host}`;
-      
+
       // We'll need the message ID before processing images
       // First save the user message without images
       const userMessage = fastify.sessionService.addMessage(
         sessionId,
         'user',
         body.prompt,
-        body.context ? {
-          pageUrl: body.context.pageUrl,
-          selectedText: body.context.selectedText,
-          action: body.context.action,
-          contextAware: body.useContextAwareMode,
-        } : { contextAware: body.useContextAwareMode }
+        body.context
+          ? {
+              pageUrl: body.context.pageUrl,
+              selectedText: body.context.selectedText,
+              action: body.context.action,
+              contextAware: body.useContextAwareMode,
+            }
+          : { contextAware: body.useContextAwareMode }
       );
 
       // Process images after we have the message ID
@@ -313,7 +324,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
         }));
 
         // Build metadata for message storage
-        processedImages = body.preUploadedImages.map(img => ({
+        processedImages = body.preUploadedImages.map((img) => ({
           id: img.id,
           source: 'screenshot' as const,
           mimeType: (img.mimeType || 'image/jpeg') as any,
@@ -331,7 +342,9 @@ export async function chatRoutes(fastify: FastifyInstance) {
       } else if (body.images && body.images.length > 0) {
         // Inline image upload (legacy path for small images)
         try {
-          console.log(`[ChatRoute] Processing ${body.images.length} inline images for message ${userMessage.id}`);
+          console.log(
+            `[ChatRoute] Processing ${body.images.length} inline images for message ${userMessage.id}`
+          );
           processedImagesRaw = await processMessageImages(
             sessionId,
             userMessage.id,
@@ -339,28 +352,31 @@ export async function chatRoutes(fastify: FastifyInstance) {
             backendUrl
           );
           processedImages = toImageAttachments(processedImagesRaw);
-          
+
           // Update message metadata with images
           fastify.sessionService.updateMessageMetadata(userMessage.id, {
             ...userMessage.metadata,
             images: processedImages,
           });
-          
+
           copilotAttachments = processedImagesRaw.map((img, index) => ({
             type: 'file' as const,
             path: img.fullImagePath,
             displayName: `image_${index + 1}.${img.mimeType.split('/')[1] || 'jpg'}`,
           }));
-          
+
           console.log(`[ChatRoute] Processed ${processedImages.length} images successfully`);
         } catch (err) {
           console.error('[ChatRoute] Failed to process images:', err);
           // Continue without images - don't fail the message
         }
       }
-      
+
       if (copilotAttachments.length > 0) {
-        console.log(`[ChatRoute] Built ${copilotAttachments.length} attachments for Copilot:`, copilotAttachments);
+        console.log(
+          `[ChatRoute] Built ${copilotAttachments.length} attachments for Copilot:`,
+          copilotAttachments
+        );
       }
 
       // Persist context if fullContext is provided (Phase 5)
@@ -403,19 +419,15 @@ export async function chatRoutes(fastify: FastifyInstance) {
         }
       };
 
-      const endStream = (reason: string = 'completed') => {
+      const endStream = (reason = 'completed') => {
         if (streamEnded) return;
         streamEnded = true;
-        
+
         console.log(`[ChatRoute] Stream ending: ${reason}. Content length: ${fullContent.length}`);
-        
+
         // Save message if we have content
         if (fullContent && !assistantMessageId) {
-          const message = fastify.sessionService.addMessage(
-            sessionId,
-            'assistant',
-            fullContent
-          );
+          const message = fastify.sessionService.addMessage(sessionId, 'assistant', fullContent);
           assistantMessageId = message.id;
         }
 
@@ -455,10 +467,10 @@ export async function chatRoutes(fastify: FastifyInstance) {
         // Handle Copilot events
         const handleEvent = (event: SessionEvent) => {
           if (streamEnded) return;
-          
+
           console.log('[ChatRoute] Received event:', event.type);
           lastActivityTime = Date.now();
-          
+
           switch (event.type) {
             case 'assistant.message_delta':
               fullContent += event.data.deltaContent || '';
@@ -524,7 +536,8 @@ export async function chatRoutes(fastify: FastifyInstance) {
             sendSSE({
               type: 'error',
               data: {
-                error: streamError instanceof Error ? streamError.message : 'Failed to start stream',
+                error:
+                  streamError instanceof Error ? streamError.message : 'Failed to start stream',
               },
             });
             endStream('copilot_error');
@@ -548,7 +561,6 @@ export async function chatRoutes(fastify: FastifyInstance) {
 
       // Wait for streaming to complete before allowing Fastify to close the connection
       await streamComplete;
-
     } catch (error) {
       if (error instanceof z.ZodError) {
         return reply.code(400).send({
@@ -560,7 +572,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
           },
         });
       }
-      
+
       // Send error via SSE
       if (!reply.raw.headersSent) {
         reply.raw.setHeader('Content-Type', 'text/event-stream');

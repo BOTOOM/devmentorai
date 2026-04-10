@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 /**
  * Native Messaging Host Installation Script
- * 
+ *
  * This script installs the Native Messaging host manifest in the appropriate
  * location for Chrome/Chromium browsers on different operating systems.
- * 
+ *
  * Usage:
  *   node install-native-host.js <extension-id>
  *   node install-native-host.js <extension-id> --uninstall
  */
 
 import * as fs from 'fs';
-import * as path from 'path';
 import * as os from 'os';
+import * as path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,7 +55,7 @@ function getManifestPaths(): ManifestPaths {
 function createManifest(extensionId: string): object {
   // Get the path to the native host executable
   const hostPath = path.resolve(__dirname, 'host.js');
-  
+
   // On Windows, we need a batch wrapper
   let executablePath: string;
   if (os.platform() === 'win32') {
@@ -157,7 +157,9 @@ if (args.includes('--uninstall')) {
   const extensionId = args[0];
   if (!/^[a-z]{32}$/i.test(extensionId)) {
     console.error('Error: Invalid extension ID format');
-    console.error('Extension ID should be 32 lowercase letters (e.g., abcdefghijklmnopqrstuvwxyzabcdef)');
+    console.error(
+      'Extension ID should be 32 lowercase letters (e.g., abcdefghijklmnopqrstuvwxyzabcdef)'
+    );
     process.exit(1);
   }
   install(extensionId);

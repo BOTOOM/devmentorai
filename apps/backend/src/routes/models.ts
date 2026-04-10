@@ -1,5 +1,5 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { ApiResponse, ModelInfo, ModelPricingTier } from '@devmentorai/shared';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 const TIER_ORDER: ModelPricingTier[] = ['free', 'cheap', 'standard', 'premium'];
 
@@ -25,7 +25,9 @@ function sortModelsByTierAndName(models: ModelInfo[]): ModelInfo[] {
   });
 }
 
-async function getModelsPayload(fastify: FastifyInstance): Promise<{ models: ModelInfo[]; default: string }> {
+async function getModelsPayload(
+  fastify: FastifyInstance
+): Promise<{ models: ModelInfo[]; default: string }> {
   const response = await fastify.copilotService.listModels();
 
   if (!response.models || response.models.length === 0) {

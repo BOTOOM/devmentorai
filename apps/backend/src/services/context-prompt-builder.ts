@@ -1,8 +1,8 @@
 /**
  * Context Prompt Builder Service
- * 
+ *
  * Builds context-enriched prompts for the Copilot SDK based on extracted page context.
- * 
+ *
  * PHASE 3 DESIGN PRINCIPLE - AUTONOMOUS AGENT:
  * ============================================
  * 1. We provide PURELY FACTUAL context (what's on the page)
@@ -11,19 +11,19 @@
  * 4. We do NOT use keyword matching (multilingual support, agent autonomy)
  * 5. The agent (Copilot) is fully autonomous in deciding:
  *    - What the user wants
- *    - How to respond  
+ *    - How to respond
  *    - What context is relevant
- * 
+ *
  * CustomAgents (DevOps Mentor, etc.) are set at session creation and provide
  * domain expertise. This function ONLY adds situational context from the page.
  */
 
 import type {
   ContextPayload,
-  PlatformDetection,
   ExtractedError,
   HTMLSection,
   Heading,
+  PlatformDetection,
 } from '@devmentorai/shared';
 
 // ============================================================================
@@ -75,7 +75,7 @@ Common diagnostic locations: Query editor, Data source config, Alert rules`,
 function formatPageContext(page: ContextPayload['page']): string {
   const { platform } = page;
   const platformLabel = platform.specificProduct || platform.type.toUpperCase();
-  
+
   let section = `## Page Context\n`;
   section += `- **Platform:** ${platformLabel}`;
   if (platform.confidence < 0.8) {
@@ -84,7 +84,7 @@ function formatPageContext(page: ContextPayload['page']): string {
   section += '\n';
   section += `- **URL:** ${page.url}\n`;
   section += `- **Title:** ${page.title}\n`;
-  
+
   return section;
 }
 
@@ -171,15 +171,17 @@ function formatTables(tables?: HTMLSection[]): string {
 /**
  * Format console logs for the prompt (Phase 2) - FACTUAL ONLY
  */
-function formatConsoleLogs(logs?: Array<{ level: string; message: string; timestamp: string; stackTrace?: string }>): string {
+function formatConsoleLogs(
+  logs?: Array<{ level: string; message: string; timestamp: string; stackTrace?: string }>
+): string {
   if (!logs || logs.length === 0) return '';
 
-  const errors = logs.filter(l => l.level === 'error' || l.level === 'warn');
+  const errors = logs.filter((l) => l.level === 'error' || l.level === 'warn');
   if (errors.length === 0) return '';
 
   let section = `## Browser Console Logs\n`;
   section += `${errors.length} error/warning message(s):\n\n`;
-  
+
   for (const log of errors.slice(0, 5)) {
     section += `- **${log.level.toUpperCase()}:** ${log.message.slice(0, 200)}\n`;
     if (log.stackTrace) {
@@ -193,14 +195,16 @@ function formatConsoleLogs(logs?: Array<{ level: string; message: string; timest
 /**
  * Format network errors for the prompt (Phase 2) - FACTUAL ONLY
  */
-function formatNetworkErrors(errors?: Array<{ url: string; method: string; status?: number; errorMessage?: string }>): string {
+function formatNetworkErrors(
+  errors?: Array<{ url: string; method: string; status?: number; errorMessage?: string }>
+): string {
   if (!errors || errors.length === 0) return '';
 
   let section = `## Network Requests Failed\n`;
   section += `${errors.length} failed request(s):\n\n`;
-  
+
   for (const err of errors.slice(0, 5)) {
-    const status = err.status ? `HTTP ${err.status}` : (err.errorMessage || 'Failed');
+    const status = err.status ? `HTTP ${err.status}` : err.errorMessage || 'Failed';
     section += `- **${err.method}** ${err.url.slice(0, 80)}${err.url.length > 80 ? '...' : ''}\n`;
     section += `  Status: ${status}\n\n`;
   }
@@ -250,39 +254,43 @@ function formatUIState(uiState: {
 }): string {
   let section = `## UI State\n`;
   section += `- **Page State:** ${uiState.pageState}\n`;
-  
+
   const issues: string[] = [];
-  if (uiState.loadingIndicators > 0) issues.push(`${uiState.loadingIndicators} loading indicator(s)`);
+  if (uiState.loadingIndicators > 0)
+    issues.push(`${uiState.loadingIndicators} loading indicator(s)`);
   if (uiState.errorStates > 0) issues.push(`${uiState.errorStates} error state(s)`);
   if (uiState.emptyStates > 0) issues.push(`${uiState.emptyStates} empty state(s)`);
   if (uiState.toastNotifications > 0) issues.push(`${uiState.toastNotifications} notification(s)`);
-  if (uiState.formValidationErrors > 0) issues.push(`${uiState.formValidationErrors} form validation error(s)`);
+  if (uiState.formValidationErrors > 0)
+    issues.push(`${uiState.formValidationErrors} form validation error(s)`);
   if (uiState.disabledButtons > 0) issues.push(`${uiState.disabledButtons} disabled button(s)`);
   if (uiState.modalOpen) issues.push(`modal/dialog open`);
-  
+
   if (issues.length > 0) {
     section += `- **UI Issues:** ${issues.join(', ')}\n`;
   }
-  
+
   return section + '\n';
 }
 
 /**
  * Format runtime JavaScript errors for the prompt
  */
-function formatRuntimeErrors(errors: Array<{
-  message: string;
-  source?: string;
-  lineno?: number;
-  colno?: number;
-  stack?: string;
-  type: string;
-}>): string {
+function formatRuntimeErrors(
+  errors: Array<{
+    message: string;
+    source?: string;
+    lineno?: number;
+    colno?: number;
+    stack?: string;
+    type: string;
+  }>
+): string {
   if (errors.length === 0) return '';
 
   let section = `## JavaScript Runtime Errors\n`;
   section += `${errors.length} runtime error(s) detected:\n\n`;
-  
+
   for (const err of errors.slice(0, 5)) {
     const errType = err.type === 'unhandledrejection' ? 'Promise Rejection' : 'JS Error';
     section += `- **${errType}:** ${err.message.slice(0, 200)}\n`;
@@ -302,14 +310,17 @@ function formatRuntimeErrors(errors: Array<{
  */
 function formatSelectedText(selectedText?: string): string {
   if (!selectedText) return '';
-  
+
   return `## User Selected Text\nThe user has highlighted this text on the page:\n\`\`\`\n${selectedText}\n\`\`\`\n\n`;
 }
 
 /**
  * Format session history for the prompt - FACTUAL ONLY
  */
-function formatSessionHistory(messages: { count: number; lastN: Array<{ role: string; content: string }> }): string {
+function formatSessionHistory(messages: {
+  count: number;
+  lastN: Array<{ role: string; content: string }>;
+}): string {
   if (messages.count === 0 || messages.lastN.length === 0) return '';
 
   let section = `## Recent Conversation (${messages.count} messages total)\n`;
@@ -355,17 +366,17 @@ const DEFAULT_OPTIONS: ContextAwarePromptOptions = {
 
 /**
  * Build a context-enriched user prompt from extracted page context.
- * 
+ *
  * PHASE 3 - AUTONOMOUS AGENT DESIGN:
  * ==================================
  * - Returns ONLY factual context (what's on the page)
  * - Does NOT tell the agent what to do
  * - Does NOT interpret user intent
  * - The agent decides everything based on the context and user message
- * 
+ *
  * CustomAgents (DevOps Mentor, etc.) are set at session creation and provide
  * domain expertise. This function ONLY adds situational context.
- * 
+ *
  * IMPORTANT: The context comes from the user's authenticated browser session.
  * The agent should use this context to answer questions about private/internal
  * pages that are not publicly accessible.
@@ -376,10 +387,10 @@ export function buildContextAwarePrompt(
   options: ContextAwarePromptOptions = {}
 ): { systemPrompt: string | null; userPrompt: string } {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  
+
   // Build the enriched user prompt with FACTUAL context sections
   let enrichedPrompt = '';
-  
+
   // Context header - explains that this data comes from user's browser
   enrichedPrompt += `# Browser Context (from user's authenticated session)\n\n`;
   enrichedPrompt += `The following context was extracted from the user's browser. `;
@@ -396,8 +407,8 @@ export function buildContextAwarePrompt(
 
   // Platform-specific notes (factual locations, NOT instructions)
   if (opts.includePlatformNotes) {
-    const platformNotes = PLATFORM_CONTEXT_NOTES[context.page.platform.type] || 
-                          PLATFORM_CONTEXT_NOTES.generic;
+    const platformNotes =
+      PLATFORM_CONTEXT_NOTES[context.page.platform.type] || PLATFORM_CONTEXT_NOTES.generic;
     if (platformNotes) {
       enrichedPrompt += platformNotes + '\n\n';
     }
@@ -488,13 +499,17 @@ function truncatePrompt(prompt: string, maxLength: number, userMessage: string):
   // Find a good truncation point
   const truncatedContext = prompt.slice(0, availableLength);
   const lastNewline = truncatedContext.lastIndexOf('\n');
-  
-  return truncatedContext.slice(0, lastNewline) + '\n\n[Context truncated for length]\n\n' + userMessageSection;
+
+  return (
+    truncatedContext.slice(0, lastNewline) +
+    '\n\n[Context truncated for length]\n\n' +
+    userMessageSection
+  );
 }
 
 /**
  * Build a simple prompt without full context (fallback)
- * 
+ *
  * This also does NOT replace Copilot's system prompt.
  * Just enriches the user message with available context.
  */
@@ -505,16 +520,17 @@ export function buildSimplePrompt(
   selectedText?: string
 ): { systemPrompt: string | null; userPrompt: string } {
   let userPrompt = '';
-  
+
   // Add any available context to the user message
   if (pageUrl || pageTitle || selectedText) {
     userPrompt += `**Context:**\n`;
     if (pageUrl) userPrompt += `- Page URL: ${pageUrl}\n`;
     if (pageTitle) userPrompt += `- Page Title: ${pageTitle}\n`;
-    if (selectedText) userPrompt += `- Selected Text: "${selectedText.slice(0, 500)}${selectedText.length > 500 ? '...' : ''}"\n`;
+    if (selectedText)
+      userPrompt += `- Selected Text: "${selectedText.slice(0, 500)}${selectedText.length > 500 ? '...' : ''}"\n`;
     userPrompt += '\n**Question:** ';
   }
-  
+
   userPrompt += userMessage;
 
   // Return null for systemPrompt - we don't override Copilot's default
@@ -526,15 +542,15 @@ export function buildSimplePrompt(
  */
 export function validateContext(context: unknown): context is ContextPayload {
   if (!context || typeof context !== 'object') return false;
-  
+
   const c = context as Record<string, unknown>;
-  
+
   // Check required fields
   if (!c.metadata || typeof c.metadata !== 'object') return false;
   if (!c.page || typeof c.page !== 'object') return false;
   if (!c.text || typeof c.text !== 'object') return false;
   if (!c.session || typeof c.session !== 'object') return false;
-  
+
   return true;
 }
 

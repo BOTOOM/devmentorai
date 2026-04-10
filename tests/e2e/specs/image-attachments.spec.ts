@@ -1,6 +1,6 @@
 import { test, expect } from '../fixtures';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,17 +14,17 @@ test.describe('Image Attachments', () => {
   test.beforeEach(async ({ sidePanelPage }) => {
     // Create a session before each test
     await sidePanelPage.getByRole('button', { name: /new/i }).click();
-    await sidePanelPage.getByPlaceholder(/session name/i).fill('Image Test Session');
-    await sidePanelPage.getByText('General Assistant').click();
+    await sidePanelPage.getByLabel(/session name/i).fill('Image Test Session');
+    await sidePanelPage.getByRole('button', { name: /general assistant/i }).last().click();
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
 
     // Wait for session to be ready
-    await expect(sidePanelPage.getByText('Image Test Session')).toBeVisible();
+    await expect(sidePanelPage.getByRole('button', { name: /image test session/i }).first()).toBeVisible();
   });
 
   test('should show image attachment button', async ({ sidePanelPage }) => {
     // The image attachment button should be visible (ImagePlus icon)
-    const attachButton = sidePanelPage.getByRole('button', { name: /attach images/i });
+    const attachButton = sidePanelPage.locator('button[title="Attach images"]');
     await expect(attachButton).toBeVisible();
   });
 
@@ -35,7 +35,9 @@ test.describe('Image Attachments', () => {
 
   test('should allow sending message with images via paste', async ({ sidePanelPage }) => {
     // Focus the textarea
-    const textarea = sidePanelPage.getByPlaceholder(/type a message/i);
+    const textarea = sidePanelPage.locator('textarea');
+    const draftThumbnail = sidePanelPage.locator('img[alt^="Attachment "]').first();
+    const removeImageButton = sidePanelPage.getByRole('button', { name: /remove image/i }).first();
     await textarea.focus();
 
     // Simulate paste with an image (we need to use the clipboard API in page context)
@@ -64,16 +66,19 @@ test.describe('Image Attachments', () => {
     }, TEST_PNG_BASE64);
 
     // Wait for image thumbnail to appear
-    await expect(sidePanelPage.locator('[data-testid="image-thumbnail"], img[alt*="attachment"]')).toBeVisible({ timeout: 5000 });
+    await Promise.race([
+      draftThumbnail.waitFor({ state: 'visible', timeout: 5000 }),
+      removeImageButton.waitFor({ state: 'visible', timeout: 5000 }),
+    ]);
 
     // Send button should be enabled even without text (because we have image)
-    const sendButton = sidePanelPage.getByRole('button', { name: /send/i });
+    const sendButton = sidePanelPage.locator('button[type="submit"]');
     await expect(sendButton).toBeEnabled();
   });
 
   test('should display image thumbnails in message history after send', async ({ sidePanelPage }) => {
     // First, attach an image via paste (same as above)
-    const textarea = sidePanelPage.getByPlaceholder(/type a message/i);
+    const textarea = sidePanelPage.locator('textarea');
     await textarea.focus();
 
     await sidePanelPage.evaluate(async (base64) => {
@@ -101,7 +106,7 @@ test.describe('Image Attachments', () => {
 
     // Add some text and send
     await textarea.fill('Check out this image');
-    await sidePanelPage.getByRole('button', { name: /send/i }).click();
+    await sidePanelPage.locator('button[type="submit"]').click();
 
     // User message should appear
     await expect(sidePanelPage.getByText('Check out this image')).toBeVisible();
@@ -112,7 +117,7 @@ test.describe('Image Attachments', () => {
 
   test('should open lightbox when clicking thumbnail in attachment zone', async ({ sidePanelPage }) => {
     // Attach an image
-    const textarea = sidePanelPage.getByPlaceholder(/type a message/i);
+    const textarea = sidePanelPage.locator('textarea');
     await textarea.focus();
 
     await sidePanelPage.evaluate(async (base64) => {
@@ -155,7 +160,9 @@ test.describe('Image Attachments', () => {
 
   test('should remove image from attachment zone', async ({ sidePanelPage }) => {
     // Attach an image
-    const textarea = sidePanelPage.getByPlaceholder(/type a message/i);
+    const textarea = sidePanelPage.locator('textarea');
+    const removeButton = sidePanelPage.getByRole('button', { name: /remove image/i }).first();
+    const draftThumbnail = sidePanelPage.locator('img[alt^="Attachment "]').first();
     await textarea.focus();
 
     await sidePanelPage.evaluate(async (base64) => {
@@ -177,21 +184,15 @@ test.describe('Image Attachments', () => {
       document.querySelector('textarea')?.dispatchEvent(pasteEvent);
     }, TEST_PNG_BASE64);
 
-    // Wait for thumbnail to appear
-    await sidePanelPage.waitForTimeout(500);
+    await expect(removeButton).toBeVisible({ timeout: 5000 });
+    await removeButton.click();
 
-    // Find and click the remove button (X button on the thumbnail)
-    const removeButton = sidePanelPage.locator('button').filter({ has: sidePanelPage.locator('svg') }).first();
-    if (await removeButton.isVisible()) {
-      await removeButton.click();
-
-      // Thumbnail should be removed
-      await sidePanelPage.waitForTimeout(300);
-      
-      // Send button should now be disabled (no text or images)
-      const sendButton = sidePanelPage.getByRole('button', { name: /send/i });
-      await expect(sendButton).toBeDisabled();
-    }
+    // Thumbnail should be removed
+    await expect(draftThumbnail).not.toBeVisible({ timeout: 5000 });
+    
+    // Send button should now be disabled (no text or images)
+    const sendButton = sidePanelPage.locator('button[type="submit"]');
+    await expect(sendButton).toBeDisabled();
   });
 
   test('should handle drag and drop image', async ({ sidePanelPage }) => {
@@ -231,7 +232,7 @@ test.describe('Image Attachments', () => {
   });
 
   test('should respect max images limit (5)', async ({ sidePanelPage }) => {
-    const textarea = sidePanelPage.getByPlaceholder(/type a message/i);
+    const textarea = sidePanelPage.locator('textarea');
     await textarea.focus();
 
     // Add 6 images (should only accept 5)

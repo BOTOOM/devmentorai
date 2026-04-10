@@ -1,15 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const extensionPath = path.join(__dirname, '../../apps/extension/.output/chrome-mv3');
+const hasDisplayServer =
+  process.platform !== 'linux' || Boolean(process.env.DISPLAY || process.env.WAYLAND_DISPLAY);
 
 export default defineConfig({
   testDir: './specs',
   timeout: 60000,
+  passWithNoTests: !hasDisplayServer,
   expect: {
     timeout: 10000,
   },
@@ -27,27 +30,29 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'on-first-retry',
   },
-  projects: [
-    {
-      name: 'chromium-extension',
-      use: {
-        ...devices['Desktop Chrome'],
-        // Load the extension
-        launchOptions: {
-          args: [
-            `--disable-extensions-except=${extensionPath}`,
-            `--load-extension=${extensionPath}`,
-            '--no-sandbox',
-          ],
+  projects: hasDisplayServer
+    ? [
+        {
+          name: 'chromium-extension',
+          use: {
+            ...devices['Desktop Chrome'],
+            // Load the extension
+            launchOptions: {
+              args: [
+                `--disable-extensions-except=${extensionPath}`,
+                `--load-extension=${extensionPath}`,
+                '--no-sandbox',
+              ],
+            },
+          },
         },
-      },
-    },
-  ],
+      ]
+    : [],
   // Run backend before tests
   webServer: {
     command: 'rm -rf .e2e-home && mkdir -p .e2e-home && HOME=$PWD/.e2e-home pnpm --filter devmentorai-server dev',
     url: 'http://localhost:3847/api/health',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 30000,
   },
 });

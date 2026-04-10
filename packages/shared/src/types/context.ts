@@ -1,6 +1,6 @@
 /**
  * Context-Aware Mentor Mode Types
- * 
+ *
  * These types define the structured context payload that is extracted from
  * the browser and sent to the backend for context-aware AI responses.
  */
@@ -183,8 +183,8 @@ export interface PrivacyInfo {
   sensitiveDataDetected: boolean;
   consentGiven: boolean;
   dataRetention: 'session' | 'none';
-  privacyMaskingApplied?: boolean;        // Whether privacy masking was applied
-  sensitiveDataTypes?: string[];           // Types of data that were masked (e.g., 'email', 'token')
+  privacyMaskingApplied?: boolean; // Whether privacy masking was applied
+  sensitiveDataTypes?: string[]; // Types of data that were masked (e.g., 'email', 'token')
 }
 
 // ============================================================================
@@ -326,12 +326,12 @@ export interface ContextExtractionResponse {
 // ============================================================================
 
 export const CONTEXT_SIZE_LIMITS = {
-  visibleText: 10000,        // chars
-  htmlSection: 500,          // chars per section
-  totalHTML: 5000,           // chars total HTML
-  headings: 50,              // max headings
-  errors: 20,                // max errors
-  consoleLogs: 100,          // lines
-  screenshot: 1024 * 1024,   // 1MB
-  selectedText: 5000,        // chars
+  visibleText: 10000, // chars
+  htmlSection: 500, // chars per section
+  totalHTML: 5000, // chars total HTML
+  headings: 50, // max headings
+  errors: 20, // max errors
+  consoleLogs: 100, // lines
+  screenshot: 1024 * 1024, // 1MB
+  selectedText: 5000, // chars
 } as const;

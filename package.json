@@ -16,11 +16,13 @@
     "test": "pnpm -r test",
     "test:unit": "pnpm --filter devmentorai-server test",
     "test:e2e": "pnpm --filter @devmentorai/e2e test",
-    "lint": "pnpm -r lint",
+    "lint": "biome check .",
+    "lint:fix": "biome check . --write",
     "typecheck": "pnpm -r typecheck",
     "clean": "pnpm -r clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "typescript": "^5.7.3"
   },
   "engines": {

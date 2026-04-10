@@ -1,5 +1,5 @@
 import type { APIRequestContext, Page } from '@playwright/test';
-import { test, expect } from '../fixtures';
+import { expect, test } from '../fixtures';
 
 interface ApiResponse<T> {
   data?: T;
@@ -24,7 +24,9 @@ test.describe('Session Management', () => {
     const payload = (await response.json()) as ApiResponse<PaginatedResponse<SessionSummary>>;
 
     for (const session of payload.data?.items ?? []) {
-      const deleteResponse = await request.delete(`http://127.0.0.1:3847/api/sessions/${session.id}`);
+      const deleteResponse = await request.delete(
+        `http://127.0.0.1:3847/api/sessions/${session.id}`
+      );
       expect(deleteResponse.ok() || deleteResponse.status() === 404).toBeTruthy();
     }
   };
@@ -51,7 +53,9 @@ test.describe('Session Management', () => {
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
 
     // Verify session created
-    await expect(sidePanelPage.getByRole('button', { name: /aws migration/i }).first()).toBeVisible();
+    await expect(
+      sidePanelPage.getByRole('button', { name: /aws migration/i }).first()
+    ).toBeVisible();
   });
 
   test('should create a Writing session', async ({ sidePanelPage }) => {
@@ -67,16 +71,21 @@ test.describe('Session Management', () => {
     await sidePanelPage.getByRole('button', { name: /new/i }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Custom Model Test');
     await newSessionTypeButton(sidePanelPage, /devops mentor/i).click();
-    
+
     // Open model selector
-    await sidePanelPage.getByRole('button', { name: /gpt-4\.1/i }).last().click();
+    await sidePanelPage
+      .getByRole('button', { name: /gpt-4\.1/i })
+      .last()
+      .click();
     // Select a different model
     await sidePanelPage.getByRole('button', { name: /claude sonnet 4\.5/i }).click();
-    
+
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
 
     // Verify session created with model displayed
-    await expect(sidePanelPage.getByRole('button', { name: /custom model test/i }).first()).toBeVisible();
+    await expect(
+      sidePanelPage.getByRole('button', { name: /custom model test/i }).first()
+    ).toBeVisible();
   });
 
   test('should switch between sessions', async ({ sidePanelPage }) => {
@@ -97,7 +106,10 @@ test.describe('Session Management', () => {
 
     // Open session selector and switch to Session 1
     await sidePanelPage.locator('div.relative.border-b > button').click();
-    await sidePanelPage.locator('div.absolute').getByRole('button', { name: /session 1/i }).click();
+    await sidePanelPage
+      .locator('div.absolute')
+      .getByRole('button', { name: /session 1/i })
+      .click();
 
     // Verify Session 1 is now active
     await expect(sidePanelPage.getByRole('button', { name: /session 1/i }).first()).toBeVisible();
@@ -110,7 +122,9 @@ test.describe('Session Management', () => {
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
 
     // Verify session info bar shows type icon
-    await expect(sidePanelPage.getByRole('button', { name: /🛠️.*devops test.*devops mentor/i }).first()).toBeVisible();
+    await expect(
+      sidePanelPage.getByRole('button', { name: /🛠️.*devops test.*devops mentor/i }).first()
+    ).toBeVisible();
   });
 
   test('should show quick prompts for session type', async ({ sidePanelPage }) => {

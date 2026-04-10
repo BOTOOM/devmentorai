@@ -1,13 +1,18 @@
-import { test, expect } from '../fixtures';
+import { expect, test } from '../fixtures';
 
 test.describe('Chat Functionality', () => {
   test.beforeEach(async ({ sidePanelPage }) => {
     // Create a session before each test
     await sidePanelPage.getByRole('button', { name: /new/i }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Test Session');
-    await sidePanelPage.getByRole('button', { name: /general assistant/i }).last().click();
+    await sidePanelPage
+      .getByRole('button', { name: /general assistant/i })
+      .last()
+      .click();
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
-    await expect(sidePanelPage.getByRole('button', { name: /test session/i }).first()).toBeVisible();
+    await expect(
+      sidePanelPage.getByRole('button', { name: /test session/i }).first()
+    ).toBeVisible();
     await expect(sidePanelPage.locator('textarea')).toBeEnabled();
   });
 
@@ -18,7 +23,7 @@ test.describe('Chat Functionality', () => {
 
     // Type message
     await messageInput.fill('Hello, how are you?');
-    
+
     // Send message
     await sendButton.click();
 
@@ -59,7 +64,7 @@ test.describe('Chat Functionality', () => {
 
   test('should not send empty messages', async ({ sidePanelPage }) => {
     const sendButton = sidePanelPage.getByRole('button', { name: /send|enviar/i });
-    
+
     // Button should be disabled with empty input
     await expect(sendButton).toBeDisabled();
 

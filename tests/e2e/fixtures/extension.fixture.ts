@@ -1,6 +1,6 @@
-import { test as base, chromium, type BrowserContext, type Page } from '@playwright/test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { type BrowserContext, type Page, test as base, chromium } from '@playwright/test';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,7 +26,7 @@ export const test = base.extend<ExtensionFixtures>({
         '--no-sandbox',
       ],
     });
-    
+
     await use(context);
     await context.close();
   },
@@ -49,10 +49,10 @@ export const test = base.extend<ExtensionFixtures>({
     const sidePanelUrl = `chrome-extension://${extensionId}/sidepanel.html`;
     const page = await context.newPage();
     await page.goto(sidePanelUrl);
-    
+
     // Wait for the app to render
     await page.waitForSelector('#root');
-    
+
     await use(page);
   },
 
@@ -62,10 +62,10 @@ export const test = base.extend<ExtensionFixtures>({
     const optionsUrl = `chrome-extension://${extensionId}/options.html`;
     const page = await context.newPage();
     await page.goto(optionsUrl);
-    
+
     // Wait for the app to render
     await page.waitForSelector('#root');
-    
+
     await use(page);
   },
 });

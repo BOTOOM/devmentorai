@@ -1,6 +1,6 @@
-import { defineConfig, devices } from '@playwright/test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { defineConfig, devices } from '@playwright/test';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,10 +20,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1,
-  reporter: [
-    ['html', { outputFolder: 'playwright-report' }],
-    ['list'],
-  ],
+  reporter: [['html', { outputFolder: 'playwright-report' }], ['list']],
   use: {
     actionTimeout: 15000,
     trace: 'on-first-retry',
@@ -50,7 +47,8 @@ export default defineConfig({
     : [],
   // Run backend before tests
   webServer: {
-    command: 'rm -rf .e2e-home && mkdir -p .e2e-home && HOME=$PWD/.e2e-home pnpm --filter devmentorai-server dev',
+    command:
+      'rm -rf .e2e-home && mkdir -p .e2e-home && HOME=$PWD/.e2e-home pnpm --filter devmentorai-server dev',
     url: 'http://localhost:3847/api/health',
     reuseExistingServer: false,
     timeout: 30000,

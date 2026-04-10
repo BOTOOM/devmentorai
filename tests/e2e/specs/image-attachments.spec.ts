@@ -1,25 +1,32 @@
-import { test, expect } from '../fixtures';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import fs from 'fs';
+import { expect, test } from '../fixtures';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Create a simple test image (1x1 pixel red PNG)
-const TEST_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-const TEST_JPEG_BASE64 = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBEQCEAwEPwAB9AP/Z';
+const TEST_PNG_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+const TEST_JPEG_BASE64 =
+  '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBEQCEAwEPwAB9AP/Z';
 
 test.describe('Image Attachments', () => {
   test.beforeEach(async ({ sidePanelPage }) => {
     // Create a session before each test
     await sidePanelPage.getByRole('button', { name: /new/i }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Image Test Session');
-    await sidePanelPage.getByRole('button', { name: /general assistant/i }).last().click();
+    await sidePanelPage
+      .getByRole('button', { name: /general assistant/i })
+      .last()
+      .click();
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
 
     // Wait for session to be ready
-    await expect(sidePanelPage.getByRole('button', { name: /image test session/i }).first()).toBeVisible();
+    await expect(
+      sidePanelPage.getByRole('button', { name: /image test session/i }).first()
+    ).toBeVisible();
   });
 
   test('should show image attachment button', async ({ sidePanelPage }) => {
@@ -76,7 +83,9 @@ test.describe('Image Attachments', () => {
     await expect(sendButton).toBeEnabled();
   });
 
-  test('should display image thumbnails in message history after send', async ({ sidePanelPage }) => {
+  test('should display image thumbnails in message history after send', async ({
+    sidePanelPage,
+  }) => {
     // First, attach an image via paste (same as above)
     const textarea = sidePanelPage.locator('textarea');
     await textarea.focus();
@@ -115,7 +124,9 @@ test.describe('Image Attachments', () => {
     // Note: The actual thumbnail URL loading may depend on backend processing
   });
 
-  test('should open lightbox when clicking thumbnail in attachment zone', async ({ sidePanelPage }) => {
+  test('should open lightbox when clicking thumbnail in attachment zone', async ({
+    sidePanelPage,
+  }) => {
     // Attach an image
     const textarea = sidePanelPage.locator('textarea');
     await textarea.focus();
@@ -143,18 +154,24 @@ test.describe('Image Attachments', () => {
     await sidePanelPage.waitForTimeout(500);
 
     // Click on the thumbnail (the image inside the attachment zone)
-    const thumbnail = sidePanelPage.locator('.cursor-pointer img, [data-testid="image-thumbnail"]').first();
+    const thumbnail = sidePanelPage
+      .locator('.cursor-pointer img, [data-testid="image-thumbnail"]')
+      .first();
     if (await thumbnail.isVisible()) {
       await thumbnail.click();
 
       // Lightbox should open (look for the modal/overlay)
-      await expect(sidePanelPage.locator('[role="dialog"], .fixed.inset-0')).toBeVisible({ timeout: 2000 });
+      await expect(sidePanelPage.locator('[role="dialog"], .fixed.inset-0')).toBeVisible({
+        timeout: 2000,
+      });
 
       // Close with ESC
       await sidePanelPage.keyboard.press('Escape');
 
       // Lightbox should close
-      await expect(sidePanelPage.locator('[role="dialog"], .fixed.inset-0')).not.toBeVisible({ timeout: 2000 });
+      await expect(sidePanelPage.locator('[role="dialog"], .fixed.inset-0')).not.toBeVisible({
+        timeout: 2000,
+      });
     }
   });
 
@@ -189,7 +206,7 @@ test.describe('Image Attachments', () => {
 
     // Thumbnail should be removed
     await expect(draftThumbnail).not.toBeVisible({ timeout: 5000 });
-    
+
     // Send button should now be disabled (no text or images)
     const sendButton = sidePanelPage.locator('button[type="submit"]');
     await expect(sendButton).toBeDisabled();
@@ -260,7 +277,9 @@ test.describe('Image Attachments', () => {
     }
 
     // Count visible thumbnails - should be at most 5
-    const thumbnails = sidePanelPage.locator('[data-testid="image-thumbnail"], .relative.group img');
+    const thumbnails = sidePanelPage.locator(
+      '[data-testid="image-thumbnail"], .relative.group img'
+    );
     const count = await thumbnails.count();
     expect(count).toBeLessThanOrEqual(5);
   });

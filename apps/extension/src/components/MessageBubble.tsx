@@ -100,12 +100,7 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
           )}
 
           {/* Bubble */}
-          <div
-            className={cn(
-              'px-4 py-2.5 rounded-2xl',
-              bubbleClassName
-            )}
-          >
+          <div className={cn('px-4 py-2.5 rounded-2xl', bubbleClassName)}>
             {/* Image attachments */}
             {hasImages && (
               <div
@@ -242,7 +237,7 @@ function formatContent(content: string): React.ReactNode {
   // Basic code block detection
   const parts = content.split(/(```[\s\S]*?```)/g);
 
-  return parts.map((part, index) => {
+  return parts.map((part) => {
     if (part.startsWith('```') && part.endsWith('```')) {
       const code = part.slice(3, -3);
       const firstNewline = code.indexOf('\n');

@@ -100,8 +100,10 @@ export function ChatView({
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [lastMessage?.id, lastMessage?.content]);
+    if (lastMessage) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [lastMessage]);
 
   // Focus input when session changes
   useEffect(() => {

@@ -296,7 +296,6 @@ export function createSelectionToolbar(
   toneMenu.className = 'tone-menu';
 
   const tones = [
-    { id: 'formal', emoji: '👔', label: 'Formal' },
     { id: 'casual', emoji: '😊', label: 'Casual' },
     { id: 'technical', emoji: '⚙️', label: 'Technical' },
     { id: 'friendly', emoji: '🤝', label: 'Friendly' },
@@ -304,7 +303,7 @@ export function createSelectionToolbar(
     { id: 'concise', emoji: '📝', label: 'Concise' },
   ];
 
-  tones.forEach((tone) => {
+  for (const tone of tones) {
     const item = document.createElement('button');
     item.className = 'tone-item';
 
@@ -319,7 +318,7 @@ export function createSelectionToolbar(
       onAction(`rewrite_${tone.id}`);
     });
     toneMenu.appendChild(item);
-  });
+  }
 
   toneBtn.addEventListener('click', (e) => {
     e.preventDefault();

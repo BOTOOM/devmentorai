@@ -272,6 +272,7 @@ function setupKeyboardHandlers(_shadow: ShadowRoot): void {
 function setupDragHandlers(shadow: ShadowRoot): void {
   const header = shadow.querySelector('.header') as HTMLElement;
   if (!header || !popupContainer) return;
+  const container = popupContainer;
 
   let isDragging = false;
   let startX = 0;
@@ -290,7 +291,7 @@ function setupDragHandlers(shadow: ShadowRoot): void {
     startX = e.clientX;
     startY = e.clientY;
 
-    const rect = popupContainer.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
     initialLeft = rect.left;
     initialTop = rect.top;
 
@@ -298,7 +299,7 @@ function setupDragHandlers(shadow: ShadowRoot): void {
   });
 
   header.addEventListener('pointermove', (e) => {
-    if (!isDragging || !popupContainer) return;
+    if (!isDragging) return;
 
     const dx = e.clientX - startX;
     const dy = e.clientY - startY;
@@ -306,8 +307,8 @@ function setupDragHandlers(shadow: ShadowRoot): void {
     const newLeft = initialLeft + dx;
     const newTop = initialTop + dy;
 
-    popupContainer.style.left = `${newLeft}px`;
-    popupContainer.style.top = `${newTop}px`;
+    container.style.left = `${newLeft}px`;
+    container.style.top = `${newTop}px`;
   });
 
   header.addEventListener('pointerup', (e) => {

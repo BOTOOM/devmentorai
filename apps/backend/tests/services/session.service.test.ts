@@ -20,6 +20,9 @@ describe('SessionService', () => {
         model TEXT NOT NULL DEFAULT 'gpt-4.1',
         system_prompt TEXT,
         custom_agent TEXT,
+        tone TEXT DEFAULT 'balanced',
+        explain_tradeoffs INTEGER DEFAULT 0,
+        reasoning_effort TEXT,
         message_count INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -104,8 +107,8 @@ describe('SessionService', () => {
 
       const retrieved = service.getSession(created.id);
       expect(retrieved).not.toBeNull();
-      expect(retrieved!.id).toBe(created.id);
-      expect(retrieved!.name).toBe('Test');
+      expect(retrieved?.id).toBe(created.id);
+      expect(retrieved?.name).toBe('Test');
     });
   });
 
@@ -153,7 +156,7 @@ describe('SessionService', () => {
       });
 
       const updated = service.updateSession(session.id, { name: 'New Name' });
-      expect(updated!.name).toBe('New Name');
+      expect(updated?.name).toBe('New Name');
     });
 
     it('should update session status', () => {
@@ -163,7 +166,7 @@ describe('SessionService', () => {
       });
 
       const updated = service.updateSession(session.id, { status: 'paused' });
-      expect(updated!.status).toBe('paused');
+      expect(updated?.status).toBe('paused');
     });
 
     it('should update session model', () => {
@@ -173,7 +176,7 @@ describe('SessionService', () => {
       });
 
       const updated = service.updateSession(session.id, { model: 'gpt-5-mini' });
-      expect(updated!.model).toBe('gpt-5-mini');
+      expect(updated?.model).toBe('gpt-5-mini');
     });
 
     it('should return null for non-existent session', () => {
@@ -221,13 +224,13 @@ describe('SessionService', () => {
         type: 'devops',
       });
 
-      expect(service.getSession(session.id)!.messageCount).toBe(0);
+      expect(service.getSession(session.id)?.messageCount).toBe(0);
 
       service.addMessage(session.id, 'user', 'Hello!');
-      expect(service.getSession(session.id)!.messageCount).toBe(1);
+      expect(service.getSession(session.id)?.messageCount).toBe(1);
 
       service.addMessage(session.id, 'assistant', 'Hi there!');
-      expect(service.getSession(session.id)!.messageCount).toBe(2);
+      expect(service.getSession(session.id)?.messageCount).toBe(2);
     });
 
     it('should list messages in order', () => {

@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
 import {
   ArrowRight,
   ImagePlus,
@@ -7,50 +7,45 @@ import {
   MessageSquare,
   SlidersHorizontal,
   Sparkles,
-} from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { Badge } from "@/components/ui/Badge";
+} from 'lucide-react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-const SITE_URL = "https://devmentorai.edwardiaz.dev";
-const PAGE_PATH = "/docs/chat";
+const SITE_URL = 'https://devmentorai.edwardiaz.dev';
+const PAGE_PATH = '/docs/chat';
 const PAGE_URL = `${SITE_URL}${PAGE_PATH}`;
 
-const PAGE_TITLE = "DevMentorAI Chat Workflow Guide";
+const PAGE_TITLE = 'DevMentorAI Chat Workflow Guide';
 const PAGE_DESCRIPTION =
-  "Create sessions, choose models by pricing tier, attach images, use context mode, and chat effectively in DevMentorAI.";
+  'Create sessions, choose models by pricing tier, attach images, use context mode, and chat effectively in DevMentorAI.';
 
 const SESSION_TYPES = [
   {
-    id: "devops",
-    title: "DevOps",
-    details: "Cloud, Kubernetes, CI/CD, infrastructure and operational troubleshooting.",
+    id: 'devops',
+    title: 'DevOps',
+    details: 'Cloud, Kubernetes, CI/CD, infrastructure and operational troubleshooting.',
   },
   {
-    id: "writing",
-    title: "Writing",
-    details: "Emails, rewriting, translation, and grammar-oriented tasks.",
+    id: 'writing',
+    title: 'Writing',
+    details: 'Emails, rewriting, translation, and grammar-oriented tasks.',
   },
   {
-    id: "development",
-    title: "Development",
-    details: "Code review, debugging, architecture, and implementation guidance.",
+    id: 'development',
+    title: 'Development',
+    details: 'Code review, debugging, architecture, and implementation guidance.',
   },
   {
-    id: "general",
-    title: "General",
-    details: "Broad conversations and mixed non-specialized requests.",
+    id: 'general',
+    title: 'General',
+    details: 'Broad conversations and mixed non-specialized requests.',
   },
 ] as const;
 
-const MODEL_TIERS = [
-  "free",
-  "cheap",
-  "standard",
-  "premium",
-] as const;
+const MODEL_TIERS = ['free', 'cheap', 'standard', 'premium'] as const;
 
 export const metadata: Metadata = {
-  title: "Docs: Chat Workflow",
+  title: 'Docs: Chat Workflow',
   description: PAGE_DESCRIPTION,
   alternates: {
     canonical: PAGE_PATH,
@@ -59,10 +54,10 @@ export const metadata: Metadata = {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: PAGE_URL,
-    type: "article",
+    type: 'article',
   },
   twitter: {
-    card: "summary_large_image",
+    card: 'summary_large_image',
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
   },
@@ -70,34 +65,29 @@ export const metadata: Metadata = {
 
 export default function DocsChatPage() {
   const articleJsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
+    '@context': 'https://schema.org',
+    '@graph': [
       {
-        "@type": "TechArticle",
+        '@type': 'TechArticle',
         headline: PAGE_TITLE,
         description: PAGE_DESCRIPTION,
         url: PAGE_URL,
-        about: [
-          "Session creation",
-          "Model selection",
-          "Context mode",
-          "Image attachments",
-        ],
+        about: ['Session creation', 'Model selection', 'Context mode', 'Image attachments'],
       },
       {
-        "@type": "BreadcrumbList",
+        '@type': 'BreadcrumbList',
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
           {
-            "@type": "ListItem",
+            '@type': 'ListItem',
             position: 2,
-            name: "Docs",
+            name: 'Docs',
             item: `${SITE_URL}/docs`,
           },
           {
-            "@type": "ListItem",
+            '@type': 'ListItem',
             position: 3,
-            name: "Chat Workflow",
+            name: 'Chat Workflow',
             item: PAGE_URL,
           },
         ],
@@ -116,7 +106,8 @@ export default function DocsChatPage() {
         badge={<Badge icon={<MessageSquare className="h-3 w-3" />}>Chat Workflow</Badge>}
         title={
           <>
-            Build better conversations with <span className="text-primary">structured sessions</span>
+            Build better conversations with{' '}
+            <span className="text-primary">structured sessions</span>
           </>
         }
         subtitle="Use session types, model tiers, and context/image features to get answers that are faster and more relevant."
@@ -136,23 +127,38 @@ export default function DocsChatPage() {
           <aside className="rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
             <p className="text-sm font-semibold">On this page</p>
             <nav aria-label="Chat docs table of contents" className="mt-3 space-y-2 text-sm">
-              <a href="#new-session" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#new-session"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 New session flow
               </a>
-              <a href="#types" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#types"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Session types
               </a>
-              <a href="#models" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#models"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Model tiers
               </a>
-              <a href="#attachments" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#attachments"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Images and context
               </a>
             </nav>
           </aside>
         </div>
 
-        <article id="new-session" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="new-session"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="inline-flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
             <Layers3 className="h-5 w-5 text-primary" />
             New session flow
@@ -160,7 +166,8 @@ export default function DocsChatPage() {
 
           <ol className="mt-4 space-y-3 text-sm text-[var(--muted)] sm:text-base">
             <li className="rounded-xl border border-[var(--card-border)] bg-[var(--section-alt)] p-4">
-              1. Click <strong className="text-[var(--foreground)]">New</strong> in the extension header.
+              1. Click <strong className="text-[var(--foreground)]">New</strong> in the extension
+              header.
             </li>
             <li className="rounded-xl border border-[var(--card-border)] bg-[var(--section-alt)] p-4">
               2. Enter a session name that reflects your task.
@@ -174,7 +181,10 @@ export default function DocsChatPage() {
           </ol>
         </article>
 
-        <article id="types" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="types"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Session types</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {SESSION_TYPES.map((sessionType) => (
@@ -194,7 +204,10 @@ export default function DocsChatPage() {
           </div>
         </article>
 
-        <article id="models" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="models"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="inline-flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
             <SlidersHorizontal className="h-5 w-5 text-primary" />
             Model selection by pricing tier
@@ -214,11 +227,15 @@ export default function DocsChatPage() {
             ))}
           </div>
           <p className="mt-4 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            Recommendation: start with free models for most tasks and move to advanced tiers only when complexity requires it.
+            Recommendation: start with free models for most tasks and move to advanced tiers only
+            when complexity requires it.
           </p>
         </article>
 
-        <article id="attachments" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="attachments"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="inline-flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
             <ImagePlus className="h-5 w-5 text-primary" />
             Messages, images, and context mode
@@ -245,7 +262,8 @@ export default function DocsChatPage() {
           </div>
 
           <div className="mt-5 rounded-xl border border-[var(--card-border)] bg-[var(--section-alt)] p-4 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            You can also send selected browser text to chat with the selection toolbar action and continue from there with custom prompts.
+            You can also send selected browser text to chat with the selection toolbar action and
+            continue from there with custom prompts.
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">

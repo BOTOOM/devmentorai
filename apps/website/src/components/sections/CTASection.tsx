@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from 'next/link';
 
 interface CTASectionProps {
   readonly title: string;
@@ -12,8 +12,8 @@ interface CTASectionProps {
 export function CTASection({
   title,
   subtitle,
-  primaryLabel = "Get Started",
-  primaryHref = "/installation",
+  primaryLabel = 'Get Started',
+  primaryHref = '/installation',
   secondaryLabel,
   secondaryHref,
 }: CTASectionProps) {

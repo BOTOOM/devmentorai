@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { useCallback, useState } from "react";
-import Image from "next/image";
-import { Play } from "lucide-react";
+import { Play } from 'lucide-react';
+import Image from 'next/image';
+import { useCallback, useState } from 'react';
 
 interface LiteYouTubeEmbedProps {
   readonly videoId: string;
@@ -13,20 +13,20 @@ interface LiteYouTubeEmbedProps {
 let preconnectDone = false;
 
 function warmUpConnections() {
-  if (preconnectDone || typeof document === "undefined") return;
+  if (preconnectDone || typeof document === 'undefined') return;
 
   const urls = [
-    "https://www.youtube-nocookie.com",
-    "https://www.google.com",
-    "https://i.ytimg.com",
+    'https://www.youtube-nocookie.com',
+    'https://www.google.com',
+    'https://i.ytimg.com',
   ];
 
   urls.forEach((href) => {
-    const link = document.createElement("link");
-    link.rel = "preconnect";
+    const link = document.createElement('link');
+    link.rel = 'preconnect';
     link.href = href;
-    if (href.includes("google.com")) {
-      link.crossOrigin = "anonymous";
+    if (href.includes('google.com')) {
+      link.crossOrigin = 'anonymous';
     }
     document.head.appendChild(link);
   });
@@ -34,11 +34,7 @@ function warmUpConnections() {
   preconnectDone = true;
 }
 
-export function LiteYouTubeEmbed({
-  videoId,
-  title,
-  className,
-}: Readonly<LiteYouTubeEmbedProps>) {
+export function LiteYouTubeEmbed({ videoId, title, className }: Readonly<LiteYouTubeEmbedProps>) {
   const [isActivated, setIsActivated] = useState(false);
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const posterUrl = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
@@ -50,7 +46,7 @@ export function LiteYouTubeEmbed({
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card)] shadow-xl ${className ?? ""}`}
+      className={`relative w-full overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card)] shadow-xl ${className ?? ''}`}
       onPointerOver={warmUpConnections}
     >
       <div className="aspect-video">

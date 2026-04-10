@@ -1,49 +1,48 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, ExternalLink, History, Server, Puzzle } from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { CTASection } from "@/components/sections/CTASection";
-import { Badge } from "@/components/ui/Badge";
+import { CTASection } from '@/components/sections/CTASection';
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
 import {
+  type ChangelogTrack,
   formatChangelogDate,
   getChangelogEntries,
-  type ChangelogTrack,
-} from "@/lib/changelog-data";
+} from '@/lib/changelog-data';
+import { ArrowRight, ExternalLink, History, Puzzle, Server } from 'lucide-react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: "Changelog",
+  title: 'Changelog',
   description:
-    "Friendly release notes for DevMentorAI extension and backend updates, focused on user-facing improvements and fixes.",
+    'Friendly release notes for DevMentorAI extension and backend updates, focused on user-facing improvements and fixes.',
 };
 
-const TRACK_META: Record<ChangelogTrack, { title: string; subtitle: string; icon: typeof Puzzle }> = {
-  extension: {
-    title: "Extension releases",
-    subtitle:
-      "What changed in the browser extension you use every day, explained in plain language.",
-    icon: Puzzle,
-  },
-  backend: {
-    title: "Backend releases",
-    subtitle:
-      "What changed in the local backend that powers chats, tools, and session behavior.",
-    icon: Server,
-  },
-};
+const TRACK_META: Record<ChangelogTrack, { title: string; subtitle: string; icon: typeof Puzzle }> =
+  {
+    extension: {
+      title: 'Extension releases',
+      subtitle:
+        'What changed in the browser extension you use every day, explained in plain language.',
+      icon: Puzzle,
+    },
+    backend: {
+      title: 'Backend releases',
+      subtitle: 'What changed in the local backend that powers chats, tools, and session behavior.',
+      icon: Server,
+    },
+  };
 
 export default function ChangelogPage() {
-  const extensionEntries = getChangelogEntries("extension");
-  const backendEntries = getChangelogEntries("backend");
+  const extensionEntries = getChangelogEntries('extension');
+  const backendEntries = getChangelogEntries('backend');
 
   const changelogJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    name: "DevMentorAI Changelog",
-    description:
-      "Friendly release notes for DevMentorAI extension and backend updates.",
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: 'DevMentorAI Changelog',
+    description: 'Friendly release notes for DevMentorAI extension and backend updates.',
     hasPart: [...extensionEntries, ...backendEntries].map((entry) => ({
-      "@type": "CreativeWork",
-      name: `${entry.track === "extension" ? "Extension" : "Backend"} v${entry.version}`,
+      '@type': 'CreativeWork',
+      name: `${entry.track === 'extension' ? 'Extension' : 'Backend'} v${entry.version}`,
       datePublished: entry.releasedAt,
       url: entry.releaseUrl,
       description: entry.summary,
@@ -70,16 +69,16 @@ export default function ChangelogPage() {
       <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6 md:px-12 lg:px-20">
         <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--section-alt)] p-5 sm:p-6">
           <p className="text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            This changelog focuses on user-facing features and fixes. Website-only updates, deployment tweaks,
-            and documentation-only changes are intentionally left out.
+            This changelog focuses on user-facing features and fixes. Website-only updates,
+            deployment tweaks, and documentation-only changes are intentionally left out.
           </p>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl space-y-16 px-4 pb-20 sm:px-6 md:px-12 md:pb-24 lg:px-20">
-        {(["extension", "backend"] as ChangelogTrack[]).map((track) => {
+        {(['extension', 'backend'] as ChangelogTrack[]).map((track) => {
           const meta = TRACK_META[track];
-          const entries = track === "extension" ? extensionEntries : backendEntries;
+          const entries = track === 'extension' ? extensionEntries : backendEntries;
           const Icon = meta.icon;
 
           return (
@@ -105,7 +104,7 @@ export default function ChangelogPage() {
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-primary">
-                            {track === "extension" ? "Extension" : "Backend"}
+                            {track === 'extension' ? 'Extension' : 'Backend'}
                           </span>
                           <span className="rounded-full border border-[var(--card-border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)]">
                             v{entry.version}
@@ -114,7 +113,9 @@ export default function ChangelogPage() {
                             {formatChangelogDate(entry.releasedAt)}
                           </span>
                         </div>
-                        <h3 className="text-xl font-bold tracking-tight sm:text-2xl">{entry.headline}</h3>
+                        <h3 className="text-xl font-bold tracking-tight sm:text-2xl">
+                          {entry.headline}
+                        </h3>
                         <p className="max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base">
                           {entry.summary}
                         </p>
@@ -133,7 +134,9 @@ export default function ChangelogPage() {
 
                     <div className="mt-5 grid gap-5 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
                       <div>
-                        <p className="text-sm font-semibold text-foreground">What you would notice</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          What you would notice
+                        </p>
                         <ul className="mt-3 space-y-2 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
                           {entry.highlights.map((highlight) => (
                             <li key={highlight} className="flex gap-3">
@@ -148,11 +151,11 @@ export default function ChangelogPage() {
                         <p className="text-sm font-semibold text-foreground">Quick reference</p>
                         <div className="mt-3 space-y-2 text-sm text-[var(--muted)]">
                           <p>
-                            <span className="font-semibold text-foreground">Published:</span>{" "}
+                            <span className="font-semibold text-foreground">Published:</span>{' '}
                             {formatChangelogDate(entry.releasedAt)}
                           </p>
                           <p>
-                            <span className="font-semibold text-foreground">Release tag:</span>{" "}
+                            <span className="font-semibold text-foreground">Release tag:</span>{' '}
                             <span className="font-mono text-xs sm:text-sm">{entry.tag}</span>
                           </p>
                           {entry.fixes?.length ? (
@@ -183,9 +186,12 @@ export default function ChangelogPage() {
         <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Need the install steps too?</h2>
+              <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+                Need the install steps too?
+              </h2>
               <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
-                If a backend release requires a local update, the installation page shows the official paths.
+                If a backend release requires a local update, the installation page shows the
+                official paths.
               </p>
             </div>
             <Link

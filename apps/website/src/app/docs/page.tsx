@@ -1,54 +1,50 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, BookOpen, CircleCheck, Compass, Sparkles } from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { Badge } from "@/components/ui/Badge";
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
+import { ArrowRight, BookOpen, CircleCheck, Compass, Sparkles } from 'lucide-react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-const SITE_URL = "https://devmentorai.edwardiaz.dev";
-const PAGE_PATH = "/docs";
+const SITE_URL = 'https://devmentorai.edwardiaz.dev';
+const PAGE_PATH = '/docs';
 const PAGE_URL = `${SITE_URL}${PAGE_PATH}`;
 
 const DOC_SECTIONS = [
   {
-    href: "/docs/get-started",
-    title: "Get Started",
+    href: '/docs/get-started',
+    title: 'Get Started',
     description:
-      "Install the extension, prepare the backend, and understand the exact prerequisites before your first session.",
-    highlights: [
-      "Prerequisites checklist",
-      "Fast onboarding flow",
-      "Copilot CLI guide",
-    ],
+      'Install the extension, prepare the backend, and understand the exact prerequisites before your first session.',
+    highlights: ['Prerequisites checklist', 'Fast onboarding flow', 'Copilot CLI guide'],
   },
   {
-    href: "/docs/quick-actions",
-    title: "Quick Actions",
+    href: '/docs/quick-actions',
+    title: 'Quick Actions',
     description:
-      "Learn how to explain, translate, rewrite, fix grammar, summarize, and send selected text directly to chat.",
-    highlights: ["Editable vs non-editable text", "Tone rewrites", "Add to chat flow"],
+      'Learn how to explain, translate, rewrite, fix grammar, summarize, and send selected text directly to chat.',
+    highlights: ['Editable vs non-editable text', 'Tone rewrites', 'Add to chat flow'],
   },
   {
-    href: "/docs/chat",
-    title: "Chat Workflow",
+    href: '/docs/chat',
+    title: 'Chat Workflow',
     description:
-      "Create sessions, choose models by pricing tier, attach images, and use context mode for better answers.",
-    highlights: ["4 session types", "Model tiers", "Images and context mode"],
+      'Create sessions, choose models by pricing tier, attach images, and use context mode for better answers.',
+    highlights: ['4 session types', 'Model tiers', 'Images and context mode'],
   },
   {
-    href: "/docs/settings",
-    title: "Settings",
+    href: '/docs/settings',
+    title: 'Settings',
     description:
-      "Understand every setting from backend connection and themes to smart translation and quick action model defaults.",
-    highlights: ["Backend URL and test", "Smart Translation", "Updates and model"],
+      'Understand every setting from backend connection and themes to smart translation and quick action model defaults.',
+    highlights: ['Backend URL and test', 'Smart Translation', 'Updates and model'],
   },
 ] as const;
 
-const PAGE_TITLE = "DevMentorAI Documentation";
+const PAGE_TITLE = 'DevMentorAI Documentation';
 const PAGE_DESCRIPTION =
-  "Official DevMentorAI docs: installation prerequisites, Copilot CLI login, quick actions, chat workflow, and settings.";
+  'Official DevMentorAI docs: installation prerequisites, Copilot CLI login, quick actions, chat workflow, and settings.';
 
 export const metadata: Metadata = {
-  title: "Documentation",
+  title: 'Documentation',
   description: PAGE_DESCRIPTION,
   alternates: {
     canonical: PAGE_PATH,
@@ -57,10 +53,10 @@ export const metadata: Metadata = {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: PAGE_URL,
-    type: "website",
+    type: 'website',
   },
   twitter: {
-    card: "summary_large_image",
+    card: 'summary_large_image',
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
   },
@@ -68,24 +64,24 @@ export const metadata: Metadata = {
 
 export default function DocsPage() {
   const docsJsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
+    '@context': 'https://schema.org',
+    '@graph': [
       {
-        "@type": "CollectionPage",
+        '@type': 'CollectionPage',
         name: PAGE_TITLE,
         description: PAGE_DESCRIPTION,
         url: PAGE_URL,
         hasPart: DOC_SECTIONS.map((section) => ({
-          "@type": "TechArticle",
+          '@type': 'TechArticle',
           name: section.title,
           url: `${SITE_URL}${section.href}`,
           description: section.description,
         })),
       },
       {
-        "@type": "ItemList",
+        '@type': 'ItemList',
         itemListElement: DOC_SECTIONS.map((section, index) => ({
-          "@type": "ListItem",
+          '@type': 'ListItem',
           position: index + 1,
           name: section.title,
           url: `${SITE_URL}${section.href}`,
@@ -102,11 +98,7 @@ export default function DocsPage() {
       />
 
       <HeroSection
-        badge={
-          <Badge icon={<BookOpen className="h-3 w-3" />}>
-            Documentation Hub
-          </Badge>
-        }
+        badge={<Badge icon={<BookOpen className="h-3 w-3" />}>Documentation Hub</Badge>}
         title={
           <>
             DevMentorAI docs built for <span className="text-primary">fast execution</span>
@@ -121,11 +113,15 @@ export default function DocsPage() {
           <ul className="mt-3 space-y-2 text-sm text-[var(--muted)] sm:text-base">
             <li className="flex items-start gap-2">
               <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              Start with <strong className="font-semibold text-[var(--foreground)]">Get Started</strong> if this is your first time.
+              Start with{' '}
+              <strong className="font-semibold text-[var(--foreground)]">Get Started</strong> if
+              this is your first time.
             </li>
             <li className="flex items-start gap-2">
               <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              Use the <strong className="font-semibold text-[var(--foreground)]">Copilot CLI guide</strong> before running the backend command.
+              Use the{' '}
+              <strong className="font-semibold text-[var(--foreground)]">Copilot CLI guide</strong>{' '}
+              before running the backend command.
             </li>
             <li className="flex items-start gap-2">
               <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />

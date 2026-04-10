@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 interface HeroSectionProps {
   readonly badge?: ReactNode;
@@ -8,13 +8,7 @@ interface HeroSectionProps {
   readonly children?: ReactNode;
 }
 
-export function HeroSection({
-  badge,
-  title,
-  subtitle,
-  actions,
-  children,
-}: HeroSectionProps) {
+export function HeroSection({ badge, title, subtitle, actions, children }: HeroSectionProps) {
   return (
     <section className="relative overflow-hidden px-4 py-14 sm:px-6 md:px-12 md:py-20 lg:px-20 lg:py-24">
       <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-7 text-center md:gap-8">

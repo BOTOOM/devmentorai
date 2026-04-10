@@ -1,51 +1,51 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowRight, CheckCircle2, ClipboardList, Rocket } from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { Badge } from "@/components/ui/Badge";
-import { CodeBlock } from "@/components/ui/CodeBlock";
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
+import { CodeBlock } from '@/components/ui/CodeBlock';
+import { ArrowRight, CheckCircle2, ClipboardList, Rocket } from 'lucide-react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-const SITE_URL = "https://devmentorai.edwardiaz.dev";
-const PAGE_PATH = "/docs/get-started";
+const SITE_URL = 'https://devmentorai.edwardiaz.dev';
+const PAGE_PATH = '/docs/get-started';
 const PAGE_URL = `${SITE_URL}${PAGE_PATH}`;
 
-const PAGE_TITLE = "Get Started with DevMentorAI";
+const PAGE_TITLE = 'Get Started with DevMentorAI';
 const PAGE_DESCRIPTION =
-  "Get started quickly with DevMentorAI: prerequisites, Copilot CLI setup, extension installation, and first chat session flow.";
+  'Get started quickly with DevMentorAI: prerequisites, Copilot CLI setup, extension installation, and first chat session flow.';
 
 const PREREQUISITES = [
-  "Node.js 20+ installed on your machine.",
-  "DevMentorAI browser extension downloaded from the latest release.",
-  "GitHub Copilot CLI installed and authenticated.",
-  "Local backend command available: npx devmentorai-server.",
+  'Node.js 20+ installed on your machine.',
+  'DevMentorAI browser extension downloaded from the latest release.',
+  'GitHub Copilot CLI installed and authenticated.',
+  'Local backend command available: npx devmentorai-server.',
 ] as const;
 
 const STARTUP_STEPS = [
   {
-    title: "Install and login to Copilot CLI",
+    title: 'Install and login to Copilot CLI',
     description:
-      "If Copilot CLI is not ready, complete that first. The backend command depends on an authenticated Copilot CLI session.",
-    href: "/docs/get-started/copilot-cli",
-    cta: "Open Copilot CLI guide",
+      'If Copilot CLI is not ready, complete that first. The backend command depends on an authenticated Copilot CLI session.',
+    href: '/docs/get-started/copilot-cli',
+    cta: 'Open Copilot CLI guide',
   },
   {
-    title: "Start the local backend",
+    title: 'Start the local backend',
     description:
-      "Run the backend command in your terminal and keep the process running while using the extension.",
-    href: "/installation",
-    cta: "Open installation page",
+      'Run the backend command in your terminal and keep the process running while using the extension.',
+    href: '/installation',
+    cta: 'Open installation page',
   },
   {
-    title: "Load the extension and open a session",
+    title: 'Load the extension and open a session',
     description:
-      "Open DevMentorAI from your browser toolbar, create a new session, and send your first prompt.",
-    href: "/docs/chat",
-    cta: "Read chat workflow",
+      'Open DevMentorAI from your browser toolbar, create a new session, and send your first prompt.',
+    href: '/docs/chat',
+    cta: 'Read chat workflow',
   },
 ] as const;
 
 export const metadata: Metadata = {
-  title: "Docs: Get Started",
+  title: 'Docs: Get Started',
   description: PAGE_DESCRIPTION,
   alternates: {
     canonical: PAGE_PATH,
@@ -54,10 +54,10 @@ export const metadata: Metadata = {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: PAGE_URL,
-    type: "article",
+    type: 'article',
   },
   twitter: {
-    card: "summary_large_image",
+    card: 'summary_large_image',
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
   },
@@ -65,51 +65,51 @@ export const metadata: Metadata = {
 
 export default function DocsGetStartedPage() {
   const howToJsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
+    '@context': 'https://schema.org',
+    '@graph': [
       {
-        "@type": "HowTo",
+        '@type': 'HowTo',
         name: PAGE_TITLE,
         description: PAGE_DESCRIPTION,
-        totalTime: "PT5M",
+        totalTime: 'PT5M',
         step: [
           {
-            "@type": "HowToStep",
-            name: "Install and login to Copilot CLI",
+            '@type': 'HowToStep',
+            name: 'Install and login to Copilot CLI',
             url: `${SITE_URL}/docs/get-started/copilot-cli`,
           },
           {
-            "@type": "HowToStep",
-            name: "Run backend command",
-            text: "Run npx devmentorai-server in your terminal.",
+            '@type': 'HowToStep',
+            name: 'Run backend command',
+            text: 'Run npx devmentorai-server in your terminal.',
             url: `${SITE_URL}/installation`,
           },
           {
-            "@type": "HowToStep",
-            name: "Open extension and start chat",
+            '@type': 'HowToStep',
+            name: 'Open extension and start chat',
             url: `${SITE_URL}/docs/chat`,
           },
         ],
       },
       {
-        "@type": "BreadcrumbList",
+        '@type': 'BreadcrumbList',
         itemListElement: [
           {
-            "@type": "ListItem",
+            '@type': 'ListItem',
             position: 1,
-            name: "Home",
+            name: 'Home',
             item: SITE_URL,
           },
           {
-            "@type": "ListItem",
+            '@type': 'ListItem',
             position: 2,
-            name: "Docs",
+            name: 'Docs',
             item: `${SITE_URL}/docs`,
           },
           {
-            "@type": "ListItem",
+            '@type': 'ListItem',
             position: 3,
-            name: "Get Started",
+            name: 'Get Started',
             item: PAGE_URL,
           },
         ],
@@ -157,20 +157,32 @@ export default function DocsGetStartedPage() {
           <aside className="rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
             <p className="text-sm font-semibold">On this page</p>
             <nav aria-label="Get started table of contents" className="mt-3 space-y-2 text-sm">
-              <a href="#prerequisites" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#prerequisites"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Prerequisites
               </a>
-              <a href="#flow" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#flow"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Startup flow
               </a>
-              <a href="#next" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#next"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Next docs
               </a>
             </nav>
           </aside>
         </div>
 
-        <article id="prerequisites" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="prerequisites"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Prerequisites checklist</h2>
           <ul className="mt-4 space-y-2 text-sm text-[var(--muted)] sm:text-base">
             {PREREQUISITES.map((item) => (
@@ -185,7 +197,10 @@ export default function DocsGetStartedPage() {
           </div>
         </article>
 
-        <article id="flow" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="flow"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Startup flow</h2>
           <div className="mt-4 space-y-4">
             {STARTUP_STEPS.map((step, index) => (
@@ -212,7 +227,10 @@ export default function DocsGetStartedPage() {
           </div>
         </article>
 
-        <article id="next" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="next"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="inline-flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
             <ClipboardList className="h-5 w-5 text-primary" />
             Continue with these docs

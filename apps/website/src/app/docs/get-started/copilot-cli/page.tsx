@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
+import { CodeBlock } from '@/components/ui/CodeBlock';
 import {
   AlertTriangle,
   ArrowRight,
@@ -7,40 +8,39 @@ import {
   ExternalLink,
   KeyRound,
   TerminalSquare,
-} from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { Badge } from "@/components/ui/Badge";
-import { CodeBlock } from "@/components/ui/CodeBlock";
+} from 'lucide-react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-const SITE_URL = "https://devmentorai.edwardiaz.dev";
-const PAGE_PATH = "/docs/get-started/copilot-cli";
+const SITE_URL = 'https://devmentorai.edwardiaz.dev';
+const PAGE_PATH = '/docs/get-started/copilot-cli';
 const PAGE_URL = `${SITE_URL}${PAGE_PATH}`;
 
 const OFFICIAL_INSTALL_DOCS =
-  "https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli";
-const OFFICIAL_COPILOT_DOCS = "https://docs.github.com/en/copilot";
+  'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli';
+const OFFICIAL_COPILOT_DOCS = 'https://docs.github.com/en/copilot';
 
-const PAGE_TITLE = "Install and Login Copilot CLI for DevMentorAI";
+const PAGE_TITLE = 'Install and Login Copilot CLI for DevMentorAI';
 const PAGE_DESCRIPTION =
-  "Step-by-step Copilot CLI setup for DevMentorAI: install command, login flow, quota notes, and what to run next.";
+  'Step-by-step Copilot CLI setup for DevMentorAI: install command, login flow, quota notes, and what to run next.';
 
 const OS_INSTALL_REFERENCES = [
   {
-    label: "macOS install options",
+    label: 'macOS install options',
     href: OFFICIAL_INSTALL_DOCS,
   },
   {
-    label: "Linux install options",
+    label: 'Linux install options',
     href: OFFICIAL_INSTALL_DOCS,
   },
   {
-    label: "Windows install options",
+    label: 'Windows install options',
     href: OFFICIAL_INSTALL_DOCS,
   },
 ] as const;
 
 export const metadata: Metadata = {
-  title: "Docs: Copilot CLI Setup",
+  title: 'Docs: Copilot CLI Setup',
   description: PAGE_DESCRIPTION,
   alternates: {
     canonical: PAGE_PATH,
@@ -49,10 +49,10 @@ export const metadata: Metadata = {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: PAGE_URL,
-    type: "article",
+    type: 'article',
   },
   twitter: {
-    card: "summary_large_image",
+    card: 'summary_large_image',
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
   },
@@ -60,62 +60,62 @@ export const metadata: Metadata = {
 
 export default function CopilotCliDocsPage() {
   const howToJsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
+    '@context': 'https://schema.org',
+    '@graph': [
       {
-        "@type": "HowTo",
+        '@type': 'HowTo',
         name: PAGE_TITLE,
         description: PAGE_DESCRIPTION,
-        totalTime: "PT7M",
+        totalTime: 'PT7M',
         supply: [
-          { "@type": "HowToSupply", name: "Node.js 20+" },
-          { "@type": "HowToSupply", name: "Terminal access" },
+          { '@type': 'HowToSupply', name: 'Node.js 20+' },
+          { '@type': 'HowToSupply', name: 'Terminal access' },
         ],
         step: [
           {
-            "@type": "HowToStep",
-            name: "Install Copilot CLI",
-            text: "Install globally with npm: npm install -g @github/copilot-cli",
+            '@type': 'HowToStep',
+            name: 'Install Copilot CLI',
+            text: 'Install globally with npm: npm install -g @github/copilot-cli',
             url: OFFICIAL_INSTALL_DOCS,
           },
           {
-            "@type": "HowToStep",
-            name: "Start interactive login",
-            text: "Run copilot, then run /login in the interactive prompt.",
+            '@type': 'HowToStep',
+            name: 'Start interactive login',
+            text: 'Run copilot, then run /login in the interactive prompt.',
           },
           {
-            "@type": "HowToStep",
-            name: "Follow terminal instructions",
-            text: "Complete browser/device authorization and confirm success.",
+            '@type': 'HowToStep',
+            name: 'Follow terminal instructions',
+            text: 'Complete browser/device authorization and confirm success.',
           },
           {
-            "@type": "HowToStep",
-            name: "Start DevMentorAI backend",
-            text: "Run npx devmentorai-server after successful login.",
+            '@type': 'HowToStep',
+            name: 'Start DevMentorAI backend',
+            text: 'Run npx devmentorai-server after successful login.',
             url: `${SITE_URL}/installation`,
           },
         ],
       },
       {
-        "@type": "BreadcrumbList",
+        '@type': 'BreadcrumbList',
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
           {
-            "@type": "ListItem",
+            '@type': 'ListItem',
             position: 2,
-            name: "Docs",
+            name: 'Docs',
             item: `${SITE_URL}/docs`,
           },
           {
-            "@type": "ListItem",
+            '@type': 'ListItem',
             position: 3,
-            name: "Get Started",
+            name: 'Get Started',
             item: `${SITE_URL}/docs/get-started`,
           },
           {
-            "@type": "ListItem",
+            '@type': 'ListItem',
             position: 4,
-            name: "Copilot CLI",
+            name: 'Copilot CLI',
             item: PAGE_URL,
           },
         ],
@@ -131,11 +131,7 @@ export default function CopilotCliDocsPage() {
       />
 
       <HeroSection
-        badge={
-          <Badge icon={<TerminalSquare className="h-3 w-3" />}>
-            Copilot CLI Guide
-          </Badge>
-        }
+        badge={<Badge icon={<TerminalSquare className="h-3 w-3" />}>Copilot CLI Guide</Badge>}
         title={
           <>
             Install and login to <span className="text-primary">Copilot CLI</span>
@@ -158,11 +154,18 @@ export default function CopilotCliDocsPage() {
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
-                Run <code className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs">copilot</code> and then <code className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs">/login</code>.
+                Run{' '}
+                <code className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs">copilot</code>{' '}
+                and then{' '}
+                <code className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs">/login</code>.
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
-                After successful login, run <code className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs">npx devmentorai-server</code>.
+                After successful login, run{' '}
+                <code className="rounded bg-black/10 px-1.5 py-0.5 font-mono text-xs">
+                  npx devmentorai-server
+                </code>
+                .
               </li>
             </ul>
           </article>
@@ -170,30 +173,51 @@ export default function CopilotCliDocsPage() {
           <aside className="rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
             <p className="text-sm font-semibold">On this page</p>
             <nav aria-label="Copilot CLI table of contents" className="mt-3 space-y-2 text-sm">
-              <a href="#why" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#why"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Why it is required
               </a>
-              <a href="#install" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#install"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Install command
               </a>
-              <a href="#login" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#login"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Login steps
               </a>
-              <a href="#quota" className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary">
+              <a
+                href="#quota"
+                className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
+              >
                 Quota and subscriptions
               </a>
             </nav>
           </aside>
         </div>
 
-        <article id="why" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
-          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Why Copilot CLI is required</h2>
+        <article
+          id="why"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+            Why Copilot CLI is required
+          </h2>
           <p className="mt-3 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            DevMentorAI backend uses your Copilot CLI authentication context. If Copilot CLI is missing or not logged in, backend responses can be limited or fail.
+            DevMentorAI backend uses your Copilot CLI authentication context. If Copilot CLI is
+            missing or not logged in, backend responses can be limited or fail.
           </p>
         </article>
 
-        <article id="install" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="install"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Install Copilot CLI</h2>
           <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
             Recommended method using npm:
@@ -203,7 +227,8 @@ export default function CopilotCliDocsPage() {
           </div>
 
           <p className="mt-4 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            For OS-specific alternatives, open the official installation guide and use the tab for your environment.
+            For OS-specific alternatives, open the official installation guide and use the tab for
+            your environment.
           </p>
           <ul className="mt-3 space-y-2 text-sm">
             {OS_INSTALL_REFERENCES.map((reference) => (
@@ -222,7 +247,10 @@ export default function CopilotCliDocsPage() {
           </ul>
         </article>
 
-        <article id="login" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
+        <article
+          id="login"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
           <h2 className="inline-flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
             <KeyRound className="h-5 w-5 text-primary" />
             Login step-by-step
@@ -239,7 +267,9 @@ export default function CopilotCliDocsPage() {
 
             <div className="rounded-xl border border-[var(--card-border)] bg-[var(--section-alt)] p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-primary">Step 2</p>
-              <p className="mt-1 text-sm text-[var(--muted)]">Inside the interactive prompt, run:</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Inside the interactive prompt, run:
+              </p>
               <div className="mt-3">
                 <CodeBlock code="/login" language="bash" />
               </div>
@@ -261,19 +291,27 @@ export default function CopilotCliDocsPage() {
           </p>
         </article>
 
-        <article id="quota" className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
-          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Quota and subscription note</h2>
+        <article
+          id="quota"
+          className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
+        >
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+            Quota and subscription note
+          </h2>
           <div className="mt-3 rounded-xl border border-[var(--card-border)] bg-[var(--section-alt)] p-4 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
             <p>
-              If you do not have a paid Copilot subscription, Copilot generally includes a limited monthly premium request quota (commonly referenced as 50 premium requests/month).
+              If you do not have a paid Copilot subscription, Copilot generally includes a limited
+              monthly premium request quota (commonly referenced as 50 premium requests/month).
             </p>
             <p className="mt-2">
-              If you have a paid subscription, limits and model access depend on your current Copilot plan.
+              If you have a paid subscription, limits and model access depend on your current
+              Copilot plan.
             </p>
           </div>
 
           <p className="mt-4 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            To switch account or manage plan behavior, use terminal auth commands and review the official Copilot documentation.
+            To switch account or manage plan behavior, use terminal auth commands and review the
+            official Copilot documentation.
           </p>
           <a
             href={OFFICIAL_COPILOT_DOCS}

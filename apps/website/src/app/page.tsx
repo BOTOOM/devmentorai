@@ -1,35 +1,35 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { Globe, Cloud, FileEdit, ArrowRight, History, Puzzle, Server } from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { CTASection } from "@/components/sections/CTASection";
-import { FeatureCard } from "@/components/ui/FeatureCard";
-import { Badge, PulseBadge } from "@/components/ui/Badge";
-import { LiteYouTubeEmbed } from "@/components/ui/LiteYouTubeEmbed";
-import { formatChangelogDate, getLatestChangelogEntries } from "@/lib/changelog-data";
+import { CTASection } from '@/components/sections/CTASection';
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge, PulseBadge } from '@/components/ui/Badge';
+import { FeatureCard } from '@/components/ui/FeatureCard';
+import { LiteYouTubeEmbed } from '@/components/ui/LiteYouTubeEmbed';
+import { formatChangelogDate, getLatestChangelogEntries } from '@/lib/changelog-data';
+import { ArrowRight, Cloud, FileEdit, Globe, History, Puzzle, Server } from 'lucide-react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: "DevMentorAI — AI Mentor for Your Entire Browser",
+  title: 'DevMentorAI — AI Mentor for Your Entire Browser',
   description:
-    "Watch the DevMentorAI demo and learn how to install, connect, and use context-aware AI assistance in your browser with GitHub Copilot.",
+    'Watch the DevMentorAI demo and learn how to install, connect, and use context-aware AI assistance in your browser with GitHub Copilot.',
 };
 
 export default function Home() {
   const latestReleases = getLatestChangelogEntries();
   const videoJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "VideoObject",
-    name: "DevMentorAI Demo — Installation and Usage",
+    '@context': 'https://schema.org',
+    '@type': 'VideoObject',
+    name: 'DevMentorAI Demo — Installation and Usage',
     description:
-      "Full product demo showing DevMentorAI installation and real usage inside browser workflows.",
-    thumbnailUrl: "https://i.ytimg.com/vi/Z_MnW1hJubM/hqdefault.jpg",
-    uploadDate: "2026-02-20",
-    embedUrl: "https://www.youtube.com/embed/Z_MnW1hJubM",
-    contentUrl: "https://www.youtube.com/watch?v=Z_MnW1hJubM",
+      'Full product demo showing DevMentorAI installation and real usage inside browser workflows.',
+    thumbnailUrl: 'https://i.ytimg.com/vi/Z_MnW1hJubM/hqdefault.jpg',
+    uploadDate: '2026-02-20',
+    embedUrl: 'https://www.youtube.com/embed/Z_MnW1hJubM',
+    contentUrl: 'https://www.youtube.com/watch?v=Z_MnW1hJubM',
     publisher: {
-      "@type": "Organization",
-      name: "DevMentorAI",
-      url: "https://devmentorai.edwardiaz.dev",
+      '@type': 'Organization',
+      name: 'DevMentorAI',
+      url: 'https://devmentorai.edwardiaz.dev',
     },
   };
 
@@ -45,8 +45,7 @@ export default function Home() {
         badge={<PulseBadge>Powered by GitHub Copilot</PulseBadge>}
         title={
           <>
-            The AI Mentor for your{" "}
-            <span className="text-primary">entire browser</span>
+            The AI Mentor for your <span className="text-primary">entire browser</span>
           </>
         }
         subtitle="Context-aware assistance powered by GitHub Copilot. Understand any web page, error, or cloud dashboard instantly."
@@ -101,8 +100,8 @@ export default function Home() {
                       <div className="h-3 w-full rounded bg-slate-800" />
                       <div className="h-3 w-4/5 rounded bg-slate-800" />
                       <div className="flex h-12 w-full items-center rounded border border-red-500/20 bg-red-900/20 px-4 text-xs text-red-400">
-                        Error: Failed to pull image &quot;dev-api:latest&quot;.
-                        Check IAM permissions.
+                        Error: Failed to pull image &quot;dev-api:latest&quot;. Check IAM
+                        permissions.
                       </div>
                     </div>
                   </div>
@@ -116,16 +115,9 @@ export default function Home() {
                     </div>
                     <div className="rounded-lg border border-primary/20 bg-primary-light p-3">
                       <p className="text-[11px] leading-relaxed text-blue-100">
-                        I see a{" "}
-                        <span className="font-bold text-red-400">
-                          CrashLoopBackOff
-                        </span>
-                        . The task role{" "}
-                        <code className="text-primary">EcsTaskRole</code> is
-                        missing the{" "}
-                        <code className="text-primary">
-                          ecr:GetDownloadUrlForLayer
-                        </code>{" "}
+                        I see a <span className="font-bold text-red-400">CrashLoopBackOff</span>.
+                        The task role <code className="text-primary">EcsTaskRole</code> is missing
+                        the <code className="text-primary">ecr:GetDownloadUrlForLayer</code>{' '}
                         permission.
                       </p>
                     </div>
@@ -152,7 +144,8 @@ export default function Home() {
             Watch the full demo in action
           </h2>
           <p className="mx-auto max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base md:text-lg">
-            See the complete flow: installation, first setup, and real-world usage across web pages and cloud dashboards.
+            See the complete flow: installation, first setup, and real-world usage across web pages
+            and cloud dashboards.
           </p>
         </div>
 
@@ -170,8 +163,7 @@ export default function Home() {
               Engineered for Modern Development
             </h2>
             <p className="max-w-[700px] text-base text-[var(--muted)] sm:text-lg">
-              Supercharge your workflow with context-aware AI integrated
-              directly into your browser.
+              Supercharge your workflow with context-aware AI integrated directly into your browser.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
@@ -179,21 +171,21 @@ export default function Home() {
               icon={<Globe className="h-7 w-7" />}
               title="Full-Page Awareness"
               description="Deep understanding of DOM structures, network traffic logs, and browser console errors in real-time."
-              tags={["DOM", "Network", "Errors"]}
+              tags={['DOM', 'Network', 'Errors']}
               accentColor="primary"
             />
             <FeatureCard
               icon={<Cloud className="h-7 w-7" />}
               title="DevOps Specialist"
               description="Expert assistance for AWS, Kubernetes, and CI/CD pipelines directly inside your cloud management dashboard."
-              tags={["AWS", "K8s", "CI/CD"]}
+              tags={['AWS', 'K8s', 'CI/CD']}
               accentColor="orange"
             />
             <FeatureCard
               icon={<FileEdit className="h-7 w-7" />}
               title="Writing Assistant"
               description="Seamlessly draft technical emails, documentation, and chat responses while maintaining your project's context."
-              tags={["Emails", "Docs", "Chats"]}
+              tags={['Emails', 'Docs', 'Chats']}
               accentColor="purple"
             />
           </div>
@@ -209,7 +201,8 @@ export default function Home() {
                 What&apos;s new lately
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base md:text-lg">
-                Extension and backend ship on different schedules, so we track both separately and explain them in user-friendly language.
+                Extension and backend ship on different schedules, so we track both separately and
+                explain them in user-friendly language.
               </p>
             </div>
             <Link
@@ -225,12 +218,12 @@ export default function Home() {
         <div className="grid gap-5 md:grid-cols-2">
           {[
             {
-              kind: "Extension",
+              kind: 'Extension',
               icon: Puzzle,
               entry: latestReleases.extension,
             },
             {
-              kind: "Backend",
+              kind: 'Backend',
               icon: Server,
               entry: latestReleases.backend,
             },

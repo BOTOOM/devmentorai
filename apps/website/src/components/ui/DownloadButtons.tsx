@@ -1,14 +1,13 @@
-import { Store } from "lucide-react";
-import type { ReleaseInfo } from "@/lib/github-releases";
+import type { ReleaseInfo } from '@/lib/github-releases';
+import { Store } from 'lucide-react';
 
 interface DownloadButtonsProps {
   readonly release: ReleaseInfo;
 }
 
 const CHROME_STORE_URL =
-  "https://chromewebstore.google.com/detail/devmentorai/fghdjkhbockpbpgapfdjbcfbhemdeggf";
-const FIREFOX_ADDONS_URL =
-  "https://addons.mozilla.org/es-MX/firefox/addon/devmentorai/";
+  'https://chromewebstore.google.com/detail/devmentorai/fghdjkhbockpbpgapfdjbcfbhemdeggf';
+const FIREFOX_ADDONS_URL = 'https://addons.mozilla.org/es-MX/firefox/addon/devmentorai/';
 
 export function DownloadButtons({ release }: DownloadButtonsProps) {
   return (
@@ -55,7 +54,7 @@ export function DownloadButtons({ release }: DownloadButtonsProps) {
       </div>
 
       <p className="text-center text-xs text-[var(--muted)]">
-        Or download directly as{" "}
+        Or download directly as{' '}
         <a
           href={release.chromeUrl}
           target="_blank"
@@ -63,8 +62,8 @@ export function DownloadButtons({ release }: DownloadButtonsProps) {
           className="font-medium text-primary hover:underline"
         >
           .zip
-        </a>{" "}
-        /{" "}
+        </a>{' '}
+        /{' '}
         <a
           href={release.firefoxUrl}
           target="_blank"
@@ -72,7 +71,7 @@ export function DownloadButtons({ release }: DownloadButtonsProps) {
           className="font-medium text-primary hover:underline"
         >
           .xpi
-        </a>{" "}
+        </a>{' '}
         (manual installation)
       </p>
     </div>

@@ -1,6 +1,6 @@
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { defineConfig } from 'wxt';
-import { copyFileSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
-import { resolve, join } from 'node:path';
 
 export default defineConfig({
   srcDir: 'src',
@@ -13,9 +13,10 @@ export default defineConfig({
       const publicDir = resolve('src/public');
       const resolvedOutput = output as { dir?: string; outDir?: string };
       const configuredOutDir = resolvedOutput.dir ?? resolvedOutput.outDir;
-      const knownOutputDirs = [resolve('.output/chrome-mv3'), resolve('.output/chrome-mv3-dev')].filter(
-        (dir) => existsSync(dir)
-      );
+      const knownOutputDirs = [
+        resolve('.output/chrome-mv3'),
+        resolve('.output/chrome-mv3-dev'),
+      ].filter((dir) => existsSync(dir));
       const outDirs = Array.from(
         new Set(
           [configuredOutDir ? resolve(configuredOutDir) : null, ...knownOutputDirs].filter(
@@ -27,7 +28,7 @@ export default defineConfig({
       if (outDirs.length === 0) {
         outDirs.push(resolve('.output/chrome-mv3'));
       }
-      
+
       function copyDir(src: string, dest: string) {
         if (!existsSync(src)) return;
         mkdirSync(dest, { recursive: true });
@@ -42,7 +43,7 @@ export default defineConfig({
           }
         }
       }
-      
+
       for (const outDir of outDirs) {
         copyDir(publicDir, outDir);
         console.log('[wxt] Copied public files to', outDir);
@@ -62,18 +63,8 @@ export default defineConfig({
         },
       },
     },
-    permissions: [
-      'storage',
-      'activeTab',
-      'contextMenus',
-      'scripting',
-      'tabs',
-      'alarms',
-    ],
-    host_permissions: [
-      'http://localhost:3847/*',
-      '<all_urls>',
-    ],
+    permissions: ['storage', 'activeTab', 'contextMenus', 'scripting', 'tabs', 'alarms'],
+    host_permissions: ['http://localhost:3847/*', '<all_urls>'],
     default_locale: 'en',
     icons: {
       16: '/icons/icon-16.png',

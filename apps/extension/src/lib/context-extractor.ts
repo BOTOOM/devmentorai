@@ -385,9 +385,9 @@ export function detectSensitiveDataTypes(text: string): string[] {
   if (PRIVACY_PATTERNS.apiKey.test(text)) detected.push('api_key');
 
   // Reset lastIndex for global patterns
-  Object.values(PRIVACY_PATTERNS).forEach((p) => {
-    if (p.global) p.lastIndex = 0;
-  });
+  for (const pattern of Object.values(PRIVACY_PATTERNS)) {
+    if (pattern.global) pattern.lastIndex = 0;
+  }
 
   return detected;
 }
@@ -416,11 +416,13 @@ export function getNetworkFailuresFromPerformance(): PerformanceNetworkError[] {
     const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
 
     for (const entry of entries) {
+      const entryWithStatus = entry as PerformanceResourceTiming & { responseStatus?: number };
       // A request is considered failed if:
       // - transferSize is 0 and duration is > 0 (request made but no response)
       // - or responseStatus is 4xx/5xx (if available in newer browsers)
       const failed =
-        (entry.transferSize === 0 && entry.duration > 100) || (entry as any).responseStatus >= 400;
+        (entry.transferSize === 0 && entry.duration > 100) ||
+        (entryWithStatus.responseStatus ?? 0) >= 400;
 
       if (failed) {
         errors.push({
@@ -527,7 +529,7 @@ export function detectPlatform(): PlatformDetection {
     for (const pattern of signature.urlPatterns) {
       if (pattern.test(url)) {
         score += 30;
-        platformIndicators.push(`url pattern match`);
+        platformIndicators.push('url pattern match');
         break;
       }
     }
@@ -576,18 +578,20 @@ function detectSpecificProduct(platform: PlatformType): string | undefined {
       if (pathname.includes('/boards')) return 'Azure Boards';
       return 'Azure Portal';
 
-    case 'aws':
+    case 'aws': {
       const awsMatch = url.match(/console\.aws\.amazon\.com\/([^\/\?]+)/);
       if (awsMatch) {
         const service = awsMatch[1].toUpperCase();
         return `AWS ${service}`;
       }
       return 'AWS Console';
+    }
 
-    case 'gcp':
+    case 'gcp': {
       const gcpMatch = url.match(/console\.cloud\.google\.com\/([^\/\?]+)/);
       if (gcpMatch) return `GCP ${gcpMatch[1]}`;
       return 'GCP Console';
+    }
 
     case 'github':
       if (pathname.includes('/actions')) return 'GitHub Actions';
@@ -771,14 +775,16 @@ export function extractVisibleText(): string {
 
   const texts: string[] = [];
   let totalLength = 0;
-  let node: Node | null;
+  let node = walker.nextNode();
 
-  while ((node = walker.nextNode()) && totalLength < SIZE_LIMITS.visibleText) {
+  while (node && totalLength < SIZE_LIMITS.visibleText) {
     const text = node.textContent?.trim() || '';
     if (text) {
       texts.push(text);
       totalLength += text.length;
     }
+
+    node = walker.nextNode();
   }
 
   return texts.join(' ').slice(0, SIZE_LIMITS.visibleText);
@@ -1198,13 +1204,21 @@ export function startNetworkErrorCapture(): void {
   originalXHROpen = XMLHttpRequest.prototype.open;
   originalXHRSend = XMLHttpRequest.prototype.send;
 
-  XMLHttpRequest.prototype.open = function (method: string, url: string | URL, ...rest: any[]) {
+  XMLHttpRequest.prototype.open = function (
+    method: string,
+    url: string | URL,
+    async: boolean = true,
+    username: string | null = null,
+    password: string | null = null
+  ) {
     this._devmentor_url = String(url);
     this._devmentor_method = method.toUpperCase();
-    return originalXHROpen.apply(this, [method, url, ...rest] as any);
+    return originalXHROpen.call(this, method, url, async, username, password);
   };
 
-  XMLHttpRequest.prototype.send = function (...args: any[]) {
+  XMLHttpRequest.prototype.send = function (
+    ...args: [body?: Document | XMLHttpRequestBodyInit | null]
+  ) {
     this.addEventListener('loadend', () => {
       if (this.status >= 400) {
         capturedNetworkErrors.push({
@@ -1228,7 +1242,7 @@ export function startNetworkErrorCapture(): void {
       trimNetworkErrors();
     });
 
-    return originalXHRSend.apply(this, args as any);
+    return originalXHRSend.call(this, ...args);
   };
 }
 
@@ -1331,7 +1345,7 @@ function detectCodeLanguage(element: HTMLElement): string | undefined {
 
   for (const { pattern, group } of languagePatterns) {
     const match = classes.match(pattern);
-    if (match && match[group]) {
+    if (match?.[group]) {
       return match[group];
     }
   }
@@ -1678,7 +1692,7 @@ function snapshotElement(el: HTMLElement): HTMLElementSnapshot {
  */
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 3) + '...';
+  return `${text.slice(0, maxLength - 3)}...`;
 }
 
 // ============================================================================

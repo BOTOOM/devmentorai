@@ -46,11 +46,13 @@ function isElementEditable(element: HTMLElement): boolean {
  * Find the contenteditable ancestor of an element
  */
 function findContentEditableAncestor(element: Element | null): HTMLElement | null {
-  while (element) {
-    if (element instanceof HTMLElement && element.isContentEditable) {
-      return element;
+  let currentElement = element;
+
+  while (currentElement) {
+    if (currentElement instanceof HTMLElement && currentElement.isContentEditable) {
+      return currentElement;
     }
-    element = element.parentElement;
+    currentElement = currentElement.parentElement;
   }
   return null;
 }

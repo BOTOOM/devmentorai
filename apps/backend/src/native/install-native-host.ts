@@ -10,10 +10,10 @@
  *   node install-native-host.js <extension-id> --uninstall
  */
 
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,13 +40,14 @@ function getManifestPaths(): ManifestPaths {
         chrome: path.join(home, '.config/google-chrome/NativeMessagingHosts'),
         chromium: path.join(home, '.config/chromium/NativeMessagingHosts'),
       };
-    case 'win32':
+    case 'win32': {
       // Windows uses registry, but we'll use the user-level manifest location
       const appData = process.env.LOCALAPPDATA || path.join(home, 'AppData/Local');
       return {
         chrome: path.join(appData, 'Google/Chrome/User Data/NativeMessagingHosts'),
         chromium: path.join(appData, 'Chromium/User Data/NativeMessagingHosts'),
       };
+    }
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }

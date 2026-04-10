@@ -113,7 +113,7 @@ function parseOptions(args: string[]): CliOptions {
     switch (args[i]) {
       case '--port':
         options.port = Number.parseInt(args[++i], 10);
-        if (isNaN(options.port)) {
+        if (Number.isNaN(options.port)) {
           console.error('Error: --port requires a valid number');
           process.exit(1);
         }

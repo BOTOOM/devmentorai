@@ -26,7 +26,7 @@ export async function statusCommand(): Promise<void> {
   const pid = readPid();
   const health = await healthcheck(DEFAULT_PORT);
 
-  console.log(`  Status:  ✓ running`);
+  console.log('  Status:  ✓ running');
   console.log(`  PID:     ${pid || 'unknown'}`);
   console.log(`  Port:    ${DEFAULT_PORT}`);
   console.log(`  URL:     http://127.0.0.1:${DEFAULT_PORT}`);

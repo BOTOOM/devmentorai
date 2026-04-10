@@ -265,9 +265,7 @@ export class SessionService {
   /**
    * Get the most recent context for a session
    */
-  getLatestContext(
-    sessionId: string
-  ): {
+  getLatestContext(sessionId: string): {
     id: string;
     contextJson: string;
     pageUrl?: string;

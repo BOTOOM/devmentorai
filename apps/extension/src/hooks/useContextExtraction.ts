@@ -1,18 +1,12 @@
 /**
  * useContextExtraction Hook
- * 
+ *
  * Provides context extraction functionality for the UI.
  * Extracts page context from the active tab using the content script.
  */
 
-import { useState, useCallback } from 'react';
 import type { ContextPayload, PlatformDetection } from '@devmentorai/shared';
-import { 
-  getContextFromActiveTab, 
-  aggregateContext, 
-  getQuickContext,
-  type AggregatedContext,
-} from '../services/context-aggregator';
+import { useCallback, useState } from 'react';
 import {
   captureVisibleTab,
   getBestActiveTab,
@@ -20,6 +14,12 @@ import {
   getWindowById,
   isBrowserInternalUrl,
 } from '../lib/browser-utils';
+import {
+  type AggregatedContext,
+  aggregateContext,
+  getContextFromActiveTab,
+  getQuickContext,
+} from '../services/context-aggregator';
 
 export interface ScreenshotData {
   dataUrl: string;
@@ -28,6 +28,15 @@ export interface ScreenshotData {
   timestamp: string;
 }
 
+type AggregatedContextWithScreenshot = AggregatedContext & {
+  screenshot?: {
+    available: true;
+    width: number;
+    height: number;
+    timestamp: string;
+  };
+};
+
 export interface UseContextExtractionResult {
   extractedContext: ContextPayload | null;
   platform: PlatformDetection | null;
@@ -35,7 +44,11 @@ export interface UseContextExtractionResult {
   extractionError: string | null;
   extractionTimeMs: number | null;
   screenshot: ScreenshotData | null;
-  extractContext: (sessionId: string, userMessage?: string, captureScreenshot?: boolean) => Promise<AggregatedContext | null>;
+  extractContext: (
+    sessionId: string,
+    userMessage?: string,
+    captureScreenshot?: boolean
+  ) => Promise<AggregatedContext | null>;
   captureScreenshot: () => Promise<ScreenshotData | null>;
   captureVisibleTabScreenshot: () => Promise<string | null>;
   captureFullPageScreenshot: () => Promise<ScreenshotData | null>;
@@ -55,24 +68,25 @@ async function captureVisibleTabScreenshot(): Promise<ScreenshotData | null> {
       console.warn('[useContextExtraction] No active tab for screenshot');
       return null;
     }
-    
+
     // Check if we can capture this tab
     if (isBrowserInternalUrl(tab.url)) {
       console.warn('[useContextExtraction] Cannot capture screenshot of browser internal page');
       return null;
     }
-    
+
     // Capture the visible tab
     const dataUrl = await captureVisibleTab(tab.windowId, {
       format: 'jpeg',
       quality: 90,
     });
-    
+
     // Get dimensions from the tab's window
-    const window = typeof tab.windowId === 'number'
-      ? await getWindowById(tab.windowId)
-      : await getCurrentWindow();
-    
+    const window =
+      typeof tab.windowId === 'number'
+        ? await getWindowById(tab.windowId)
+        : await getCurrentWindow();
+
     return {
       dataUrl,
       width: window.width || 0,
@@ -127,84 +141,87 @@ export function useContextExtraction(): UseContextExtractionResult {
   /**
    * Extract context from the active tab
    */
-  const extractContext = useCallback(async (
-    sessionId: string,
-    userMessage: string = '',
-    includeScreenshot: boolean = false
-  ): Promise<AggregatedContext | null> => {
-    setIsExtracting(true);
-    setExtractionError(null);
+  const extractContext = useCallback(
+    async (
+      sessionId: string,
+      userMessage = '',
+      includeScreenshot = false
+    ): Promise<AggregatedContext | null> => {
+      setIsExtracting(true);
+      setExtractionError(null);
 
-    try {
-      console.log('[useContextExtraction] Starting context extraction...');
-      
-      // Run context extraction and screenshot capture in parallel if requested
-      const [response, screenshotData] = await Promise.all([
-        getContextFromActiveTab(),
-        includeScreenshot ? captureVisibleTabScreenshot() : Promise.resolve(null),
-      ]);
-      
-      if (screenshotData) {
-        setScreenshot(screenshotData);
-      }
-      
-      console.log('[useContextExtraction] getContextFromActiveTab response:', {
-        success: response.success,
-        error: response.error,
-        hasContext: !!response.context,
-        extractionTimeMs: response.extractionTimeMs,
-        hasScreenshot: !!screenshotData,
-      });
-      
-      setExtractionTimeMs(response.extractionTimeMs);
+      try {
+        console.log('[useContextExtraction] Starting context extraction...');
 
-      if (!response.success || !response.context) {
-        const errorMsg = response.error || 'Failed to extract context';
-        console.error('[useContextExtraction] Extraction failed:', errorMsg);
-        setExtractionError(errorMsg);
+        // Run context extraction and screenshot capture in parallel if requested
+        const [response, screenshotData] = await Promise.all([
+          getContextFromActiveTab(),
+          includeScreenshot ? captureVisibleTabScreenshot() : Promise.resolve(null),
+        ]);
+
+        if (screenshotData) {
+          setScreenshot(screenshotData);
+        }
+
+        console.log('[useContextExtraction] getContextFromActiveTab response:', {
+          success: response.success,
+          error: response.error,
+          hasContext: !!response.context,
+          extractionTimeMs: response.extractionTimeMs,
+          hasScreenshot: !!screenshotData,
+        });
+
+        setExtractionTimeMs(response.extractionTimeMs);
+
+        if (!response.success || !response.context) {
+          const errorMsg = response.error || 'Failed to extract context';
+          console.error('[useContextExtraction] Extraction failed:', errorMsg);
+          setExtractionError(errorMsg);
+          return null;
+        }
+
+        // Aggregate with session info (Phase 3: no intent detection)
+        const aggregated: AggregatedContextWithScreenshot = aggregateContext(
+          response.context,
+          sessionId,
+          userMessage
+        );
+
+        // Add screenshot reference to context if captured
+        if (screenshotData) {
+          aggregated.screenshot = {
+            available: true,
+            width: screenshotData.width,
+            height: screenshotData.height,
+            timestamp: screenshotData.timestamp,
+            // Note: dataUrl is NOT included in aggregated context to save bandwidth
+            // It's stored separately and can be retrieved via the screenshot state
+          };
+        }
+
+        setExtractedContext(aggregated);
+        setPlatform(aggregated.page.platform);
+
+        console.log('[useContextExtraction] Context extracted successfully:', {
+          platform: aggregated.page.platform.type,
+          confidence: aggregated.page.platform.confidence,
+          errorsFound: aggregated.text.errors.length,
+          extractionTimeMs: response.extractionTimeMs,
+          hasScreenshot: !!screenshotData,
+        });
+
+        return aggregated;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setExtractionError(errorMessage);
+        console.error('[useContextExtraction] Extraction threw error:', error);
         return null;
+      } finally {
+        setIsExtracting(false);
       }
-
-      // Aggregate with session info (Phase 3: no intent detection)
-      const aggregated = aggregateContext(
-        response.context,
-        sessionId,
-        userMessage
-      );
-      
-      // Add screenshot reference to context if captured
-      if (screenshotData) {
-        (aggregated as any).screenshot = {
-          available: true,
-          width: screenshotData.width,
-          height: screenshotData.height,
-          timestamp: screenshotData.timestamp,
-          // Note: dataUrl is NOT included in aggregated context to save bandwidth
-          // It's stored separately and can be retrieved via the screenshot state
-        };
-      }
-
-      setExtractedContext(aggregated);
-      setPlatform(aggregated.page.platform);
-      
-      console.log('[useContextExtraction] Context extracted successfully:', {
-        platform: aggregated.page.platform.type,
-        confidence: aggregated.page.platform.confidence,
-        errorsFound: aggregated.text.errors.length,
-        extractionTimeMs: response.extractionTimeMs,
-        hasScreenshot: !!screenshotData,
-      });
-
-      return aggregated;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setExtractionError(errorMessage);
-      console.error('[useContextExtraction] Extraction threw error:', error);
-      return null;
-    } finally {
-      setIsExtracting(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   /**
    * Clear the extracted context

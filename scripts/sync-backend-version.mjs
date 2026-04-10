@@ -2,13 +2,13 @@
 /**
  * Syncs backend version from package.json to version.ts
  * This is the single source of truth that all modules import from
- * 
+ *
  * Used by semantic-release during prepare step
  */
 
-import { readFileSync, writeFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -20,7 +20,7 @@ if (!version) {
 }
 
 const versionFilePath = join(__dirname, '../apps/backend/src/version.ts');
-let content = readFileSync(versionFilePath, 'utf-8');
+const content = readFileSync(versionFilePath, 'utf-8');
 
 // Replace the BACKEND_VERSION constant
 const updated = content.replace(

@@ -3,10 +3,10 @@
  * Starts the DevMentorAI server in background or foreground mode.
  */
 
+import { DEFAULT_CONFIG, checkForUpdate } from '@devmentorai/shared';
 import type { CliOptions } from '../cli.js';
 import { isServerRunning, spawnServer, waitForHealthy } from '../lib/daemon.js';
 import { LOG_FILE } from '../lib/paths.js';
-import { DEFAULT_CONFIG, checkForUpdate } from '@devmentorai/shared';
 import { BACKEND_VERSION } from '../version.js';
 
 const DEFAULT_PORT = DEFAULT_CONFIG.DEFAULT_PORT;
@@ -16,8 +16,8 @@ async function showUpdateNotice(): Promise<void> {
     const info = await checkForUpdate('backend', BACKEND_VERSION);
     if (info.hasUpdate) {
       console.log(`\n  ⚠ Update available: ${BACKEND_VERSION} → ${info.latestVersion}`);
-      console.log(`    Run: npx devmentorai-server@latest`);
-      console.log(`    Or: npm install -g devmentorai-server@latest`);
+      console.log('    Run: npx devmentorai-server@latest');
+      console.log('    Or: npm install -g devmentorai-server@latest');
       console.log(`    ${info.releaseUrl}\n`);
     }
   } catch {
@@ -30,7 +30,7 @@ async function showAuthNotice(port: number): Promise<void> {
     const response = await fetch(`http://127.0.0.1:${port}/api/account/auth`);
     if (!response.ok) return;
 
-    const payload = await response.json() as {
+    const payload = (await response.json()) as {
       success?: boolean;
       data?: { isAuthenticated?: boolean; login?: string | null };
     };
@@ -85,13 +85,13 @@ export async function startCommand(options: CliOptions): Promise<void> {
   const healthy = await waitForHealthy(port);
 
   if (healthy) {
-    console.log(`✓ Server started successfully`);
+    console.log('✓ Server started successfully');
     console.log(`  → http://127.0.0.1:${port}`);
     console.log(`  Logs: ${LOG_FILE}\n`);
     await showAuthNotice(port);
     await showUpdateNotice();
   } else {
-    console.error(`✗ Server started but healthcheck failed`);
+    console.error('✗ Server started but healthcheck failed');
     console.error(`  Check logs: ${LOG_FILE}\n`);
     process.exit(1);
   }

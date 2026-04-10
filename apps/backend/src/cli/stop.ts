@@ -3,8 +3,8 @@
  * Stops the running DevMentorAI server.
  */
 
-import { isServerRunning, stopServer, readPid } from '../lib/daemon.js';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
+import { isServerRunning, readPid, stopServer } from '../lib/daemon.js';
 
 const DEFAULT_PORT = DEFAULT_CONFIG.DEFAULT_PORT;
 

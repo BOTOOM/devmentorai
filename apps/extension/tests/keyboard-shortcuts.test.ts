@@ -1,9 +1,9 @@
+import { JSDOM } from 'jsdom';
 /**
  * Unit tests for keyboard shortcuts utilities
  * Tests shortcut matching, formatting, and default shortcuts
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { JSDOM } from 'jsdom';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Re-implement the utility functions for testing
 interface KeyboardShortcut {
@@ -19,10 +19,10 @@ interface KeyboardShortcut {
 
 function matchesShortcut(event: KeyboardEvent, shortcut: KeyboardShortcut): boolean {
   if (shortcut.enabled === false) return false;
-  
-  const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase() ||
-                   event.code === shortcut.key;
-  
+
+  const keyMatch =
+    event.key.toLowerCase() === shortcut.key.toLowerCase() || event.code === shortcut.key;
+
   return (
     keyMatch &&
     !!event.ctrlKey === !!shortcut.ctrl &&
@@ -32,28 +32,43 @@ function matchesShortcut(event: KeyboardEvent, shortcut: KeyboardShortcut): bool
   );
 }
 
-function formatShortcut(shortcut: Omit<KeyboardShortcut, 'handler'>, isMac: boolean = false): string {
+function formatShortcut(shortcut: Omit<KeyboardShortcut, 'handler'>, isMac = false): string {
   const parts: string[] = [];
-  
+
   if (shortcut.ctrl) parts.push(isMac ? '⌃' : 'Ctrl');
   if (shortcut.alt) parts.push(isMac ? '⌥' : 'Alt');
   if (shortcut.shift) parts.push(isMac ? '⇧' : 'Shift');
   if (shortcut.meta) parts.push(isMac ? '⌘' : 'Win');
-  
+
   let keyDisplay = shortcut.key;
   switch (shortcut.key) {
-    case 'ArrowUp': keyDisplay = '↑'; break;
-    case 'ArrowDown': keyDisplay = '↓'; break;
-    case 'ArrowLeft': keyDisplay = '←'; break;
-    case 'ArrowRight': keyDisplay = '→'; break;
-    case 'Enter': keyDisplay = '↵'; break;
-    case 'Escape': keyDisplay = 'Esc'; break;
-    case ' ': keyDisplay = 'Space'; break;
-    default: keyDisplay = keyDisplay.toUpperCase();
+    case 'ArrowUp':
+      keyDisplay = '↑';
+      break;
+    case 'ArrowDown':
+      keyDisplay = '↓';
+      break;
+    case 'ArrowLeft':
+      keyDisplay = '←';
+      break;
+    case 'ArrowRight':
+      keyDisplay = '→';
+      break;
+    case 'Enter':
+      keyDisplay = '↵';
+      break;
+    case 'Escape':
+      keyDisplay = 'Esc';
+      break;
+    case ' ':
+      keyDisplay = 'Space';
+      break;
+    default:
+      keyDisplay = keyDisplay.toUpperCase();
   }
-  
+
   parts.push(keyDisplay);
-  
+
   return isMac ? parts.join('') : parts.join('+');
 }
 
@@ -75,7 +90,7 @@ const DEFAULT_SHORTCUTS: Omit<KeyboardShortcut, 'handler'>[] = [
 describe('Keyboard Shortcuts', () => {
   describe('DEFAULT_SHORTCUTS', () => {
     it('should have create new session shortcut', () => {
-      const shortcut = DEFAULT_SHORTCUTS.find(s => s.description === 'Create new session');
+      const shortcut = DEFAULT_SHORTCUTS.find((s) => s.description === 'Create new session');
       expect(shortcut).toBeDefined();
       expect(shortcut?.ctrl).toBe(true);
       expect(shortcut?.shift).toBe(true);
@@ -83,57 +98,57 @@ describe('Keyboard Shortcuts', () => {
     });
 
     it('should have focus chat input shortcut', () => {
-      const shortcut = DEFAULT_SHORTCUTS.find(s => s.description === 'Focus chat input');
+      const shortcut = DEFAULT_SHORTCUTS.find((s) => s.description === 'Focus chat input');
       expect(shortcut).toBeDefined();
       expect(shortcut?.ctrl).toBe(true);
       expect(shortcut?.key).toBe('k');
     });
 
     it('should have escape for close/cancel', () => {
-      const shortcut = DEFAULT_SHORTCUTS.find(s => s.key === 'Escape');
+      const shortcut = DEFAULT_SHORTCUTS.find((s) => s.key === 'Escape');
       expect(shortcut).toBeDefined();
       expect(shortcut?.ctrl).toBeUndefined();
       expect(shortcut?.shift).toBeUndefined();
     });
 
     it('should have send message shortcut', () => {
-      const shortcut = DEFAULT_SHORTCUTS.find(s => s.description === 'Send message');
+      const shortcut = DEFAULT_SHORTCUTS.find((s) => s.description === 'Send message');
       expect(shortcut).toBeDefined();
       expect(shortcut?.ctrl).toBe(true);
       expect(shortcut?.key).toBe('Enter');
     });
 
     it('should have session navigation shortcuts', () => {
-      const prevSession = DEFAULT_SHORTCUTS.find(s => s.description === 'Previous session');
-      const nextSession = DEFAULT_SHORTCUTS.find(s => s.description === 'Next session');
-      
+      const prevSession = DEFAULT_SHORTCUTS.find((s) => s.description === 'Previous session');
+      const nextSession = DEFAULT_SHORTCUTS.find((s) => s.description === 'Next session');
+
       expect(prevSession).toBeDefined();
       expect(prevSession?.alt).toBe(true);
       expect(prevSession?.key).toBe('ArrowUp');
-      
+
       expect(nextSession).toBeDefined();
       expect(nextSession?.alt).toBe(true);
       expect(nextSession?.key).toBe('ArrowDown');
     });
 
     it('should have session type shortcuts (1-3)', () => {
-      const devops = DEFAULT_SHORTCUTS.find(s => s.description.includes('DevOps'));
-      const writing = DEFAULT_SHORTCUTS.find(s => s.description.includes('Writing'));
-      const development = DEFAULT_SHORTCUTS.find(s => s.description.includes('Development'));
-      
+      const devops = DEFAULT_SHORTCUTS.find((s) => s.description.includes('DevOps'));
+      const writing = DEFAULT_SHORTCUTS.find((s) => s.description.includes('Writing'));
+      const development = DEFAULT_SHORTCUTS.find((s) => s.description.includes('Development'));
+
       expect(devops?.key).toBe('1');
       expect(writing?.key).toBe('2');
       expect(development?.key).toBe('3');
-      
+
       // All should have Ctrl+Alt
-      [devops, writing, development].forEach(s => {
+      [devops, writing, development].forEach((s) => {
         expect(s?.ctrl).toBe(true);
         expect(s?.alt).toBe(true);
       });
     });
 
     it('should have open settings shortcut', () => {
-      const shortcut = DEFAULT_SHORTCUTS.find(s => s.description === 'Open settings');
+      const shortcut = DEFAULT_SHORTCUTS.find((s) => s.description === 'Open settings');
       expect(shortcut).toBeDefined();
       expect(shortcut?.ctrl).toBe(true);
       expect(shortcut?.shift).toBe(true);
@@ -141,7 +156,7 @@ describe('Keyboard Shortcuts', () => {
     });
 
     it('should have show shortcuts help', () => {
-      const shortcut = DEFAULT_SHORTCUTS.find(s => s.description === 'Show keyboard shortcuts');
+      const shortcut = DEFAULT_SHORTCUTS.find((s) => s.description === 'Show keyboard shortcuts');
       expect(shortcut).toBeDefined();
       expect(shortcut?.ctrl).toBe(true);
       expect(shortcut?.key).toBe('/');
@@ -149,14 +164,16 @@ describe('Keyboard Shortcuts', () => {
   });
 
   describe('matchesShortcut', () => {
-    function createKeyEvent(options: Partial<{
-      key: string;
-      code: string;
-      ctrlKey: boolean;
-      shiftKey: boolean;
-      altKey: boolean;
-      metaKey: boolean;
-    }> = {}): KeyboardEvent {
+    function createKeyEvent(
+      options: Partial<{
+        key: string;
+        code: string;
+        ctrlKey: boolean;
+        shiftKey: boolean;
+        altKey: boolean;
+        metaKey: boolean;
+      }> = {}
+    ): KeyboardEvent {
       return {
         key: options.key || '',
         code: options.code || '',
@@ -173,7 +190,7 @@ describe('Keyboard Shortcuts', () => {
         description: 'Close',
         handler: vi.fn(),
       };
-      
+
       const event = createKeyEvent({ key: 'Escape' });
       expect(matchesShortcut(event, shortcut)).toBe(true);
     });
@@ -185,10 +202,10 @@ describe('Keyboard Shortcuts', () => {
         description: 'Focus',
         handler: vi.fn(),
       };
-      
+
       const matchingEvent = createKeyEvent({ key: 'k', ctrlKey: true });
       const nonMatchingEvent = createKeyEvent({ key: 'k' });
-      
+
       expect(matchesShortcut(matchingEvent, shortcut)).toBe(true);
       expect(matchesShortcut(nonMatchingEvent, shortcut)).toBe(false);
     });
@@ -201,11 +218,11 @@ describe('Keyboard Shortcuts', () => {
         description: 'New',
         handler: vi.fn(),
       };
-      
+
       const matchingEvent = createKeyEvent({ key: 'n', ctrlKey: true, shiftKey: true });
       const onlyCtrl = createKeyEvent({ key: 'n', ctrlKey: true });
       const onlyShift = createKeyEvent({ key: 'n', shiftKey: true });
-      
+
       expect(matchesShortcut(matchingEvent, shortcut)).toBe(true);
       expect(matchesShortcut(onlyCtrl, shortcut)).toBe(false);
       expect(matchesShortcut(onlyShift, shortcut)).toBe(false);
@@ -219,7 +236,7 @@ describe('Keyboard Shortcuts', () => {
         description: 'Session 1',
         handler: vi.fn(),
       };
-      
+
       const matching = createKeyEvent({ key: '1', ctrlKey: true, altKey: true });
       expect(matchesShortcut(matching, shortcut)).toBe(true);
     });
@@ -231,7 +248,7 @@ describe('Keyboard Shortcuts', () => {
         description: 'Previous',
         handler: vi.fn(),
       };
-      
+
       const matching = createKeyEvent({ key: 'ArrowUp', altKey: true });
       expect(matchesShortcut(matching, shortcut)).toBe(true);
     });
@@ -244,7 +261,7 @@ describe('Keyboard Shortcuts', () => {
         handler: vi.fn(),
         enabled: false,
       };
-      
+
       const event = createKeyEvent({ key: 'k', ctrlKey: true });
       expect(matchesShortcut(event, shortcut)).toBe(false);
     });
@@ -256,7 +273,7 @@ describe('Keyboard Shortcuts', () => {
         description: 'Focus',
         handler: vi.fn(),
       };
-      
+
       const event = createKeyEvent({ key: 'k', ctrlKey: true });
       expect(matchesShortcut(event, shortcut)).toBe(true);
     });
@@ -268,7 +285,7 @@ describe('Keyboard Shortcuts', () => {
         description: 'Previous',
         handler: vi.fn(),
       };
-      
+
       const event = createKeyEvent({ key: 'Up', code: 'ArrowUp', altKey: true });
       expect(matchesShortcut(event, shortcut)).toBe(true);
     });
@@ -280,7 +297,7 @@ describe('Keyboard Shortcuts', () => {
         description: 'Focus',
         handler: vi.fn(),
       };
-      
+
       // Pressing Ctrl+Shift+K when shortcut is Ctrl+K
       const event = createKeyEvent({ key: 'k', ctrlKey: true, shiftKey: true });
       expect(matchesShortcut(event, shortcut)).toBe(false);
@@ -324,14 +341,12 @@ describe('Keyboard Shortcuts', () => {
     });
 
     it('should format arrow keys correctly', () => {
-      expect(formatShortcut({ key: 'ArrowUp', alt: true, description: 'Up' }, false))
-        .toBe('Alt+↑');
-      expect(formatShortcut({ key: 'ArrowDown', alt: true, description: 'Down' }, false))
-        .toBe('Alt+↓');
-      expect(formatShortcut({ key: 'ArrowLeft', description: 'Left' }, false))
-        .toBe('←');
-      expect(formatShortcut({ key: 'ArrowRight', description: 'Right' }, false))
-        .toBe('→');
+      expect(formatShortcut({ key: 'ArrowUp', alt: true, description: 'Up' }, false)).toBe('Alt+↑');
+      expect(formatShortcut({ key: 'ArrowDown', alt: true, description: 'Down' }, false)).toBe(
+        'Alt+↓'
+      );
+      expect(formatShortcut({ key: 'ArrowLeft', description: 'Left' }, false)).toBe('←');
+      expect(formatShortcut({ key: 'ArrowRight', description: 'Right' }, false)).toBe('→');
     });
 
     it('should format Enter key', () => {
@@ -363,16 +378,18 @@ describe('Keyboard Shortcuts', () => {
 
   describe('Shortcut Uniqueness', () => {
     it('should have unique shortcuts (no conflicts)', () => {
-      const combos = DEFAULT_SHORTCUTS.map(s => {
+      const combos = DEFAULT_SHORTCUTS.map((s) => {
         const mods = [
           s.ctrl ? 'ctrl' : '',
           s.alt ? 'alt' : '',
           s.shift ? 'shift' : '',
           s.meta ? 'meta' : '',
-        ].filter(Boolean).join('+');
+        ]
+          .filter(Boolean)
+          .join('+');
         return `${mods}+${s.key}`.toLowerCase();
       });
-      
+
       const uniqueCombos = new Set(combos);
       expect(combos.length).toBe(uniqueCombos.size);
     });

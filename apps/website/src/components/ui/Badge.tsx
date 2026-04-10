@@ -1,9 +1,6 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
-export function Badge({
-  children,
-  icon,
-}: Readonly<{ children: ReactNode; icon?: ReactNode }>) {
+export function Badge({ children, icon }: Readonly<{ children: ReactNode; icon?: ReactNode }>) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary-light px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
       {icon}
@@ -12,9 +9,7 @@ export function Badge({
   );
 }
 
-export function PulseBadge({
-  children,
-}: Readonly<{ children: ReactNode }>) {
+export function PulseBadge({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <Badge
       icon={

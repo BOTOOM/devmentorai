@@ -3,9 +3,29 @@
  */
 
 import type { SelectionContext, TextReplacementBehavior } from '@devmentorai/shared';
-import { streamQuickAction } from '../services/writing-assistant-session';
-import { setupUpdateAlarm, getUpdateState, forceUpdateCheck, dismissUpdateBadge } from '../services/update-checker';
 import { getBestActiveTab, storageGet, storageRemove, storageSet } from '../lib/browser-utils';
+import {
+  dismissUpdateBadge,
+  forceUpdateCheck,
+  getUpdateState,
+  setupUpdateAlarm,
+} from '../services/update-checker';
+import { streamQuickAction } from '../services/writing-assistant-session';
+
+// Extended Chrome types for cross-browser compatibility
+type ChromeWithSidebar = typeof chrome & {
+  sidebarAction?: {
+    open?: () => Promise<void> | void;
+  };
+};
+
+type ChromeWithBrowserAction = typeof chrome & {
+  browserAction?: {
+    onClicked?: {
+      addListener: (callback: (tab: chrome.tabs.Tab) => void) => void;
+    };
+  };
+};
 
 /**
  * Get language name from code
@@ -40,13 +60,7 @@ async function tryOpenSidePanel(windowId?: number): Promise<boolean> {
     }
 
     // Firefox fallback (MV2 sidebar_action)
-    const sidebarActionApi = (
-      chrome as typeof chrome & {
-        sidebarAction?: {
-          open?: () => Promise<void> | void;
-        };
-      }
-    ).sidebarAction;
+    const sidebarActionApi = (chrome as ChromeWithSidebar).sidebarAction;
 
     if (sidebarActionApi?.open) {
       await Promise.resolve(sidebarActionApi.open());
@@ -83,30 +97,17 @@ export default defineBackground(() => {
   chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
 
   // Fallback for browsers where openPanelOnActionClick is not supported.
-  const actionApi = (
-    chrome as typeof chrome & {
-      browserAction?: {
-        onClicked?: {
-          addListener: (callback: (tab: chrome.tabs.Tab) => void) => void;
-        };
-      };
-    }
-  ).action ?? (
-    chrome as typeof chrome & {
-      browserAction?: {
-        onClicked?: {
-          addListener: (callback: (tab: chrome.tabs.Tab) => void) => void;
-        };
-      };
-    }
-  ).browserAction;
+  const chromeExtended = chrome as ChromeWithBrowserAction;
+  const actionApi = chromeExtended.action ?? chromeExtended.browserAction;
 
   actionApi?.onClicked?.addListener((tab) => {
     void (async () => {
       const activeTab = tab?.id ? tab : await getBestActiveTab();
       const opened = await tryOpenSidePanel(activeTab?.windowId);
       if (!opened) {
-        console.log('[DevMentorAI] Extension action clicked, but side panel could not be opened automatically');
+        console.log(
+          '[DevMentorAI] Extension action clicked, but side panel could not be opened automatically'
+        );
       }
     })();
   });
@@ -186,7 +187,11 @@ async function handleContextMenuClick(
   tab?: chrome.tabs.Tab
 ) {
   const menuId = info.menuItemId.toString();
-  if (!menuId.startsWith('devmentorai-') || menuId === 'devmentorai-parent' || menuId === 'devmentorai-tone') {
+  if (
+    !menuId.startsWith('devmentorai-') ||
+    menuId === 'devmentorai-parent' ||
+    menuId === 'devmentorai-tone'
+  ) {
     return;
   }
 
@@ -197,7 +202,9 @@ async function handleContextMenuClick(
     return;
   }
 
-  console.log(`[DevMentorAI] Context menu action: ${action}`, { selectedText: selectedText.substring(0, 100) });
+  console.log(`[DevMentorAI] Context menu action: ${action}`, {
+    selectedText: selectedText.substring(0, 100),
+  });
 
   // Store the action context for the sidepanel
   await storageSet({
@@ -295,7 +302,14 @@ async function handleMessage(
     }
 
     case 'QUICK_ACTION': {
-      const { action, selectedText, pageUrl, pageTitle, selectionContext, textReplacementBehavior } = message as {
+      const {
+        action,
+        selectedText,
+        pageUrl,
+        pageTitle,
+        selectionContext,
+        textReplacementBehavior,
+      } = message as {
         type: string;
         action: string;
         selectedText: string;
@@ -304,11 +318,10 @@ async function handleMessage(
         selectionContext?: SelectionContext;
         textReplacementBehavior?: TextReplacementBehavior;
       };
-      
+
       // Check if this is a replaceable action (from editable field)
-      const isReplaceable = selectionContext?.isReplaceable && 
-                            textReplacementBehavior !== 'never';
-      
+      const isReplaceable = selectionContext?.isReplaceable && textReplacementBehavior !== 'never';
+
       if (isReplaceable && sender.tab?.id) {
         // Stream the response to content script for inline replacement
         await handleStreamingQuickAction(
@@ -337,7 +350,7 @@ async function handleMessage(
           // User needs to open the extension panel manually to continue.
           console.log('[DevMentorAI] Stored pending action, user needs to open side panel');
         }
-        
+
         sendResponse({ success: true, streamed: false, opened, requiresManualOpen: !opened });
       }
       break;
@@ -406,27 +419,34 @@ async function handleMessage(
  * @param selectedText - The text to process
  * @param targetLanguage - Target language for translation (optional)
  */
-function buildQuickActionPrompt(action: string, selectedText: string, targetLanguage?: string): string {
-  const baseInstruction = 'CRITICAL: Output ONLY the requested content. No explanations, no XML tags, no <reminder> blocks, no conversational text.';
-  
+function buildQuickActionPrompt(
+  action: string,
+  selectedText: string,
+  targetLanguage?: string
+): string {
+  const baseInstruction =
+    'CRITICAL: Output ONLY the requested content. No explanations, no XML tags, no <reminder> blocks, no conversational text.';
+
   const actionPrompts: Record<string, string> = {
     explain: `Explain the following text clearly and concisely:\n\n${selectedText}\n\n${baseInstruction}`,
-    translate: targetLanguage 
+    translate: targetLanguage
       ? `Translate the following text to ${targetLanguage}. Return only the translated text without any explanation:\n\n${selectedText}\n\n${baseInstruction}`
       : `Translate the following text:\n\n${selectedText}\n\n${baseInstruction}`,
     rewrite: `Rewrite the following text for clarity and improved style. Return only the rewritten text without any explanation:\n\n${selectedText}\n\n${baseInstruction}`,
-    fix_grammar: `Fix the grammar and spelling in the following text. Return only the corrected text without any explanation:\n\n${selectedText}\n\n${baseInstruction}`,
+    fix_grammar: `Analyze the language of the following text and fix its grammar and spelling while PRESERVING the original language. Do not translate. Return only the corrected text in the SAME LANGUAGE as the input:\n\n${selectedText}\n\n${baseInstruction}`,
     summarize: `Provide a clear, detailed, and accurate summary of the following text, highlighting the main points:\n\n${selectedText}\n\n${baseInstruction}`,
     expand: `Expand on the following text with more details:\n\n${selectedText}\n\n${baseInstruction}`,
   };
-  
+
   // Handle tone-specific rewrites
   if (action.startsWith('rewrite_')) {
     const tone = action.replace('rewrite_', '');
     return `Rewrite the following text in a ${tone} tone. Return only the rewritten text without any explanation:\n\n${selectedText}\n\n${baseInstruction}`;
   }
-  
-  return actionPrompts[action] || `Process the following text:\n\n${selectedText}\n\n${baseInstruction}`;
+
+  return (
+    actionPrompts[action] || `Process the following text:\n\n${selectedText}\n\n${baseInstruction}`
+  );
 }
 
 /**
@@ -448,25 +468,25 @@ async function handleStreamingQuickAction(
   selectedText: string,
   _pageUrl: string,
   _pageTitle: string,
-  isReplaceable: boolean = true
+  isReplaceable = true
 ): Promise<void> {
   const actionId = `qa-${Date.now()}`;
-  
+
   // Clear any pending action to prevent duplicate processing by SidePanel
   await storageRemove('pendingAction');
-  
+
   // Get settings
   const settings = await storageGet<{
     quickActionModel?: string;
     translationLanguage?: string;
     targetTranslationLanguage?: string;
   }>([
-    'quickActionModel', 
-    'translationLanguage',      // Native language (for reading)
-    'targetTranslationLanguage' // Target language (for writing)
+    'quickActionModel',
+    'translationLanguage', // Native language (for reading)
+    'targetTranslationLanguage', // Target language (for writing)
   ]);
   const model = settings.quickActionModel || 'gpt-4.1';
-  
+
   // Smart translation: use target language for editable fields, native for reading
   let targetLanguage: string | undefined;
   if (action === 'translate') {
@@ -475,10 +495,10 @@ async function handleStreamingQuickAction(
     targetLanguage = isReplaceable ? outputLanguage : nativeLanguage;
     console.log('[DevMentorAI] Smart translate:', { isReplaceable, targetLanguage });
   }
-  
+
   // Build the prompt with optional target language
   const prompt = buildQuickActionPrompt(action, selectedText, targetLanguage);
-  
+
   // Send stream start message to content script
   try {
     console.log('[DevMentorAI] Sending STREAM_START to tab', tabId, 'for action:', action);
@@ -491,56 +511,62 @@ async function handleStreamingQuickAction(
     console.error('[DevMentorAI] Failed to send stream start:', err);
     return;
   }
-  
+
   // Stream the response
   try {
     console.log('[DevMentorAI] Starting streamQuickAction...');
-    await streamQuickAction(
-      prompt,
-      model,
-      async (event) => {
-        try {
-          console.log('[DevMentorAI] Stream event:', event.type, { contentLength: event.content?.length });
-          switch (event.type) {
-            case 'start':
-              // Already sent stream start
-              break;
-              
-            case 'delta':
-              console.log('[DevMentorAI] Sending STREAM_DELTA, content length:', event.content?.length);
-              await chrome.tabs.sendMessage(tabId, {
-                type: 'QUICK_ACTION_STREAM_DELTA',
-                actionId,
-                delta: '',
-                fullContent: sanitizeQuickActionContent(event.content || ''),
-              });
-              break;
-              
-            case 'complete':
-              console.log('[DevMentorAI] Sending STREAM_COMPLETE to tab', tabId, 'content length:', event.content?.length);
-              await chrome.tabs.sendMessage(tabId, {
-                type: 'QUICK_ACTION_STREAM_COMPLETE',
-                actionId,
-                finalContent: sanitizeQuickActionContent(event.content || ''),
-              });
-              
-              // NOTE: Do NOT store pendingAction here to avoid duplicate processing
-              // The streaming flow handles the response inline via the floating popup
-              break;
-              
-            case 'error':
-              await chrome.tabs.sendMessage(tabId, {
-                type: 'QUICK_ACTION_STREAM_ERROR',
-                actionId,
-                error: event.error || 'Unknown error',
-              });
-              break;
-          }
-        } catch (error_) {
-          console.error('[DevMentorAI] Failed to send stream event:', error_);
+    await streamQuickAction(prompt, model, async (event) => {
+      try {
+        console.log('[DevMentorAI] Stream event:', event.type, {
+          contentLength: event.content?.length,
+        });
+        switch (event.type) {
+          case 'start':
+            // Already sent stream start
+            break;
+
+          case 'delta':
+            console.log(
+              '[DevMentorAI] Sending STREAM_DELTA, content length:',
+              event.content?.length
+            );
+            await chrome.tabs.sendMessage(tabId, {
+              type: 'QUICK_ACTION_STREAM_DELTA',
+              actionId,
+              delta: '',
+              fullContent: sanitizeQuickActionContent(event.content || ''),
+            });
+            break;
+
+          case 'complete':
+            console.log(
+              '[DevMentorAI] Sending STREAM_COMPLETE to tab',
+              tabId,
+              'content length:',
+              event.content?.length
+            );
+            await chrome.tabs.sendMessage(tabId, {
+              type: 'QUICK_ACTION_STREAM_COMPLETE',
+              actionId,
+              finalContent: sanitizeQuickActionContent(event.content || ''),
+            });
+
+            // NOTE: Do NOT store pendingAction here to avoid duplicate processing
+            // The streaming flow handles the response inline via the floating popup
+            break;
+
+          case 'error':
+            await chrome.tabs.sendMessage(tabId, {
+              type: 'QUICK_ACTION_STREAM_ERROR',
+              actionId,
+              error: event.error || 'Unknown error',
+            });
+            break;
         }
+      } catch (error_) {
+        console.error('[DevMentorAI] Failed to send stream event:', error_);
       }
-    );
+    });
   } catch (error_) {
     console.error('[DevMentorAI] Streaming quick action failed:', error_);
     try {

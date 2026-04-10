@@ -1,6 +1,6 @@
 /**
  * Context Extractor for DevMentorAI
- * 
+ *
  * Extracts structured context from the current page for context-aware AI mentoring.
  * This module handles:
  * - Page metadata extraction
@@ -11,18 +11,18 @@
  */
 
 import type {
-  ContextPayload,
   ContextExtractionRequest,
   ContextExtractionResponse,
+  ContextPayload,
+  ErrorSeverity,
+  ErrorType,
+  ExtractedError,
+  HTMLElementSnapshot,
+  HTMLSection,
+  Heading,
   PlatformDetection,
   PlatformType,
-  ExtractedError,
-  ErrorType,
-  ErrorSeverity,
-  HTMLSection,
   SectionPurpose,
-  Heading,
-  HTMLElementSnapshot,
 } from '@devmentorai/shared';
 
 // ============================================================================
@@ -35,17 +35,17 @@ import type {
  */
 function getClassNameString(element: Element): string {
   if (!element.className) return '';
-  
+
   // SVG elements have className as SVGAnimatedString
   if (typeof element.className === 'string') {
     return element.className.toLowerCase();
   }
-  
+
   // For SVGAnimatedString, use baseVal
   if (element.className && typeof (element.className as SVGAnimatedString).baseVal === 'string') {
     return (element.className as SVGAnimatedString).baseVal.toLowerCase();
   }
-  
+
   // Fallback: use getAttribute
   return (element.getAttribute('class') || '').toLowerCase();
 }
@@ -105,7 +105,7 @@ export function startRuntimeErrorCapture(): void {
       type: 'error',
     });
     trimRuntimeErrors();
-    
+
     // Call original handler if exists
     if (typeof originalOnError === 'function') {
       return originalOnError(message, source, lineno, colno, error);
@@ -124,7 +124,7 @@ export function startRuntimeErrorCapture(): void {
       type: 'unhandledrejection',
     });
     trimRuntimeErrors();
-    
+
     // Call original handler if exists
     if (typeof originalOnUnhandledRejection === 'function') {
       originalOnUnhandledRejection(event);
@@ -138,7 +138,7 @@ export function startRuntimeErrorCapture(): void {
 export function stopRuntimeErrorCapture(): void {
   if (!isRuntimeErrorCapturing) return;
   isRuntimeErrorCapturing = false;
-  
+
   window.onerror = originalOnError;
   window.onunhandledrejection = originalOnUnhandledRejection;
 }
@@ -190,12 +190,17 @@ export interface UIStateAnalysis {
 export function analyzeUIState(): UIStateAnalysis {
   // Loading indicators
   const loadingSelectors = [
-    '[class*="loading"]', '[class*="Loading"]',
-    '[class*="spinner"]', '[class*="Spinner"]',
-    '[class*="skeleton"]', '[class*="Skeleton"]',
+    '[class*="loading"]',
+    '[class*="Loading"]',
+    '[class*="spinner"]',
+    '[class*="Spinner"]',
+    '[class*="skeleton"]',
+    '[class*="Skeleton"]',
     '[aria-busy="true"]',
-    '.loader', '.loading-indicator',
-    '[class*="progress"]', '[role="progressbar"]',
+    '.loader',
+    '.loading-indicator',
+    '[class*="progress"]',
+    '[role="progressbar"]',
   ];
   const loadingIndicators = document.querySelectorAll(loadingSelectors.join(',')).length;
 
@@ -206,44 +211,61 @@ export function analyzeUIState(): UIStateAnalysis {
 
   // Empty states
   const emptyStateSelectors = [
-    '[class*="empty-state"]', '[class*="EmptyState"]',
-    '[class*="no-results"]', '[class*="NoResults"]',
-    '[class*="no-data"]', '[class*="NoData"]',
-    '[class*="zero-state"]', '[class*="ZeroState"]',
+    '[class*="empty-state"]',
+    '[class*="EmptyState"]',
+    '[class*="no-results"]',
+    '[class*="NoResults"]',
+    '[class*="no-data"]',
+    '[class*="NoData"]',
+    '[class*="zero-state"]',
+    '[class*="ZeroState"]',
   ];
   const emptyStates = document.querySelectorAll(emptyStateSelectors.join(',')).length;
 
   // Error states
   const errorStateSelectors = [
-    '[class*="error-state"]', '[class*="ErrorState"]',
-    '[class*="error-page"]', '[class*="ErrorPage"]',
-    '[class*="error-boundary"]', '[class*="ErrorBoundary"]',
+    '[class*="error-state"]',
+    '[class*="ErrorState"]',
+    '[class*="error-page"]',
+    '[class*="ErrorPage"]',
+    '[class*="error-boundary"]',
+    '[class*="ErrorBoundary"]',
   ];
   const errorStates = document.querySelectorAll(errorStateSelectors.join(',')).length;
 
   // Toast notifications
   const toastSelectors = [
-    '[class*="toast"]', '[class*="Toast"]',
-    '[class*="snackbar"]', '[class*="Snackbar"]',
-    '[class*="notification"]', '[class*="Notification"]',
-    '[role="status"]', '[role="alert"]',
+    '[class*="toast"]',
+    '[class*="Toast"]',
+    '[class*="snackbar"]',
+    '[class*="Snackbar"]',
+    '[class*="notification"]',
+    '[class*="Notification"]',
+    '[role="status"]',
+    '[role="alert"]',
   ];
   const toastNotifications = document.querySelectorAll(toastSelectors.join(',')).length;
 
   // Modal open
   const modalSelectors = [
-    '[role="dialog"]', '[role="alertdialog"]',
+    '[role="dialog"]',
+    '[role="alertdialog"]',
     '[aria-modal="true"]',
-    '.modal.show', '.modal.open', '[class*="modal-open"]',
+    '.modal.show',
+    '.modal.open',
+    '[class*="modal-open"]',
   ];
   const modalOpen = document.querySelectorAll(modalSelectors.join(',')).length > 0;
 
   // Form validation errors
   const validationErrorSelectors = [
-    '[class*="validation-error"]', '[class*="ValidationError"]',
-    '[class*="field-error"]', '[class*="FieldError"]',
+    '[class*="validation-error"]',
+    '[class*="ValidationError"]',
+    '[class*="field-error"]',
+    '[class*="FieldError"]',
     '[aria-invalid="true"]',
-    '.invalid-feedback:not(:empty)', '.error-message:not(:empty)',
+    '.invalid-feedback:not(:empty)',
+    '.error-message:not(:empty)',
   ];
   const formValidationErrors = document.querySelectorAll(validationErrorSelectors.join(',')).length;
 
@@ -291,7 +313,8 @@ const PRIVACY_PATTERNS = {
   // Email addresses
   email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
   // Account/User IDs (common patterns)
-  accountId: /\b(user[_-]?id|account[_-]?id|customer[_-]?id|uid)[:\s=]["']?([a-zA-Z0-9_-]{8,})["']?/gi,
+  accountId:
+    /\b(user[_-]?id|account[_-]?id|customer[_-]?id|uid)[:\s=]["']?([a-zA-Z0-9_-]{8,})["']?/gi,
   // Resource IDs (AWS, Azure, GCP patterns)
   awsArn: /arn:aws:[a-z0-9-]+:[a-z0-9-]*:\d*:[a-zA-Z0-9\-\/_]+/g,
   azureResourceId: /\/subscriptions\/[a-f0-9-]+\/resourceGroups\/[^\/]+\/providers\/[^\s"']+/gi,
@@ -299,7 +322,8 @@ const PRIVACY_PATTERNS = {
   // JWT tokens
   jwt: /eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*/g,
   // API keys and tokens (generic patterns)
-  apiKey: /\b(api[_-]?key|apikey|access[_-]?token|auth[_-]?token|bearer)[:\s=]["']?([a-zA-Z0-9_-]{20,})["']?/gi,
+  apiKey:
+    /\b(api[_-]?key|apikey|access[_-]?token|auth[_-]?token|bearer)[:\s=]["']?([a-zA-Z0-9_-]{20,})["']?/gi,
   // Credit card numbers (basic pattern)
   creditCard: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g,
   // IP addresses
@@ -319,7 +343,7 @@ const PRIVACY_PATTERNS = {
  */
 export function maskSensitiveData(text: string): string {
   let masked = text;
-  
+
   // Apply each pattern
   masked = masked.replace(PRIVACY_PATTERNS.email, '[EMAIL_REDACTED]');
   masked = masked.replace(PRIVACY_PATTERNS.jwt, '[JWT_REDACTED]');
@@ -329,19 +353,19 @@ export function maskSensitiveData(text: string): string {
   masked = masked.replace(PRIVACY_PATTERNS.creditCard, '[CARD_REDACTED]');
   masked = masked.replace(PRIVACY_PATTERNS.ssn, '[SSN_REDACTED]');
   masked = masked.replace(PRIVACY_PATTERNS.phone, '[PHONE_REDACTED]');
-  
+
   // API keys and account IDs - preserve the key name but redact the value
   masked = masked.replace(PRIVACY_PATTERNS.apiKey, '$1=[REDACTED]');
   masked = masked.replace(PRIVACY_PATTERNS.accountId, '$1=[REDACTED]');
-  
+
   // Only redact IP addresses if they look internal (10.x, 172.16-31.x, 192.168.x)
   masked = masked.replace(/\b(10\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g, '[INTERNAL_IP]');
   masked = masked.replace(/\b(172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/g, '[INTERNAL_IP]');
   masked = masked.replace(/\b(192\.168\.\d{1,3}\.\d{1,3})\b/g, '[INTERNAL_IP]');
-  
+
   // Hex secrets - only if they look like tokens (not CSS colors, etc.)
   masked = masked.replace(/([^#]|^)([a-fA-F0-9]{40,})/g, '$1[HEX_SECRET_REDACTED]');
-  
+
   return masked;
 }
 
@@ -350,7 +374,7 @@ export function maskSensitiveData(text: string): string {
  */
 export function detectSensitiveDataTypes(text: string): string[] {
   const detected: string[] = [];
-  
+
   if (PRIVACY_PATTERNS.email.test(text)) detected.push('email');
   if (PRIVACY_PATTERNS.jwt.test(text)) detected.push('jwt_token');
   if (PRIVACY_PATTERNS.awsArn.test(text)) detected.push('aws_resource');
@@ -359,10 +383,12 @@ export function detectSensitiveDataTypes(text: string): string[] {
   if (PRIVACY_PATTERNS.creditCard.test(text)) detected.push('credit_card');
   if (PRIVACY_PATTERNS.phone.test(text)) detected.push('phone');
   if (PRIVACY_PATTERNS.apiKey.test(text)) detected.push('api_key');
-  
+
   // Reset lastIndex for global patterns
-  Object.values(PRIVACY_PATTERNS).forEach(p => { if (p.global) p.lastIndex = 0; });
-  
+  for (const pattern of Object.values(PRIVACY_PATTERNS)) {
+    if (pattern.global) pattern.lastIndex = 0;
+  }
+
   return detected;
 }
 
@@ -385,17 +411,19 @@ interface PerformanceNetworkError {
  */
 export function getNetworkFailuresFromPerformance(): PerformanceNetworkError[] {
   const errors: PerformanceNetworkError[] = [];
-  
+
   try {
     const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-    
+
     for (const entry of entries) {
+      const entryWithStatus = entry as PerformanceResourceTiming & { responseStatus?: number };
       // A request is considered failed if:
       // - transferSize is 0 and duration is > 0 (request made but no response)
       // - or responseStatus is 4xx/5xx (if available in newer browsers)
-      const failed = (entry.transferSize === 0 && entry.duration > 100) ||
-                    (entry as any).responseStatus >= 400;
-      
+      const failed =
+        (entry.transferSize === 0 && entry.duration > 100) ||
+        (entryWithStatus.responseStatus ?? 0) >= 400;
+
       if (failed) {
         errors.push({
           url: truncateText(entry.name, 200),
@@ -410,7 +438,7 @@ export function getNetworkFailuresFromPerformance(): PerformanceNetworkError[] {
   } catch (e) {
     console.warn('[context-extractor] Failed to read performance entries:', e);
   }
-  
+
   return errors.slice(-SIZE_LIMITS.networkErrors);
 }
 
@@ -501,7 +529,7 @@ export function detectPlatform(): PlatformDetection {
     for (const pattern of signature.urlPatterns) {
       if (pattern.test(url)) {
         score += 30;
-        platformIndicators.push(`url pattern match`);
+        platformIndicators.push('url pattern match');
         break;
       }
     }
@@ -550,18 +578,20 @@ function detectSpecificProduct(platform: PlatformType): string | undefined {
       if (pathname.includes('/boards')) return 'Azure Boards';
       return 'Azure Portal';
 
-    case 'aws':
+    case 'aws': {
       const awsMatch = url.match(/console\.aws\.amazon\.com\/([^\/\?]+)/);
       if (awsMatch) {
         const service = awsMatch[1].toUpperCase();
         return `AWS ${service}`;
       }
       return 'AWS Console';
+    }
 
-    case 'gcp':
+    case 'gcp': {
       const gcpMatch = url.match(/console\.cloud\.google\.com\/([^\/\?]+)/);
       if (gcpMatch) return `GCP ${gcpMatch[1]}`;
       return 'GCP Console';
+    }
 
     case 'github':
       if (pathname.includes('/actions')) return 'GitHub Actions';
@@ -613,10 +643,10 @@ export function extractErrors(): ExtractedError[] {
 
   for (const el of elements) {
     const text = el.textContent?.trim() || '';
-    
+
     // Skip empty or very short text
     if (text.length < 5) continue;
-    
+
     // Skip if already seen (dedup)
     const hash = text.slice(0, 100);
     if (seen.has(hash)) continue;
@@ -650,7 +680,7 @@ export function extractErrors(): ExtractedError[] {
 function classifyErrorType(el: Element): ErrorType {
   const classes = getClassNameString(el);
   const role = el.getAttribute('role') || '';
-  
+
   if (classes.includes('warning') || classes.includes('warn')) {
     return 'warning';
   }
@@ -689,11 +719,7 @@ function classifyErrorSeverity(text: string, el: Element): ErrorSeverity {
   }
 
   // Medium severity indicators
-  if (
-    lowerText.includes('warning') ||
-    lowerText.includes('warn') ||
-    classes.includes('warning')
-  ) {
+  if (lowerText.includes('warning') || lowerText.includes('warn') || classes.includes('warning')) {
     return 'medium';
   }
 
@@ -723,44 +749,42 @@ function getElementContext(el: HTMLElement): string {
  * Extract visible text from the page (within viewport focus)
  */
 export function extractVisibleText(): string {
-  const walker = document.createTreeWalker(
-    document.body,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode: (node) => {
-        const parent = node.parentElement;
-        if (!parent) return NodeFilter.FILTER_REJECT;
-        
-        // Skip script, style, and hidden elements
-        const tagName = parent.tagName.toLowerCase();
-        if (['script', 'style', 'noscript', 'template'].includes(tagName)) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        
-        // Skip hidden elements
-        if (!isElementVisible(parent)) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        
-        // Skip empty text
-        const text = node.textContent?.trim();
-        if (!text) return NodeFilter.FILTER_REJECT;
-        
-        return NodeFilter.FILTER_ACCEPT;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      const parent = node.parentElement;
+      if (!parent) return NodeFilter.FILTER_REJECT;
+
+      // Skip script, style, and hidden elements
+      const tagName = parent.tagName.toLowerCase();
+      if (['script', 'style', 'noscript', 'template'].includes(tagName)) {
+        return NodeFilter.FILTER_REJECT;
       }
-    }
-  );
+
+      // Skip hidden elements
+      if (!isElementVisible(parent)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+
+      // Skip empty text
+      const text = node.textContent?.trim();
+      if (!text) return NodeFilter.FILTER_REJECT;
+
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
 
   const texts: string[] = [];
   let totalLength = 0;
-  let node: Node | null;
+  let node = walker.nextNode();
 
-  while ((node = walker.nextNode()) && totalLength < SIZE_LIMITS.visibleText) {
+  while (node && totalLength < SIZE_LIMITS.visibleText) {
     const text = node.textContent?.trim() || '';
     if (text) {
       texts.push(text);
       totalLength += text.length;
     }
+
+    node = walker.nextNode();
   }
 
   return texts.join(' ').slice(0, SIZE_LIMITS.visibleText);
@@ -775,11 +799,11 @@ export function extractHeadings(): Heading[] {
 
   for (const el of elements) {
     if (headings.length >= SIZE_LIMITS.headings) break;
-    
+
     const text = el.textContent?.trim();
     if (!text || !isElementVisible(el as HTMLElement)) continue;
 
-    const level = parseInt(el.tagName.charAt(1)) as 1 | 2 | 3;
+    const level = Number.parseInt(el.tagName.charAt(1)) as 1 | 2 | 3;
     headings.push({
       level,
       text: truncateText(text, 200),
@@ -809,15 +833,15 @@ export function extractRelevantSections(): HTMLSection[] {
   const sections: HTMLSection[] = [];
   const candidates = document.querySelectorAll(
     'main, section, article, [role="main"], [role="region"], form, table, pre, code, ' +
-    '[class*="error"], [class*="alert"], [class*="panel"], [class*="modal"]'
+      '[class*="error"], [class*="alert"], [class*="panel"], [class*="modal"]'
   );
 
   const scored = Array.from(candidates)
-    .map(el => ({
+    .map((el) => ({
       element: el as HTMLElement,
       score: scoreElementRelevance(el as HTMLElement),
     }))
-    .filter(item => item.score > 30)
+    .filter((item) => item.score > 30)
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
@@ -892,7 +916,7 @@ function inferSectionPurpose(element: HTMLElement): SectionPurpose {
   if (element.tagName === 'TABLE') return 'table';
   if (['PRE', 'CODE'].includes(element.tagName)) return 'code-block';
   if (classes.includes('panel') || classes.includes('card')) return 'panel';
-  
+
   return 'generic';
 }
 
@@ -969,7 +993,7 @@ export function redactSensitiveHTML(html: string): string {
  */
 export function containsSensitiveData(text: string): boolean {
   const lowerText = text.toLowerCase();
-  
+
   for (const pattern of SENSITIVE_PATTERNS) {
     if (pattern.test(lowerText)) {
       return true;
@@ -1030,41 +1054,43 @@ export function startConsoleCapture(): void {
   if (isConsoleCapturing) return;
   isConsoleCapturing = true;
 
-  const captureLog = (level: ConsoleCapturedLog['level']) => (...args: unknown[]) => {
-    // Call original console method
-    originalConsole[level].apply(console, args);
+  const captureLog =
+    (level: ConsoleCapturedLog['level']) =>
+    (...args: unknown[]) => {
+      // Call original console method
+      originalConsole[level].apply(console, args);
 
-    // Capture the log
-    const message = args
-      .map(arg => {
-        if (typeof arg === 'string') return arg;
-        try {
-          return JSON.stringify(arg, null, 2);
-        } catch {
-          return String(arg);
-        }
-      })
-      .join(' ');
+      // Capture the log
+      const message = args
+        .map((arg) => {
+          if (typeof arg === 'string') return arg;
+          try {
+            return JSON.stringify(arg, null, 2);
+          } catch {
+            return String(arg);
+          }
+        })
+        .join(' ');
 
-    // Capture stack trace for errors
-    let stackTrace: string | undefined;
-    if (level === 'error') {
-      const err = new Error();
-      stackTrace = err.stack?.split('\n').slice(2).join('\n');
-    }
+      // Capture stack trace for errors
+      let stackTrace: string | undefined;
+      if (level === 'error') {
+        const err = new Error();
+        stackTrace = err.stack?.split('\n').slice(2).join('\n');
+      }
 
-    capturedLogs.push({
-      level,
-      message: truncateText(message, 1000),
-      timestamp: new Date().toISOString(),
-      stackTrace: stackTrace ? truncateText(stackTrace, 500) : undefined,
-    });
+      capturedLogs.push({
+        level,
+        message: truncateText(message, 1000),
+        timestamp: new Date().toISOString(),
+        stackTrace: stackTrace ? truncateText(stackTrace, 500) : undefined,
+      });
 
-    // Keep only recent logs
-    while (capturedLogs.length > SIZE_LIMITS.consoleLogs) {
-      capturedLogs.shift();
-    }
-  };
+      // Keep only recent logs
+      while (capturedLogs.length > SIZE_LIMITS.consoleLogs) {
+        capturedLogs.shift();
+      }
+    };
 
   // Override console methods
   console.log = captureLog('log');
@@ -1107,7 +1133,7 @@ export function clearCapturedLogs(): void {
  * Get only error-level logs
  */
 export function getCapturedErrors(): ConsoleCapturedLog[] {
-  return capturedLogs.filter(log => log.level === 'error' || log.level === 'warn');
+  return capturedLogs.filter((log) => log.level === 'error' || log.level === 'warn');
 }
 
 // ============================================================================
@@ -1139,12 +1165,17 @@ export function startNetworkErrorCapture(): void {
   // Capture fetch errors
   originalFetch = window.fetch;
   window.fetch = async (...args: Parameters<typeof fetch>) => {
-    const url = typeof args[0] === 'string' ? args[0] : args[0] instanceof Request ? args[0].url : args[0]?.href || 'unknown';
+    const url =
+      typeof args[0] === 'string'
+        ? args[0]
+        : args[0] instanceof Request
+          ? args[0].url
+          : args[0]?.href || 'unknown';
     const method = (args[1]?.method || 'GET').toUpperCase();
-    
+
     try {
       const response = await originalFetch.apply(window, args);
-      
+
       if (!response.ok) {
         capturedNetworkErrors.push({
           url: truncateText(url, 200),
@@ -1155,7 +1186,7 @@ export function startNetworkErrorCapture(): void {
         });
         trimNetworkErrors();
       }
-      
+
       return response;
     } catch (error) {
       capturedNetworkErrors.push({
@@ -1173,13 +1204,21 @@ export function startNetworkErrorCapture(): void {
   originalXHROpen = XMLHttpRequest.prototype.open;
   originalXHRSend = XMLHttpRequest.prototype.send;
 
-  XMLHttpRequest.prototype.open = function(method: string, url: string | URL, ...rest: any[]) {
+  XMLHttpRequest.prototype.open = function (
+    method: string,
+    url: string | URL,
+    async: boolean = true,
+    username: string | null = null,
+    password: string | null = null
+  ) {
     this._devmentor_url = String(url);
     this._devmentor_method = method.toUpperCase();
-    return originalXHROpen.apply(this, [method, url, ...rest] as any);
+    return originalXHROpen.call(this, method, url, async, username, password);
   };
 
-  XMLHttpRequest.prototype.send = function(...args: any[]) {
+  XMLHttpRequest.prototype.send = function (
+    ...args: [body?: Document | XMLHttpRequestBodyInit | null]
+  ) {
     this.addEventListener('loadend', () => {
       if (this.status >= 400) {
         capturedNetworkErrors.push({
@@ -1203,7 +1242,7 @@ export function startNetworkErrorCapture(): void {
       trimNetworkErrors();
     });
 
-    return originalXHRSend.apply(this, args as any);
+    return originalXHRSend.call(this, ...args);
   };
 }
 
@@ -1259,7 +1298,9 @@ declare global {
  */
 export function extractCodeBlocks(): HTMLSection[] {
   const codeBlocks: HTMLSection[] = [];
-  const codeElements = document.querySelectorAll('pre, code, .hljs, .CodeMirror, .monaco-editor, [class*="code-block"]');
+  const codeElements = document.querySelectorAll(
+    'pre, code, .hljs, .CodeMirror, .monaco-editor, [class*="code-block"]'
+  );
 
   for (const el of codeElements) {
     if (codeBlocks.length >= 10) break;
@@ -1290,26 +1331,30 @@ export function extractCodeBlocks(): HTMLSection[] {
  */
 function detectCodeLanguage(element: HTMLElement): string | undefined {
   const classes = getClassNameString(element);
-  
+
   // Common language class patterns
   const languagePatterns = [
     { pattern: /language-(\w+)/, group: 1 },
     { pattern: /lang-(\w+)/, group: 1 },
     { pattern: /hljs-?(\w+)?/, group: 1 },
-    { pattern: /(javascript|typescript|python|go|rust|java|yaml|json|bash|shell|sql|html|css)/i, group: 1 },
+    {
+      pattern: /(javascript|typescript|python|go|rust|java|yaml|json|bash|shell|sql|html|css)/i,
+      group: 1,
+    },
   ];
 
   for (const { pattern, group } of languagePatterns) {
     const match = classes.match(pattern);
-    if (match && match[group]) {
+    if (match?.[group]) {
       return match[group];
     }
   }
 
   // Check data attributes
-  const langAttr = element.getAttribute('data-language') || 
-                   element.getAttribute('data-lang') ||
-                   element.getAttribute('lang');
+  const langAttr =
+    element.getAttribute('data-language') ||
+    element.getAttribute('data-lang') ||
+    element.getAttribute('lang');
   if (langAttr) return langAttr;
 
   // Infer from content
@@ -1342,26 +1387,25 @@ export function extractTables(): HTMLSection[] {
 
     // Extract header and first few rows as text
     const headers = Array.from(table.querySelectorAll('th'))
-      .map(th => th.textContent?.trim())
+      .map((th) => th.textContent?.trim())
       .filter(Boolean);
-    
-    const dataRows = Array.from(rows).slice(0, 5).map(row =>
-      Array.from(row.querySelectorAll('td'))
-        .map(td => td.textContent?.trim())
-        .filter(Boolean)
-    );
+
+    const dataRows = Array.from(rows)
+      .slice(0, 5)
+      .map((row) =>
+        Array.from(row.querySelectorAll('td'))
+          .map((td) => td.textContent?.trim())
+          .filter(Boolean)
+      );
 
     tables.push({
       purpose: 'table',
       outerHTML: truncateText(table.outerHTML, SIZE_LIMITS.htmlSection),
-      textContent: [
-        headers.join(' | '),
-        ...dataRows.map(row => row.join(' | '))
-      ].join('\n'),
+      textContent: [headers.join(' | '), ...dataRows.map((row) => row.join(' | '))].join('\n'),
       attributes: {
         ...extractRelevantAttributes(table as HTMLElement),
         rowCount: String(rows.length),
-        columnCount: String(headers.length || (dataRows[0]?.length || 0)),
+        columnCount: String(headers.length || dataRows[0]?.length || 0),
       },
     });
   }
@@ -1387,14 +1431,14 @@ export function extractFormContext(): HTMLSection[] {
       const name = input.getAttribute('name') || input.getAttribute('id') || 'unnamed';
       const type = input.getAttribute('type') || input.tagName.toLowerCase();
       const label = findLabelForInput(input as HTMLElement);
-      
+
       // Don't include actual values for sensitive fields
-      const isSensitive = type === 'password' || 
-                         SENSITIVE_PATTERNS.some(p => p.test(name));
-      
-      const value = isSensitive ? '[REDACTED]' : 
-                    ((input as HTMLInputElement).value?.slice(0, 50) || '(empty)');
-      
+      const isSensitive = type === 'password' || SENSITIVE_PATTERNS.some((p) => p.test(name));
+
+      const value = isSensitive
+        ? '[REDACTED]'
+        : (input as HTMLInputElement).value?.slice(0, 50) || '(empty)';
+
       fieldSummary.push(`${label || name} (${type}): ${value}`);
     }
 
@@ -1423,14 +1467,14 @@ function findLabelForInput(input: HTMLElement): string | undefined {
     const label = document.querySelector(`label[for="${id}"]`);
     if (label) return label.textContent?.trim();
   }
-  
+
   // Check parent label
   const parentLabel = input.closest('label');
   if (parentLabel) {
     const labelText = parentLabel.textContent?.replace(input.textContent || '', '').trim();
     if (labelText) return labelText;
   }
-  
+
   // Check aria-label
   return input.getAttribute('aria-label') || undefined;
 }
@@ -1458,7 +1502,10 @@ export function extractModalContent(): HTMLSection | undefined {
         textContent: truncateText(modal.textContent || '', 1000),
         attributes: {
           ...extractRelevantAttributes(modal as HTMLElement),
-          title: (modal.querySelector('[class*="title"], h1, h2, h3') as HTMLElement)?.textContent?.trim() || 'Modal',
+          title:
+            (
+              modal.querySelector('[class*="title"], h1, h2, h3') as HTMLElement
+            )?.textContent?.trim() || 'Modal',
         },
       };
     }
@@ -1478,7 +1525,9 @@ function extractAzureContext(): Record<string, unknown> {
   const context: Record<string, unknown> = {};
 
   // Extract blade name
-  const bladeName = document.querySelector('[data-telemetry-area]')?.getAttribute('data-telemetry-area');
+  const bladeName = document
+    .querySelector('[data-telemetry-area]')
+    ?.getAttribute('data-telemetry-area');
   if (bladeName) context.bladeName = bladeName;
 
   // Extract resource info from URL
@@ -1495,7 +1544,9 @@ function extractAzureContext(): Record<string, unknown> {
   if (rgMatch) context.resourceGroup = rgMatch[1];
 
   // Check for activity log entries
-  const activityEntries = document.querySelectorAll('[class*="activity-log"], [class*="event-entry"]');
+  const activityEntries = document.querySelectorAll(
+    '[class*="activity-log"], [class*="event-entry"]'
+  );
   if (activityEntries.length > 0) {
     context.activityLogEntries = activityEntries.length;
   }
@@ -1568,7 +1619,7 @@ function extractGitHubContext(): Record<string, unknown> {
   // Check for Actions workflow
   if (pathname.includes('/actions')) {
     context.section = 'actions';
-    
+
     // Check workflow status
     const failedJobs = document.querySelectorAll('[class*="failed"], [class*="failing"]');
     if (failedJobs.length > 0) {
@@ -1581,7 +1632,7 @@ function extractGitHubContext(): Record<string, unknown> {
   if (prMatch) {
     context.section = 'pull-request';
     context.prNumber = prMatch[1];
-    
+
     // Check for merge conflicts
     const conflicts = document.querySelector('[class*="conflict"]');
     if (conflicts) context.hasConflicts = true;
@@ -1613,7 +1664,7 @@ export function getPlatformSpecificContext(platform: PlatformType): Record<strin
  */
 function isElementVisible(el: HTMLElement): boolean {
   if (!el) return false;
-  
+
   const style = window.getComputedStyle(el);
   if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
     return false;
@@ -1641,7 +1692,7 @@ function snapshotElement(el: HTMLElement): HTMLElementSnapshot {
  */
 function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength - 3) + '...';
+  return `${text.slice(0, maxLength - 3)}...`;
 }
 
 // ============================================================================
@@ -1680,13 +1731,14 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
   try {
     const platform = detectPlatform();
     const selectedText = getSelectedText();
-    let visibleText = options.selectedTextOnly && selectedText 
-      ? selectedText 
-      : extractVisibleText();
+    let visibleText =
+      options.selectedTextOnly && selectedText ? selectedText : extractVisibleText();
     const headings = extractHeadings();
     const errors = extractErrors();
     const relevantSections = extractRelevantSections();
-    const errorContainers = relevantSections.filter(s => s.purpose === 'error-container' || s.purpose === 'alert');
+    const errorContainers = relevantSections.filter(
+      (s) => s.purpose === 'error-container' || s.purpose === 'alert'
+    );
     const redactedFields = getRedactedFields();
 
     // Extended extraction options
@@ -1696,21 +1748,19 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
     const modalContent = extractModalContent();
     const consoleLogs = options.includeConsoleLogs !== false ? getCapturedErrors() : [];
     const networkErrors = options.includeNetworkErrors !== false ? getCapturedNetworkErrors() : [];
-    const platformSpecific = options.includePlatformSpecific !== false 
-      ? getPlatformSpecificContext(platform.type) 
-      : {};
-    
+    const platformSpecific =
+      options.includePlatformSpecific !== false ? getPlatformSpecificContext(platform.type) : {};
+
     // NEW: UI State analysis
     const uiState = options.includeUIState !== false ? analyzeUIState() : undefined;
-    
+
     // NEW: Runtime JS errors
     const runtimeErrors = options.includeRuntimeErrors !== false ? getCapturedRuntimeErrors() : [];
-    
+
     // NEW: Performance API network failures
-    const performanceNetworkErrors = options.includePerformanceNetworkErrors !== false 
-      ? getNetworkFailuresFromPerformance() 
-      : [];
-    
+    const performanceNetworkErrors =
+      options.includePerformanceNetworkErrors !== false ? getNetworkFailuresFromPerformance() : [];
+
     // NEW: Privacy masking
     const applyMasking = options.applyPrivacyMasking !== false;
     const sensitiveDataTypes = detectSensitiveDataTypes(visibleText);
@@ -1719,12 +1769,7 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
     }
 
     // Merge additional sections
-    const allSections = [
-      ...relevantSections,
-      ...codeBlocks,
-      ...tables,
-      ...formContext,
-    ];
+    const allSections = [...relevantSections, ...codeBlocks, ...tables, ...formContext];
     if (modalContent) allSections.push(modalContent);
 
     const context: ContextPayload = {
@@ -1768,17 +1813,19 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
           specificContext: Object.keys(platformSpecific).length > 0 ? platformSpecific : undefined,
         },
         // NEW: UI State
-        uiState: uiState ? {
-          pageState: uiState.pageState,
-          loadingIndicators: uiState.loadingIndicators,
-          disabledButtons: uiState.disabledButtons,
-          emptyStates: uiState.emptyStates,
-          errorStates: uiState.errorStates,
-          toastNotifications: uiState.toastNotifications,
-          modalOpen: uiState.modalOpen,
-          formValidationErrors: uiState.formValidationErrors,
-          interactiveElements: uiState.interactiveElements,
-        } : undefined,
+        uiState: uiState
+          ? {
+              pageState: uiState.pageState,
+              loadingIndicators: uiState.loadingIndicators,
+              disabledButtons: uiState.disabledButtons,
+              emptyStates: uiState.emptyStates,
+              errorStates: uiState.errorStates,
+              toastNotifications: uiState.toastNotifications,
+              modalOpen: uiState.modalOpen,
+              formValidationErrors: uiState.formValidationErrors,
+              interactiveElements: uiState.interactiveElements,
+            }
+          : undefined,
       },
       text: {
         selectedText: applyMasking && selectedText ? maskSensitiveData(selectedText) : selectedText,
@@ -1786,7 +1833,7 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
         headings,
         errors,
         // Console logs
-        consoleLogs: consoleLogs.map(log => ({
+        consoleLogs: consoleLogs.map((log) => ({
           level: log.level,
           message: applyMasking ? maskSensitiveData(log.message) : log.message,
           timestamp: log.timestamp,
@@ -1794,7 +1841,7 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
         })),
         // Network errors (both intercepted and from Performance API)
         networkErrors: [
-          ...networkErrors.map(err => ({
+          ...networkErrors.map((err) => ({
             url: applyMasking ? maskSensitiveData(err.url) : err.url,
             method: err.method,
             status: err.status,
@@ -1803,7 +1850,7 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
             timestamp: err.timestamp,
             source: 'intercepted' as const,
           })),
-          ...performanceNetworkErrors.map(err => ({
+          ...performanceNetworkErrors.map((err) => ({
             url: applyMasking ? maskSensitiveData(err.url) : err.url,
             method: 'UNKNOWN',
             status: undefined,
@@ -1814,7 +1861,7 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
           })),
         ],
         // NEW: Runtime JavaScript errors
-        runtimeErrors: runtimeErrors.map(err => ({
+        runtimeErrors: runtimeErrors.map((err) => ({
           message: applyMasking ? maskSensitiveData(err.message) : err.message,
           source: err.source,
           lineno: err.lineno,
@@ -1826,7 +1873,8 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
         metadata: {
           totalLength: document.body.textContent?.length || 0,
           truncated: visibleText.length >= SIZE_LIMITS.visibleText,
-          truncationReason: visibleText.length >= SIZE_LIMITS.visibleText ? 'max length exceeded' : undefined,
+          truncationReason:
+            visibleText.length >= SIZE_LIMITS.visibleText ? 'max length exceeded' : undefined,
         },
       },
       structure: {
@@ -1837,7 +1885,7 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
         forms: formContext,
         modal: modalContent,
         activeElements: {
-          focusedElement: document.activeElement 
+          focusedElement: document.activeElement
             ? snapshotElement(document.activeElement as HTMLElement)
             : undefined,
         },
@@ -1879,7 +1927,7 @@ export function extractContext(options: ExtendedExtractionOptions = {}): Context
     };
   } catch (error) {
     const extractionTimeMs = performance.now() - startTime;
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error during context extraction',
@@ -1898,19 +1946,19 @@ export function setupContextExtractionListener(): void {
       sendResponse(result);
       return true;
     }
-    
+
     if (message.type === 'GET_PLATFORM') {
       const platform = detectPlatform();
       sendResponse({ platform });
       return true;
     }
-    
+
     if (message.type === 'GET_ERRORS') {
       const errors = extractErrors();
       sendResponse({ errors });
       return true;
     }
-    
+
     return false;
   });
 }

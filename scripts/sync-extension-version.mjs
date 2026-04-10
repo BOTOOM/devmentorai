@@ -3,9 +3,9 @@
  * Syncs the version from semantic-release into wxt.config.ts
  * Usage: node sync-extension-version.mjs <version>
  */
-import { readFileSync, writeFileSync } from 'fs';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const version = process.argv[2];
@@ -19,10 +19,7 @@ const wxtConfigPath = resolve(__dirname, '../apps/extension/wxt.config.ts');
 let content = readFileSync(wxtConfigPath, 'utf-8');
 
 // Replace version in manifest
-content = content.replace(
-  /version:\s*['"][^'"]+['"]/,
-  `version: '${version}'`
-);
+content = content.replace(/version:\s*['"][^'"]+['"]/, `version: '${version}'`);
 
 writeFileSync(wxtConfigPath, content, 'utf-8');
 console.log(`✅ Updated wxt.config.ts version to ${version}`);

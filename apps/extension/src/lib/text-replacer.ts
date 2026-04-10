@@ -19,14 +19,14 @@ function dispatchInputEvents(element: HTMLElement, inputType = 'insertText'): vo
     data: null,
   });
   element.dispatchEvent(inputEvent);
-  
+
   // Change event for form handling
   const changeEvent = new Event('change', {
     bubbles: true,
     cancelable: true,
   });
   element.dispatchEvent(changeEvent);
-  
+
   // Some frameworks also listen to keyup
   const keyupEvent = new KeyboardEvent('keyup', {
     bubbles: true,
@@ -49,28 +49,28 @@ function replaceInInputOrTextarea(
     // Use provided positions or current selection
     const start = selectionStart ?? element.selectionStart ?? 0;
     const end = selectionEnd ?? element.selectionEnd ?? 0;
-    
+
     if (start === end) {
       return {
         success: false,
         error: 'No text selected',
       };
     }
-    
+
     // Focus the element
     element.focus();
-    
+
     // Use setRangeText for clean replacement
     // The 'end' parameter positions cursor at end of inserted text
     element.setRangeText(newText, start, end, 'end');
-    
+
     // Dispatch events to notify frameworks
     dispatchInputEvents(element);
-    
+
     // Ensure cursor is at end of new text
     const newCursorPos = start + newText.length;
     element.setSelectionRange(newCursorPos, newCursorPos);
-    
+
     return { success: true };
   } catch (error) {
     return {
@@ -186,13 +186,13 @@ function replaceInContentEditable(
         error: 'No selection available for replacement',
       };
     }
-    
+
     // Focus the element
     element.focus();
-    
+
     // Delete the selected content
     range.deleteContents();
-    
+
     // Create a text node with the new content
     const textNode = document.createTextNode(newText);
     range.insertNode(textNode);
@@ -206,13 +206,13 @@ function replaceInContentEditable(
       nextSelection.removeAllRanges();
       nextSelection.addRange(caretRange);
     }
-    
+
     // Normalize to merge adjacent text nodes
     element.normalize();
-    
+
     // Dispatch events
     dispatchInputEvents(element);
-    
+
     return { success: true };
   } catch (error) {
     return {
@@ -266,7 +266,7 @@ export async function replaceSelectedText(
       copiedToClipboard: copied,
     };
   }
-  
+
   if (!context.targetElementId) {
     const copied = await copyToClipboard(newText);
     return {
@@ -275,7 +275,7 @@ export async function replaceSelectedText(
       copiedToClipboard: copied,
     };
   }
-  
+
   const element = findElementByTargetId(context.targetElementId);
   if (!element) {
     const copied = await copyToClipboard(newText);
@@ -285,9 +285,9 @@ export async function replaceSelectedText(
       copiedToClipboard: copied,
     };
   }
-  
+
   let result: TextReplacementResult;
-  
+
   switch (context.elementType) {
     case 'input':
       if (element instanceof HTMLInputElement) {
@@ -301,7 +301,7 @@ export async function replaceSelectedText(
         result = { success: false, error: 'Element type mismatch' };
       }
       break;
-      
+
     case 'textarea':
       if (element instanceof HTMLTextAreaElement) {
         result = replaceInInputOrTextarea(
@@ -314,20 +314,20 @@ export async function replaceSelectedText(
         result = { success: false, error: 'Element type mismatch' };
       }
       break;
-      
+
     case 'contenteditable':
       result = replaceInContentEditable(element, newText, context.selectedText);
       break;
-      
+
     default:
       result = { success: false, error: 'Element type not supported for replacement' };
   }
-  
+
   // If replacement failed, try clipboard fallback
   if (!result.success && !result.copiedToClipboard) {
     result.copiedToClipboard = await copyToClipboard(newText);
   }
-  
+
   return result;
 }
 

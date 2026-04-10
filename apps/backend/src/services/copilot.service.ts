@@ -1,19 +1,24 @@
-import { CopilotClient, type SessionEvent, type Tool as CopilotTool, approveAll } from '@github/copilot-sdk';
-import { SessionService } from './session.service.js';
-import { getAgentConfig, SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
+import { SESSION_TYPE_CONFIGS, getAgentConfig } from '@devmentorai/shared';
 import type {
-  SessionType,
-  MessageContext,
-  ModelInfo,
   CopilotAuthStatus,
   CopilotQuotaStatus,
+  MessageContext,
+  ModelInfo,
   ModelPricingTier,
+  SessionType,
 } from '@devmentorai/shared';
+import {
+  CopilotClient,
+  type Tool as CopilotTool,
+  type SessionEvent,
+  approveAll,
+} from '@github/copilot-sdk';
 import { devopsTools, getToolByName } from '../tools/devops-tools.js';
+import { SessionService } from './session.service.js';
 
 interface CopilotSession {
   sessionId: string;
-  session: Awaited<ReturnType<CopilotClient['createSession']>>;
+  session: Awaited<ReturnType<CopilotClient['createSession']>> | null;
   type: SessionType;
 }
 
@@ -203,16 +208,47 @@ export class CopilotService {
     sessionId: string,
     type: SessionType,
     model: string,
-    systemPrompt?: string
+    systemPrompt?: string,
+    reasoningEffort?: 'low' | 'medium' | 'high'
   ): Promise<void> {
     const existing = this.sessions.get(sessionId);
+    const persistedSession = this.sessionService.getSession(sessionId);
 
+    // If session exists and supports setModel (SDK v0.2.x+), use it for seamless model switching
+    if (existing?.session && !this.mockMode) {
+      try {
+        const session = existing.session as unknown as {
+          setModel?: (model: string, options?: { reasoningEffort?: string }) => Promise<void>;
+        };
+
+        if (session.setModel) {
+          console.log(`[CopilotService] Switching model for session ${sessionId} to ${model}`);
+          await session.setModel(model, reasoningEffort ? { reasoningEffort } : undefined);
+
+          // Update stored session info
+          this.sessions.set(sessionId, { ...existing, type });
+          console.log(`[CopilotService] Model switched successfully for session ${sessionId}`);
+          return;
+        }
+      } catch (error) {
+        console.warn(
+          `[CopilotService] setModel failed for session ${sessionId}, falling back to recreate:`,
+          error
+        );
+        // Fall through to recreate session
+      }
+    }
+
+    // Fallback: destroy and recreate session (legacy behavior)
     if (existing?.session && !this.mockMode) {
       try {
         await existing.session.abort().catch(() => undefined);
         await existing.session.destroy();
       } catch (error) {
-        console.warn(`[CopilotService] Failed to destroy previous session before model switch: ${sessionId}`, error);
+        console.warn(
+          `[CopilotService] Failed to destroy previous session before model switch: ${sessionId}`,
+          error
+        );
       }
     }
 
@@ -226,7 +262,16 @@ export class CopilotService {
       }
     }
 
-    await this.createCopilotSession(sessionId, type, model, systemPrompt);
+    await this.createCopilotSession(
+      sessionId,
+      type,
+      model,
+      systemPrompt ?? persistedSession?.systemPrompt,
+      false,
+      persistedSession?.tone,
+      persistedSession?.explainTradeoffs,
+      reasoningEffort
+    );
   }
 
   private normalizeModel(raw: RawSdkModel): ModelInfo {
@@ -245,7 +290,9 @@ export class CopilotService {
         ? raw.billing.multiplier
         : undefined;
     const supportedReasoningEfforts = Array.isArray(raw.supportedReasoningEfforts)
-      ? raw.supportedReasoningEfforts.filter((effort): effort is string => typeof effort === 'string')
+      ? raw.supportedReasoningEfforts.filter(
+          (effort): effort is string => typeof effort === 'string'
+        )
       : undefined;
 
     return {
@@ -278,9 +325,18 @@ export class CopilotService {
 
   private normalizeQuota(raw: Record<string, unknown>): CopilotQuotaStatus {
     const used = this.readNumber(raw, ['used', 'consumed', 'usage', 'quotaUsed', 'totalUsed']);
-    const included = this.readNumber(raw, ['included', 'limit', 'quota', 'total', 'quotaTotal', 'allowed']);
+    const included = this.readNumber(raw, [
+      'included',
+      'limit',
+      'quota',
+      'total',
+      'quotaTotal',
+      'allowed',
+    ]);
     const computedRemaining =
-      typeof included === 'number' && typeof used === 'number' ? Math.max(included - used, 0) : null;
+      typeof included === 'number' && typeof used === 'number'
+        ? Math.max(included - used, 0)
+        : null;
     const remaining = this.readNumber(raw, ['remaining', 'left', 'available']) ?? computedRemaining;
 
     const computedPercentageUsed =
@@ -288,7 +344,8 @@ export class CopilotService {
         ? Math.min(100, (used / included) * 100)
         : null;
     const percentageUsed =
-      this.readNumber(raw, ['percentageUsed', 'usedPercent', 'percentUsed']) ?? computedPercentageUsed;
+      this.readNumber(raw, ['percentageUsed', 'usedPercent', 'percentUsed']) ??
+      computedPercentageUsed;
     const percentageRemaining =
       this.readNumber(raw, ['percentageRemaining', 'remainingPercent', 'percentRemaining']) ??
       (typeof percentageUsed === 'number' ? Math.max(0, 100 - percentageUsed) : null);
@@ -330,13 +387,16 @@ export class CopilotService {
     type: SessionType,
     model: string,
     systemPrompt?: string,
-    enableMcp: boolean = false
+    enableMcp = false,
+    tone?: string,
+    explainTradeoffs?: boolean,
+    reasoningEffort?: 'low' | 'medium' | 'high'
   ): Promise<void> {
     if (this.mockMode || !this.client) {
       // Create mock session
       this.sessions.set(sessionId, {
         sessionId,
-        session: null as any,
+        session: null,
         type,
       });
       return;
@@ -352,18 +412,155 @@ export class CopilotService {
     // Build MCP server config if enabled
     const mcpServers = enableMcp ? MCP_SERVERS : undefined;
 
-    const session = await this.client.createSession({
+    // Build customized system message
+    const customizedSystemMessage = this.buildCustomizedSystemMessage(
+      type,
+      systemPrompt,
+      tone,
+      explainTradeoffs
+    );
+
+    // Build session config - use unknown to allow SDK-specific extensions
+    const sessionConfig: unknown = {
       sessionId,
       model: model || typeConfig.defaultModel,
       streaming: true,
       customAgents: agentConfig ? [agentConfig] : undefined,
-      systemMessage: systemPrompt ? { content: systemPrompt } : undefined,
+      systemMessage: customizedSystemMessage,
       tools,
       mcpServers,
       onPermissionRequest: approveAll,
-    });
+      // Add reasoning effort if provided and supported by SDK
+      ...(reasoningEffort ? { reasoningEffort } : {}),
+    };
+
+    const session = await this.client.createSession(
+      sessionConfig as Parameters<CopilotClient['createSession']>[0]
+    );
 
     this.sessions.set(sessionId, { sessionId, session, type });
+  }
+
+  /**
+   * Build customized system message with Copilot SDK v0.2.x customize mode.
+   * This allows surgical modifications to specific sections without replacing the entire prompt.
+   */
+  private buildCustomizedSystemMessage(
+    type: SessionType,
+    systemPrompt?: string,
+    tone?: string,
+    explainTradeoffs?: boolean
+  ): unknown {
+    // If legacy systemPrompt provided, use it as base content (for backward compatibility)
+    if (systemPrompt) {
+      return { content: systemPrompt };
+    }
+
+    // Build tone instructions
+    const toneInstructions = this.getToneInstructions(tone);
+
+    // Build guidelines based on session type
+    const guidelines = this.buildGuidelines(type, explainTradeoffs);
+
+    // Build safety instructions (common to all types)
+    const safetyInstructions = this.getSafetyInstructions();
+
+    // Return system message with customize mode
+    return {
+      mode: 'customize',
+      sections: {
+        identity: {
+          action: (current: string) => current.replace('GitHub Copilot', 'DevMentorAI Assistant'),
+        },
+        tone: {
+          action: 'append',
+          content: toneInstructions,
+        },
+        environment_context: {
+          action: 'append',
+          content: `Session Type: ${type}. You are assisting developers, DevOps engineers, QA professionals, or learners with their daily tasks.`,
+        },
+        guidelines: {
+          action: 'append',
+          content: guidelines,
+        },
+        safety: {
+          action: 'append',
+          content: safetyInstructions,
+        },
+      },
+    };
+  }
+
+  /**
+   * Get tone instructions based on user preference
+   */
+  private getToneInstructions(tone?: string): string {
+    switch (tone) {
+      case 'concise':
+        return 'Be concise and direct. Get straight to the point without unnecessary elaboration.';
+      case 'friendly':
+        return 'Be friendly, approachable, and encouraging. Use a warm, conversational tone while maintaining professionalism.';
+      case 'professional':
+        return 'Be professional and formal. Use precise language and maintain a business-appropriate tone.';
+      case 'technical':
+        return 'Be technical and detailed. Provide in-depth explanations suitable for technical professionals. Include specific terminology and technical details.';
+      default:
+        return 'Be helpful and clear. Balance technical accuracy with accessibility. Explain concepts thoroughly without being overly verbose.';
+    }
+  }
+
+  /**
+   * Build guidelines based on session type
+   */
+  private buildGuidelines(type: SessionType, explainTradeoffs?: boolean): string {
+    const baseGuidelines: Record<SessionType, string> = {
+      devops: `
+        - Emphasize infrastructure-as-code principles and automation
+        - Prioritize security, scalability, and observability in all recommendations
+        - Cite official cloud provider documentation (AWS, Azure, GCP, Kubernetes) when making claims
+        - Always explain the 'why' behind infrastructure decisions
+        - Include command examples for CLI tools (kubectl, terraform, aws-cli, etc.) when applicable`,
+
+      writing: `
+        - Focus on clarity, conciseness, and effective communication
+        - Adapt writing style to the context (technical documentation, emails, blog posts, etc.)
+        - Maintain the original intent and tone of the author
+        - Cite style guides (AP, Chicago, technical writing standards) when relevant`,
+
+      development: `
+        - Prioritize clean code principles, SOLID principles, and best practices
+        - Explain design patterns and architectural decisions clearly
+        - Include code examples that follow language conventions and style guides
+        - Reference official language/framework documentation when appropriate`,
+
+      general: `
+        - Provide balanced, well-reasoned answers
+        - Include examples when they add clarity to the explanation
+        - Cite authoritative sources when making factual claims
+        - Adapt depth of explanation to the apparent expertise level of the user`,
+    };
+
+    let guidelines = baseGuidelines[type] || baseGuidelines.general;
+
+    if (explainTradeoffs) {
+      guidelines +=
+        '\n        - Always explain the pros and cons of different approaches when presenting multiple options.';
+    }
+
+    return guidelines.trim();
+  }
+
+  /**
+   * Get safety instructions (common to all session types)
+   */
+  private getSafetyInstructions(): string {
+    return `
+      - Never request or store sensitive data such as passwords, API keys, tokens, or credentials
+      - Always warn before suggesting destructive commands (rm -rf, database deletions, resource terminations, etc.)
+      - Remind users to make backups or use version control before critical changes
+      - Distinguish between staging/testing and production environments when discussing deployments
+    `.trim();
   }
 
   /**
@@ -371,21 +568,23 @@ export class CopilotService {
    * The SDK expects tools with a `handler` function — it calls the handler
    * directly and uses the return value as the tool result (no sendToolResult needed).
    */
-  private buildSdkTools(): CopilotTool<any>[] {
-    return devopsTools.map((tool): CopilotTool<any> => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-      handler: async (args: Record<string, unknown>) => {
-        console.log(`[CopilotService] Executing tool ${tool.name}`);
-        try {
-          return await tool.handler(args);
-        } catch (error) {
-          console.error(`[CopilotService] Tool ${tool.name} failed:`, error);
-          return `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        }
-      },
-    }));
+  private buildSdkTools(): CopilotTool<Record<string, unknown>>[] {
+    return devopsTools.map(
+      (tool): CopilotTool<Record<string, unknown>> => ({
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+        handler: async (args: Record<string, unknown>) => {
+          console.log(`[CopilotService] Executing tool ${tool.name}`);
+          try {
+            return await tool.handler(args);
+          } catch (error) {
+            console.error(`[CopilotService] Tool ${tool.name} failed:`, error);
+            return `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          }
+        },
+      })
+    );
   }
 
   async resumeCopilotSession(sessionId: string): Promise<boolean> {
@@ -395,7 +594,9 @@ export class CopilotService {
 
     // First, try to resume existing session
     try {
-      const session = await this.client.resumeSession(sessionId, { onPermissionRequest: approveAll });
+      const session = await this.client.resumeSession(sessionId, {
+        onPermissionRequest: approveAll,
+      });
       // Try to get type from DB, fallback to 'general'
       const dbSession = this.sessionService.getSession(sessionId);
       this.sessions.set(sessionId, { sessionId, session, type: dbSession?.type || 'general' });
@@ -436,46 +637,50 @@ export class CopilotService {
     context?: MessageContext,
     onEvent?: (event: SessionEvent) => void
   ): Promise<string> {
-    return this.withRetry(async () => {
-      const copilotSession = this.sessions.get(sessionId);
-      
-      // Note: The prompt should already be enriched with context by the route
-      // We only add basic context fallback if the prompt doesn't contain it
-      let fullPrompt = prompt;
-      if (context?.selectedText && !prompt.includes(context.selectedText)) {
-        fullPrompt = `Context (selected text):\n${context.selectedText}\n\nUser request: ${prompt}`;
-      }
-      if (context?.pageUrl && !prompt.includes(context.pageUrl)) {
-        fullPrompt = `Page: ${context.pageUrl}\n${fullPrompt}`;
-      }
+    return this.withRetry(
+      async () => {
+        const copilotSession = this.sessions.get(sessionId);
 
-      if (this.mockMode || !copilotSession?.session) {
-        // Mock response
-        return this.generateMockResponse(prompt, context);
-      }
-
-      let responseContent = '';
-
-      // Set up event listener
-      if (onEvent) {
-        copilotSession.session.on(onEvent);
-      }
-
-      copilotSession.session.on((event: SessionEvent) => {
-        if (event.type === 'assistant.message') {
-          responseContent = event.data.content || '';
+        // Note: The prompt should already be enriched with context by the route
+        // We only add basic context fallback if the prompt doesn't contain it
+        let fullPrompt = prompt;
+        if (context?.selectedText && !prompt.includes(context.selectedText)) {
+          fullPrompt = `Context (selected text):\n${context.selectedText}\n\nUser request: ${prompt}`;
         }
-      });
+        if (context?.pageUrl && !prompt.includes(context.pageUrl)) {
+          fullPrompt = `Page: ${context.pageUrl}\n${fullPrompt}`;
+        }
 
-      // Send message - no systemMessage override to preserve Copilot's intelligence
-      // The customAgents from session creation provide the persona/expertise
-      const response = await copilotSession.session.sendAndWait({ prompt: fullPrompt });
-      console.log(`[CopilotService] Received response for session ${sessionId}`);
-      console.log('[CopilotService] Response payload:', response?.data);
-      console.log(`[CopilotService] responseContent: ${responseContent}...`);
-      
-      return response?.data.content || responseContent;
-    }, 3, 1000);
+        if (this.mockMode || !copilotSession?.session) {
+          // Mock response
+          return this.generateMockResponse(prompt, context);
+        }
+
+        let responseContent = '';
+
+        // Set up event listener
+        if (onEvent) {
+          copilotSession.session.on(onEvent);
+        }
+
+        copilotSession.session.on((event: SessionEvent) => {
+          if (event.type === 'assistant.message') {
+            responseContent = event.data.content || '';
+          }
+        });
+
+        // Send message - no systemMessage override to preserve Copilot's intelligence
+        // The customAgents from session creation provide the persona/expertise
+        const response = await copilotSession.session.sendAndWait({ prompt: fullPrompt });
+        console.log(`[CopilotService] Received response for session ${sessionId}`);
+        console.log('[CopilotService] Response payload:', response?.data);
+        console.log(`[CopilotService] responseContent: ${responseContent}...`);
+
+        return response?.data.content || responseContent;
+      },
+      3,
+      1000
+    );
   }
 
   async streamMessage(
@@ -495,7 +700,9 @@ export class CopilotService {
         copilotSession = this.sessions.get(sessionId);
         console.log(`[CopilotService] Session ${sessionId} auto-resumed successfully`);
       } else {
-        console.warn(`[CopilotService] Failed to auto-resume session ${sessionId}, falling back to mock`);
+        console.warn(
+          `[CopilotService] Failed to auto-resume session ${sessionId}, falling back to mock`
+        );
       }
     }
 
@@ -515,9 +722,12 @@ export class CopilotService {
 
     console.log('[CopilotService] Starting real stream for session', sessionId);
     if (attachments && attachments.length > 0) {
-      console.log(`[CopilotService] Sending ${attachments.length} attachments:`, attachments.map(a => a.path));
+      console.log(
+        `[CopilotService] Sending ${attachments.length} attachments:`,
+        attachments.map((a) => a.path)
+      );
     }
-    
+
     // Set up event listener
     if (onEvent) {
       copilotSession.session.on(onEvent);
@@ -537,32 +747,35 @@ export class CopilotService {
    */
   private async withRetry<T>(
     operation: () => Promise<T>,
-    maxRetries: number = 3,
-    delayMs: number = 1000
+    maxRetries = 3,
+    delayMs = 1000
   ): Promise<T> {
     let lastError: Error | undefined;
-    
+    let currentDelayMs = delayMs;
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         // Don't retry on certain errors
         const nonRetryableErrors = ['authentication', 'invalid_session', 'rate_limit'];
         const errorMessage = (lastError?.message || '').toLowerCase();
-        if (nonRetryableErrors.some(e => errorMessage.includes(e))) {
+        if (nonRetryableErrors.some((e) => errorMessage.includes(e))) {
           throw lastError;
         }
-        
+
         if (attempt < maxRetries) {
-          console.warn(`[CopilotService] Attempt ${attempt} failed, retrying in ${delayMs}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          delayMs *= 2; // Exponential backoff
+          console.warn(
+            `[CopilotService] Attempt ${attempt} failed, retrying in ${currentDelayMs}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, currentDelayMs));
+          currentDelayMs *= 2;
         }
       }
     }
-    
+
     throw lastError;
   }
 
@@ -571,7 +784,7 @@ export class CopilotService {
    */
   getAvailableTools(type: SessionType): Array<{ name: string; description: string }> {
     if (type === 'devops') {
-      return devopsTools.map(t => ({ name: t.name, description: t.description }));
+      return devopsTools.map((t) => ({ name: t.name, description: t.description }));
     }
     return [];
   }
@@ -580,21 +793,21 @@ export class CopilotService {
    * Execute a tool directly (for testing or standalone use)
    */
   async executeTool(
-    toolName: string, 
+    toolName: string,
     params: Record<string, unknown>
   ): Promise<{ success: boolean; result?: string; error?: string }> {
     const tool = getToolByName(toolName);
     if (!tool) {
       return { success: false, error: `Unknown tool: ${toolName}` };
     }
-    
+
     try {
       const result = await tool.handler(params);
       return { success: true, result };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : String(error) 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -608,7 +821,7 @@ export class CopilotService {
 
   async destroySession(sessionId: string): Promise<void> {
     const copilotSession = this.sessions.get(sessionId);
-    
+
     if (copilotSession?.session && !this.mockMode) {
       try {
         // Abort any pending requests first
@@ -621,7 +834,7 @@ export class CopilotService {
         // Continue with cleanup even if destroy fails
       }
     }
-    
+
     // Delete session data from disk using SDK's deleteSession
     if (this.client && !this.mockMode) {
       try {
@@ -630,10 +843,12 @@ export class CopilotService {
       } catch (error) {
         // Session might not exist on disk, that's OK
         console.log('[CopilotService] deleteSession error:', error);
-        console.log(`[CopilotService] Could not delete session files (may not exist): ${sessionId}`);
+        console.log(
+          `[CopilotService] Could not delete session files (may not exist): ${sessionId}`
+        );
       }
     }
-    
+
     // Remove from in-memory map
     this.sessions.delete(sessionId);
     console.log(`[CopilotService] Session ${sessionId} removed from memory`);
@@ -667,19 +882,19 @@ export class CopilotService {
   // Mock implementations for development without Copilot CLI
   private generateMockResponse(prompt: string, context?: MessageContext): string {
     const action = context?.action;
-    
+
     if (action === 'explain') {
       return `**Explanation:**\n\nThis appears to be ${context?.selectedText?.slice(0, 50)}...\n\nIn essence, this code/text demonstrates a common pattern used in software development. The key points are:\n\n1. It handles a specific use case\n2. It follows best practices\n3. It can be extended for additional functionality`;
     }
-    
+
     if (action === 'translate') {
       return `**Translation:**\n\n${context?.selectedText || 'No text provided'}`;
     }
-    
+
     if (action === 'rewrite') {
       return `**Rewritten:**\n\n${context?.selectedText || prompt}`;
     }
-    
+
     if (action === 'fix_grammar') {
       return `**Corrected:**\n\n${context?.selectedText || prompt}`;
     }
@@ -697,8 +912,8 @@ export class CopilotService {
 
     // Simulate streaming with delays
     for (let i = 0; i < words.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       onEvent?.({
         type: 'assistant.message_delta',
         data: { deltaContent: words[i] + (i < words.length - 1 ? ' ' : '') },

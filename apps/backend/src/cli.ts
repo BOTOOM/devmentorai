@@ -12,11 +12,11 @@
  *   doctor   Check system requirements
  */
 
-import { startCommand } from './cli/start.js';
-import { stopCommand } from './cli/stop.js';
-import { statusCommand } from './cli/status.js';
-import { logsCommand } from './cli/logs.js';
 import { doctorCommand } from './cli/doctor.js';
+import { logsCommand } from './cli/logs.js';
+import { startCommand } from './cli/start.js';
+import { statusCommand } from './cli/status.js';
+import { stopCommand } from './cli/stop.js';
 
 const VERSION = '1.0.0';
 
@@ -60,7 +60,17 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  const options = parseOptions(args.slice(command === 'start' || command === 'stop' || command === 'status' || command === 'logs' || command === 'doctor' ? 1 : 0));
+  const options = parseOptions(
+    args.slice(
+      command === 'start' ||
+        command === 'stop' ||
+        command === 'status' ||
+        command === 'logs' ||
+        command === 'doctor'
+        ? 1
+        : 0
+    )
+  );
 
   try {
     switch (command) {
@@ -102,8 +112,8 @@ function parseOptions(args: string[]): CliOptions {
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
       case '--port':
-        options.port = parseInt(args[++i], 10);
-        if (isNaN(options.port)) {
+        options.port = Number.parseInt(args[++i], 10);
+        if (Number.isNaN(options.port)) {
           console.error('Error: --port requires a valid number');
           process.exit(1);
         }
@@ -114,7 +124,7 @@ function parseOptions(args: string[]): CliOptions {
         break;
       case '--lines':
       case '-n':
-        options.lines = parseInt(args[++i], 10);
+        options.lines = Number.parseInt(args[++i], 10);
         break;
     }
   }

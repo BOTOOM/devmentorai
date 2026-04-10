@@ -51,7 +51,7 @@ When analyzing configurations or errors:
 Provide a high-quality, detailed, and explanatory response that helps the user completely understand the concepts, steps, and 'why' behind the suggestions. Use code blocks for configurations and commands.`,
     },
   },
-  
+
   writing: {
     name: 'Writing Assistant',
     description: 'Helps with writing, rewriting, and translation',
@@ -81,7 +81,7 @@ Guidelines:
 When the user provides text to modify, respond with ONLY the modified text unless they ask for explanation.`,
     },
   },
-  
+
   development: {
     name: 'Development Helper',
     description: 'Assists with code review, debugging, and best practices',
@@ -118,7 +118,7 @@ When reviewing code, focus on:
 - Missing error handling`,
     },
   },
-  
+
   general: {
     name: 'General Assistant',
     description: 'General-purpose AI assistant',

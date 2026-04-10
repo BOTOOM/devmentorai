@@ -1,9 +1,9 @@
+import type { TextReplacementBehavior } from '@devmentorai/shared';
 /**
  * Hook for managing user settings with real-time application
  * Handles theme changes, language, and other preferences
  */
-import { useState, useEffect, useCallback } from 'react';
-import type { TextReplacementBehavior } from '@devmentorai/shared';
+import { useCallback, useEffect, useState } from 'react';
 import { storageGet, storageSet } from '../lib/browser-utils';
 
 export interface Settings {
@@ -24,6 +24,10 @@ export interface Settings {
   textReplacementBehavior: TextReplacementBehavior;
   /** Model to use for quick actions (Writing Assistant) */
   quickActionModel: string;
+  /** Tone for AI assistant responses */
+  assistantTone: 'concise' | 'friendly' | 'professional' | 'technical' | 'balanced';
+  /** Whether to always explain pros and cons in recommendations */
+  explainTradeoffs: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -40,6 +44,8 @@ export const DEFAULT_SETTINGS: Settings = {
   imageAttachmentsEnabled: true, // Default: enabled
   textReplacementBehavior: 'ask', // Default: ask before replacing
   quickActionModel: 'gpt-4.1', // Default: fast model for quick actions
+  assistantTone: 'balanced', // Default: balanced tone
+  explainTradeoffs: false, // Default: don't automatically explain tradeoffs
 };
 
 const AVAILABLE_LANGUAGES = [
@@ -62,7 +68,7 @@ export { AVAILABLE_LANGUAGES };
  */
 function applyTheme(theme: Settings['theme']) {
   const root = document.documentElement;
-  
+
   if (theme === 'system') {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     root.classList.toggle('dark', prefersDark);
@@ -76,12 +82,12 @@ function applyTheme(theme: Settings['theme']) {
  */
 function setupThemeListener(theme: Settings['theme']) {
   if (theme !== 'system') return () => {};
-  
+
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
   const handler = (e: MediaQueryListEvent) => {
     document.documentElement.classList.toggle('dark', e.matches);
   };
-  
+
   mediaQuery.addEventListener('change', handler);
   return () => mediaQuery.removeEventListener('change', handler);
 }
@@ -97,7 +103,7 @@ export function useSettings() {
         const result = await storageGet<Partial<Settings>>(Object.keys(DEFAULT_SETTINGS));
         const loadedSettings = { ...DEFAULT_SETTINGS, ...result };
         setSettings(loadedSettings);
-        
+
         // Apply theme immediately
         applyTheme(loadedSettings.theme);
         setIsLoaded(true);
@@ -106,14 +112,14 @@ export function useSettings() {
         setIsLoaded(true);
       }
     };
-    
+
     loadSettings();
   }, []);
 
   // Apply theme when it changes
   useEffect(() => {
     if (!isLoaded) return;
-    
+
     applyTheme(settings.theme);
     return setupThemeListener(settings.theme);
   }, [settings.theme, isLoaded]);
@@ -126,38 +132,39 @@ export function useSettings() {
     ) => {
       // Only respond to local storage changes
       if (areaName !== 'local') return;
-      
+
       const updatedSettings = { ...settings };
       let hasChanges = false;
-      
-      for (const [key, change] of Object.entries(changes)) {
-        if (key in DEFAULT_SETTINGS && change.newValue !== undefined) {
-          (updatedSettings as any)[key] = change.newValue;
+
+      for (const key of Object.keys(changes) as Array<keyof Settings>) {
+        const change = changes[key];
+        if (key in DEFAULT_SETTINGS && change?.newValue !== undefined) {
+          (updatedSettings as Record<string, unknown>)[key] = change.newValue;
           hasChanges = true;
-          
+
           // Apply theme immediately when changed from another context
           if (key === 'theme') {
             applyTheme(change.newValue);
           }
         }
       }
-      
+
       if (hasChanges) {
-        setSettings(updatedSettings);
+        setSettings(updatedSettings as Settings);
       }
     };
-    
+
     chrome.storage.onChanged.addListener(handleStorageChange);
     return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, [settings]);
 
-  const updateSetting = useCallback(async <K extends keyof Settings>(
-    key: K, 
-    value: Settings[K]
-  ) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-    await storageSet({ [key]: value });
-  }, []);
+  const updateSetting = useCallback(
+    async <K extends keyof Settings>(key: K, value: Settings[K]) => {
+      setSettings((prev) => ({ ...prev, [key]: value }));
+      await storageSet({ [key]: value });
+    },
+    []
+  );
 
   const saveAllSettings = useCallback(async (newSettings: Settings) => {
     setSettings(newSettings);

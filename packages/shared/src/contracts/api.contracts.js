@@ -6,33 +6,33 @@
  * Backend API endpoints contract
  */
 export const API_ENDPOINTS = {
-    // Health
-    HEALTH: '/api/health',
-    // Sessions
-    SESSIONS: '/api/sessions',
-    SESSION: (id) => `/api/sessions/${id}`,
-    SESSION_RESUME: (id) => `/api/sessions/${id}/resume`,
-    SESSION_ABORT: (id) => `/api/sessions/${id}/abort`,
-    SESSION_MESSAGES: (id) => `/api/sessions/${id}/messages`,
-    // Chat
-    CHAT: (sessionId) => `/api/sessions/${sessionId}/chat`,
-    CHAT_STREAM: (sessionId) => `/api/sessions/${sessionId}/chat/stream`,
-    // Image upload (pre-upload before sending chat)
-    IMAGE_UPLOAD: (sessionId) => `/api/sessions/${sessionId}/images/upload`,
-    // Models
-    MODELS: '/api/models',
-    // Account
-    ACCOUNT_AUTH: '/api/account/auth',
-    ACCOUNT_QUOTA: '/api/account/quota',
+  // Health
+  HEALTH: '/api/health',
+  // Sessions
+  SESSIONS: '/api/sessions',
+  SESSION: (id) => `/api/sessions/${id}`,
+  SESSION_RESUME: (id) => `/api/sessions/${id}/resume`,
+  SESSION_ABORT: (id) => `/api/sessions/${id}/abort`,
+  SESSION_MESSAGES: (id) => `/api/sessions/${id}/messages`,
+  // Chat
+  CHAT: (sessionId) => `/api/sessions/${sessionId}/chat`,
+  CHAT_STREAM: (sessionId) => `/api/sessions/${sessionId}/chat/stream`,
+  // Image upload (pre-upload before sending chat)
+  IMAGE_UPLOAD: (sessionId) => `/api/sessions/${sessionId}/images/upload`,
+  // Models
+  MODELS: '/api/models',
+  // Account
+  ACCOUNT_AUTH: '/api/account/auth',
+  ACCOUNT_QUOTA: '/api/account/quota',
 };
 /**
  * Default configuration values
  */
 export const DEFAULT_CONFIG = {
-    DEFAULT_MODEL: 'gpt-4.1',
-    DEFAULT_PORT: 3847,
-    DEFAULT_HOST: 'localhost',
-    REQUEST_TIMEOUT_MS: 60000,
-    STREAM_TIMEOUT_MS: 300000,
+  DEFAULT_MODEL: 'gpt-4.1',
+  DEFAULT_PORT: 3847,
+  DEFAULT_HOST: 'localhost',
+  REQUEST_TIMEOUT_MS: 60000,
+  STREAM_TIMEOUT_MS: 300000,
 };
 //# sourceMappingURL=api.contracts.js.map

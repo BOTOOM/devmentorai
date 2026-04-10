@@ -1,18 +1,18 @@
+import { JSDOM } from 'jsdom';
 /**
  * Unit tests for context-extractor.ts
  * Tests privacy masking, UI state analysis, and helper functions
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { JSDOM } from 'jsdom';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // We'll test the exported functions that don't require full browser APIs
 import {
-  maskSensitiveData,
   analyzeUIState,
+  clearCapturedRuntimeErrors,
+  getCapturedRuntimeErrors,
+  maskSensitiveData,
   startRuntimeErrorCapture,
   stopRuntimeErrorCapture,
-  getCapturedRuntimeErrors,
-  clearCapturedRuntimeErrors,
 } from '../src/lib/context-extractor';
 
 describe('context-extractor', () => {
@@ -30,7 +30,8 @@ describe('context-extractor', () => {
     });
 
     it('should mask JWT tokens', () => {
-      const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+      const jwt =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
       const input = `Bearer ${jwt}`;
       const result = maskSensitiveData(input);
       expect(result).toContain('[JWT_REDACTED]');
@@ -43,7 +44,8 @@ describe('context-extractor', () => {
     });
 
     it('should mask Azure resource IDs', () => {
-      const input = 'Resource: /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/myRG/providers/Microsoft.Compute/virtualMachines/myVM';
+      const input =
+        'Resource: /subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/myRG/providers/Microsoft.Compute/virtualMachines/myVM';
       const result = maskSensitiveData(input);
       expect(result).toContain('[AZURE_RESOURCE_REDACTED]');
     });
@@ -107,7 +109,8 @@ describe('context-extractor', () => {
     });
 
     it('should handle multiple different types of sensitive data', () => {
-      const input = 'User john@test.com with SSN 123-45-6789 has API key api_key=mysecretkey12345678901234567890';
+      const input =
+        'User john@test.com with SSN 123-45-6789 has API key api_key=mysecretkey12345678901234567890';
       const result = maskSensitiveData(input);
       expect(result).toContain('[EMAIL_REDACTED]');
       expect(result).toContain('[SSN_REDACTED]');
@@ -126,7 +129,7 @@ describe('context-extractor', () => {
       });
       originalDocument = globalThis.document;
       originalWindow = globalThis.window;
-      
+
       // Setup global document and window for the tests
       (globalThis as any).document = dom.window.document;
       (globalThis as any).window = dom.window;
@@ -143,7 +146,7 @@ describe('context-extractor', () => {
         <div class="skeleton">...</div>
         <div aria-busy="true">Processing</div>
       `;
-      
+
       const result = analyzeUIState();
       expect(result.loadingIndicators).toBeGreaterThan(0);
       expect(result.pageState).toBe('loading');
@@ -155,7 +158,7 @@ describe('context-extractor', () => {
         <button disabled>Cancel</button>
         <input type="submit" disabled value="Go" />
       `;
-      
+
       const result = analyzeUIState();
       expect(result.disabledButtons).toBe(3);
     });
@@ -165,7 +168,7 @@ describe('context-extractor', () => {
         <div class="empty-state">No data available</div>
         <div class="no-results">0 results found</div>
       `;
-      
+
       const result = analyzeUIState();
       expect(result.emptyStates).toBeGreaterThan(0);
     });
@@ -175,7 +178,7 @@ describe('context-extractor', () => {
         <div class="error-state">Something went wrong</div>
         <div class="error-boundary">Error occurred</div>
       `;
-      
+
       const result = analyzeUIState();
       expect(result.errorStates).toBeGreaterThan(0);
       expect(result.pageState).toBe('error');
@@ -186,7 +189,7 @@ describe('context-extractor', () => {
         <div class="toast">Message sent</div>
         <div role="alert">Warning!</div>
       `;
-      
+
       const result = analyzeUIState();
       expect(result.toastNotifications).toBeGreaterThan(0);
     });
@@ -195,7 +198,7 @@ describe('context-extractor', () => {
       document.body.innerHTML = `
         <div role="dialog" aria-modal="true">Modal content</div>
       `;
-      
+
       const result = analyzeUIState();
       expect(result.modalOpen).toBe(true);
     });
@@ -205,7 +208,7 @@ describe('context-extractor', () => {
         <input type="text" aria-invalid="true" />
         <div class="validation-error">Required field</div>
       `;
-      
+
       const result = analyzeUIState();
       expect(result.formValidationErrors).toBeGreaterThan(0);
     });
@@ -219,7 +222,7 @@ describe('context-extractor', () => {
         <textarea></textarea>
         <select><option>Option</option></select>
       `;
-      
+
       const result = analyzeUIState();
       expect(result.interactiveElements.buttons).toBe(2);
       expect(result.interactiveElements.links).toBe(1);
@@ -232,7 +235,7 @@ describe('context-extractor', () => {
         <p>This is a normal page.</p>
         <button>Click me</button>
       `;
-      
+
       // jsdom's document.readyState is 'complete' by default
       const result = analyzeUIState();
       expect(result.pageState).toBe('normal');
@@ -250,7 +253,7 @@ describe('context-extractor', () => {
       });
       originalWindow = globalThis.window;
       (globalThis as any).window = dom.window;
-      
+
       // Clear any previously captured errors
       clearCapturedRuntimeErrors();
     });
@@ -277,7 +280,7 @@ describe('context-extractor', () => {
       if (window.onerror) {
         (window.onerror as any)('Test error', 'test.js', 1, 1, new Error('Test'));
       }
-      
+
       clearCapturedRuntimeErrors();
       const errors = getCapturedRuntimeErrors();
       expect(errors).toEqual([]);
@@ -285,12 +288,12 @@ describe('context-extractor', () => {
 
     it('should capture errors when capture is active', () => {
       startRuntimeErrorCapture();
-      
+
       // Trigger onerror manually
       if (window.onerror) {
         (window.onerror as any)('Test error message', 'script.js', 10, 5, new Error('Test'));
       }
-      
+
       const errors = getCapturedRuntimeErrors();
       expect(errors.length).toBe(1);
       expect(errors[0].message).toBe('Test error message');
@@ -302,7 +305,7 @@ describe('context-extractor', () => {
 
     it('should capture unhandled promise rejections', () => {
       startRuntimeErrorCapture();
-      
+
       // Trigger onunhandledrejection manually
       if (window.onunhandledrejection) {
         const event = {
@@ -310,7 +313,7 @@ describe('context-extractor', () => {
         } as PromiseRejectionEvent;
         (window.onunhandledrejection as any)(event);
       }
-      
+
       const errors = getCapturedRuntimeErrors();
       expect(errors.length).toBe(1);
       expect(errors[0].message).toBe('Promise rejected');
@@ -320,13 +323,13 @@ describe('context-extractor', () => {
     it('should not capture errors after stopping', () => {
       startRuntimeErrorCapture();
       stopRuntimeErrorCapture();
-      
+
       // Try to trigger an error
       const originalOnerror = window.onerror;
       if (originalOnerror) {
         (originalOnerror as any)('Should not be captured', 'test.js', 1, 1, null);
       }
-      
+
       const errors = getCapturedRuntimeErrors();
       // Errors shouldn't be added after stopping
       expect(errors.length).toBe(0);

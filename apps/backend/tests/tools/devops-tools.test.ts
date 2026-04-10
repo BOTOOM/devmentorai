@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as os from 'os';
-import { 
-  readFileTool, 
-  listDirectoryTool, 
-  analyzeConfigTool, 
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  analyzeConfigTool,
   analyzeErrorTool,
   devopsTools,
   getToolByName,
+  listDirectoryTool,
+  readFileTool,
 } from '../../src/tools/devops-tools.js';
 
 describe('DevOps Tools', () => {
@@ -17,9 +17,9 @@ describe('DevOps Tools', () => {
 
   beforeAll(async () => {
     // Create temp test directory
-    testDir = path.join(os.tmpdir(), 'devmentorai-test-' + Date.now());
+    testDir = path.join(os.tmpdir(), `devmentorai-test-${Date.now()}`);
     await fs.mkdir(testDir, { recursive: true });
-    
+
     // Create test file
     testFile = path.join(testDir, 'test.txt');
     await fs.writeFile(testFile, 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5');
@@ -101,9 +101,9 @@ spec:
   - name: test
     image: nginx:latest
 `;
-      const result = await analyzeConfigTool.handler({ 
-        content: k8sConfig, 
-        type: 'kubernetes' 
+      const result = await analyzeConfigTool.handler({
+        content: k8sConfig,
+        type: 'kubernetes',
       });
       expect(result).toContain('kubernetes');
       expect(result).toContain(':latest');
@@ -116,9 +116,9 @@ kind: Service
 metadata:
   name: my-service
 `;
-      const result = await analyzeConfigTool.handler({ 
-        content: k8sConfig, 
-        type: 'auto' 
+      const result = await analyzeConfigTool.handler({
+        content: k8sConfig,
+        type: 'auto',
       });
       expect(result).toContain('kubernetes');
     });
@@ -133,9 +133,9 @@ RUN apt-get install -y vim
 RUN apt-get install -y git
 COPY . /app
 `;
-      const result = await analyzeConfigTool.handler({ 
-        content: dockerfile, 
-        type: 'docker' 
+      const result = await analyzeConfigTool.handler({
+        content: dockerfile,
+        type: 'docker',
       });
       expect(result).toContain('docker');
       expect(result).toContain(':latest');
@@ -154,9 +154,9 @@ resource "aws_instance" "example" {
   instance_type = "t2.micro"
 }
 `;
-      const result = await analyzeConfigTool.handler({ 
-        content: tfConfig, 
-        type: 'terraform' 
+      const result = await analyzeConfigTool.handler({
+        content: tfConfig,
+        type: 'terraform',
       });
       expect(result).toContain('terraform');
       expect(result).toContain('version constraints');
@@ -174,9 +174,9 @@ jobs:
     - run: npm install
     - run: npm test
 `;
-      const result = await analyzeConfigTool.handler({ 
-        content: workflow, 
-        type: 'github-actions' 
+      const result = await analyzeConfigTool.handler({
+        content: workflow,
+        type: 'github-actions',
       });
       expect(result).toContain('github-actions');
       expect(result).toContain('version pinning');

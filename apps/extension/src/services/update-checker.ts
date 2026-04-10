@@ -4,9 +4,9 @@
  * the extension and the backend.
  */
 
-import { checkForUpdate, clearUpdateCache, type UpdateInfo } from '@devmentorai/shared';
-import { EXTENSION_VERSION } from '../version.js';
+import { type UpdateInfo, checkForUpdate, clearUpdateCache } from '@devmentorai/shared';
 import { storageGet, storageSet } from '../lib/browser-utils';
+import { EXTENSION_VERSION } from '../version.js';
 
 const CHECK_INTERVAL_HOURS = 6;
 const ALARM_NAME = 'devmentorai-update-check';
@@ -112,6 +112,4 @@ export async function dismissUpdateBadge(): Promise<void> {
   // No-op in Firefox build to avoid unsupported badge API warnings.
 }
 
-
-
-export {EXTENSION_VERSION} from '../version.js';
+export { EXTENSION_VERSION } from '../version.js';

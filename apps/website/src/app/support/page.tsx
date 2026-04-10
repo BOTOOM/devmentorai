@@ -1,16 +1,16 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { LifeBuoy, ArrowRight, Github } from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { CTASection } from "@/components/sections/CTASection";
-import { Badge } from "@/components/ui/Badge";
+import { CTASection } from '@/components/sections/CTASection';
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
+import { ArrowRight, Github, LifeBuoy } from 'lucide-react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-const ISSUES_URL = "https://github.com/BOTOOM/devmentorai/issues";
+const ISSUES_URL = 'https://github.com/BOTOOM/devmentorai/issues';
 
 export const metadata: Metadata = {
-  title: "Support",
+  title: 'Support',
   description:
-    "Get support, report bugs, and request features through the official DevMentorAI GitHub Issues board.",
+    'Get support, report bugs, and request features through the official DevMentorAI GitHub Issues board.',
 };
 
 export default function SupportPage() {
@@ -30,7 +30,8 @@ export default function SupportPage() {
         <div className="rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-6 shadow-lg sm:p-8">
           <h2 className="mb-3 text-xl font-bold sm:text-2xl">Where to ask for help</h2>
           <p className="mb-5 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            If you need technical help or want to propose a new feature, open an issue in the repository. Include context, screenshots, and reproduction steps when possible.
+            If you need technical help or want to propose a new feature, open an issue in the
+            repository. Include context, screenshots, and reproduction steps when possible.
           </p>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

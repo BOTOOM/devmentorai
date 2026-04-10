@@ -1,14 +1,21 @@
 /**
  * Activity View Component
- * 
+ *
  * Displays Copilot activity states and tool executions for transparency.
  * Shows processing indicators, running tools, and errors.
  */
 
+import { Brain, CheckCircle, ChevronDown, ChevronUp, Loader2, Wrench, XCircle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-import { Loader2, CheckCircle, XCircle, Wrench, Brain, ChevronDown, ChevronUp } from 'lucide-react';
 
-export type ActivityStatus = 'idle' | 'thinking' | 'processing' | 'tool_running' | 'streaming' | 'complete' | 'error';
+export type ActivityStatus =
+  | 'idle'
+  | 'thinking'
+  | 'processing'
+  | 'tool_running'
+  | 'streaming'
+  | 'complete'
+  | 'error';
 
 export interface ToolExecution {
   id: string;
@@ -33,50 +40,53 @@ interface ActivityViewProps {
   compact?: boolean;
 }
 
-const statusConfig: Record<ActivityStatus, { icon: React.ReactNode; label: string; color: string }> = {
+const statusConfig: Record<
+  ActivityStatus,
+  { icon: React.ReactNode; label: string; color: string }
+> = {
   idle: { icon: null, label: '', color: 'text-muted-foreground' },
-  thinking: { 
-    icon: <Brain className="w-4 h-4 animate-pulse" />, 
-    label: 'Thinking...', 
-    color: 'text-purple-500' 
+  thinking: {
+    icon: <Brain className="w-4 h-4 animate-pulse" />,
+    label: 'Thinking...',
+    color: 'text-purple-500',
   },
-  processing: { 
-    icon: <Loader2 className="w-4 h-4 animate-spin" />, 
-    label: 'Processing...', 
-    color: 'text-blue-500' 
+  processing: {
+    icon: <Loader2 className="w-4 h-4 animate-spin" />,
+    label: 'Processing...',
+    color: 'text-blue-500',
   },
-  tool_running: { 
-    icon: <Wrench className="w-4 h-4 animate-bounce" />, 
-    label: 'Running tool...', 
-    color: 'text-orange-500' 
+  tool_running: {
+    icon: <Wrench className="w-4 h-4 animate-bounce" />,
+    label: 'Running tool...',
+    color: 'text-orange-500',
   },
-  streaming: { 
-    icon: <Loader2 className="w-4 h-4 animate-spin" />, 
-    label: 'Generating response...', 
-    color: 'text-green-500' 
+  streaming: {
+    icon: <Loader2 className="w-4 h-4 animate-spin" />,
+    label: 'Generating response...',
+    color: 'text-green-500',
   },
-  complete: { 
-    icon: <CheckCircle className="w-4 h-4" />, 
-    label: 'Complete', 
-    color: 'text-green-500' 
+  complete: {
+    icon: <CheckCircle className="w-4 h-4" />,
+    label: 'Complete',
+    color: 'text-green-500',
   },
-  error: { 
-    icon: <XCircle className="w-4 h-4" />, 
-    label: 'Error', 
-    color: 'text-red-500' 
+  error: {
+    icon: <XCircle className="w-4 h-4" />,
+    label: 'Error',
+    color: 'text-red-500',
   },
 };
 
-export function ActivityView({ activity, compact = false }: ActivityViewProps): React.ReactElement | null {
+export function ActivityView({
+  activity,
+  compact = false,
+}: Readonly<ActivityViewProps>): React.ReactElement | null {
   const [expanded, setExpanded] = useState(false);
   const [showThinking, setShowThinking] = useState(false);
-  
+
   const { status, message, toolExecutions, thinkingContent } = activity;
   const config = statusConfig[status];
-  
-  // Don't render if idle
-  if (status === 'idle') return null;
-  
+
   // Auto-collapse after completion
   useEffect(() => {
     if (status === 'complete') {
@@ -84,7 +94,10 @@ export function ActivityView({ activity, compact = false }: ActivityViewProps): 
       return () => clearTimeout(timer);
     }
   }, [status]);
-  
+
+  // Don't render if idle
+  if (status === 'idle') return null;
+
   if (compact) {
     return (
       <div className={`flex items-center gap-2 text-sm ${config.color}`}>
@@ -93,16 +106,17 @@ export function ActivityView({ activity, compact = false }: ActivityViewProps): 
       </div>
     );
   }
-  
-  const runningTools = toolExecutions.filter(t => t.status === 'running');
-  const completedTools = toolExecutions.filter(t => t.status === 'completed');
-  const failedTools = toolExecutions.filter(t => t.status === 'error');
-  
+
+  const runningTools = toolExecutions.filter((t) => t.status === 'running');
+  const completedTools = toolExecutions.filter((t) => t.status === 'completed');
+  const failedTools = toolExecutions.filter((t) => t.status === 'error');
+
   return (
     <div className="bg-secondary/50 rounded-lg p-3 text-sm">
       {/* Status Header */}
-      <div 
-        className={`flex items-center justify-between cursor-pointer ${config.color}`}
+      <button
+        type="button"
+        className={`flex w-full items-center justify-between cursor-pointer ${config.color}`}
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2">
@@ -119,22 +133,27 @@ export function ActivityView({ activity, compact = false }: ActivityViewProps): 
           )}
           {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </div>
-      </div>
-      
+      </button>
+
       {/* Expanded Details */}
       {expanded && (
         <div className="mt-3 space-y-2">
           {/* Thinking Content (if available) */}
           {thinkingContent && (
             <div className="border border-purple-500/20 rounded p-2 bg-purple-500/5">
-              <div 
+              <button
+                type="button"
                 className="flex items-center gap-1 text-purple-500 text-xs cursor-pointer"
                 onClick={() => setShowThinking(!showThinking)}
               >
                 <Brain className="w-3 h-3" />
                 <span>Reasoning</span>
-                {showThinking ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </div>
+                {showThinking ? (
+                  <ChevronUp className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )}
+              </button>
               {showThinking && (
                 <div className="mt-2 text-xs text-muted-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">
                   {thinkingContent}
@@ -142,7 +161,7 @@ export function ActivityView({ activity, compact = false }: ActivityViewProps): 
               )}
             </div>
           )}
-          
+
           {/* Tool Executions */}
           {toolExecutions.length > 0 && (
             <div className="space-y-1">
@@ -162,31 +181,32 @@ interface ToolExecutionItemProps {
   tool: ToolExecution;
 }
 
-function ToolExecutionItem({ tool }: ToolExecutionItemProps): React.ReactElement {
+function ToolExecutionItem({ tool }: Readonly<ToolExecutionItemProps>): React.ReactElement {
   const [showDetails, setShowDetails] = useState(false);
-  
+
   const statusColors = {
     pending: 'text-muted-foreground',
     running: 'text-orange-500',
     completed: 'text-green-500',
     error: 'text-red-500',
   };
-  
+
   const statusIcons = {
     pending: <Loader2 className="w-3 h-3" />,
     running: <Loader2 className="w-3 h-3 animate-spin" />,
     completed: <CheckCircle className="w-3 h-3" />,
     error: <XCircle className="w-3 h-3" />,
   };
-  
-  const duration = tool.completedAt 
+
+  const duration = tool.completedAt
     ? `${((tool.completedAt.getTime() - tool.startedAt.getTime()) / 1000).toFixed(1)}s`
     : null;
-  
+
   return (
     <div className="border border-border rounded p-2 bg-background/50">
-      <div 
-        className="flex items-center justify-between cursor-pointer"
+      <button
+        type="button"
+        className="flex w-full items-center justify-between cursor-pointer"
         onClick={() => setShowDetails(!showDetails)}
       >
         <div className="flex items-center gap-2">
@@ -197,16 +217,14 @@ function ToolExecutionItem({ tool }: ToolExecutionItemProps): React.ReactElement
           {duration && <span>{duration}</span>}
           {showDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         </div>
-      </div>
-      
+      </button>
+
       {showDetails && (
         <div className="mt-2 space-y-1 text-xs">
           {tool.input && (
             <div>
               <span className="text-muted-foreground">Input: </span>
-              <code className="bg-muted px-1 rounded">
-                {JSON.stringify(tool.input, null, 2)}
-              </code>
+              <code className="bg-muted px-1 rounded">{JSON.stringify(tool.input, null, 2)}</code>
             </div>
           )}
           {tool.output && (
@@ -233,48 +251,49 @@ function ToolExecutionItem({ tool }: ToolExecutionItemProps): React.ReactElement
 /**
  * Hook to manage activity state
  */
-export function useActivityState(): [ActivityState, {
-  setStatus: (status: ActivityStatus, message?: string) => void;
-  setThinking: (content: string) => void;
-  addToolExecution: (tool: Omit<ToolExecution, 'id'>) => string;
-  updateToolExecution: (id: string, updates: Partial<ToolExecution>) => void;
-  reset: () => void;
-}] {
+export function useActivityState(): [
+  ActivityState,
+  {
+    setStatus: (status: ActivityStatus, message?: string) => void;
+    setThinking: (content: string) => void;
+    addToolExecution: (tool: Omit<ToolExecution, 'id'>) => string;
+    updateToolExecution: (id: string, updates: Partial<ToolExecution>) => void;
+    reset: () => void;
+  },
+] {
   const [activity, setActivity] = useState<ActivityState>({
     status: 'idle',
     toolExecutions: [],
   });
-  
+
   const setStatus = (status: ActivityStatus, message?: string) => {
-    setActivity(prev => ({ ...prev, status, message }));
+    setActivity((prev) => ({ ...prev, status, message }));
   };
-  
+
   const setThinking = (content: string) => {
-    setActivity(prev => ({ ...prev, thinkingContent: content }));
+    setActivity((prev) => ({ ...prev, thinkingContent: content }));
   };
-  
+
   const addToolExecution = (tool: Omit<ToolExecution, 'id'>): string => {
     const id = `tool_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    setActivity(prev => ({
+    setActivity((prev) => ({
       ...prev,
       toolExecutions: [...prev.toolExecutions, { ...tool, id }],
     }));
     return id;
   };
-  
+
   const updateToolExecution = (id: string, updates: Partial<ToolExecution>) => {
-    setActivity(prev => ({
+    setActivity((prev) => ({
       ...prev,
-      toolExecutions: prev.toolExecutions.map(t => 
-        t.id === id ? { ...t, ...updates } : t
-      ),
+      toolExecutions: prev.toolExecutions.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     }));
   };
-  
+
   const reset = () => {
     setActivity({ status: 'idle', toolExecutions: [] });
   };
-  
+
   return [activity, { setStatus, setThinking, addToolExecution, updateToolExecution, reset }];
 }
 

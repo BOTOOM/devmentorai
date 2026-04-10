@@ -1,17 +1,17 @@
 /**
  * ImageAttachmentZone Component
- * 
+ *
  * Expandable area above the chat input for managing image attachments.
  * Supports drag & drop, displays thumbnails, and allows removal.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { ImagePlus, X, AlertCircle, Camera } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { ImageThumbnail } from './ImageThumbnail';
-import { ImageLightbox } from './ImageLightbox';
 import { IMAGE_CONSTANTS } from '@devmentorai/shared';
+import { AlertCircle, Camera, ImagePlus, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DraftImage } from '../hooks/useImageAttachments';
+import { cn } from '../lib/utils';
+import { ImageLightbox } from './ImageLightbox';
+import { ImageThumbnail } from './ImageThumbnail';
 
 interface ImageAttachmentZoneProps {
   /** Current draft images */
@@ -50,7 +50,7 @@ export function ImageAttachmentZone({
   onCaptureScreenshot,
   isCapturingScreenshot = false,
   showScreenshotButton = false,
-}: ImageAttachmentZoneProps) {
+}: Readonly<ImageAttachmentZoneProps>) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -59,21 +59,24 @@ export function ImageAttachmentZone({
   const showZone = hasImages || isDragOver;
 
   // Handle drag events
-  const handleDragEnter = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!enabled || isAtLimit) return;
-    
-    // Check if dragging files
-    if (e.dataTransfer?.types.includes('Files')) {
-      setIsDragOver(true);
-    }
-  }, [enabled, isAtLimit]);
+  const handleDragEnter = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!enabled || isAtLimit) return;
+
+      // Check if dragging files
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDragOver(true);
+      }
+    },
+    [enabled, isAtLimit]
+  );
 
   const handleDragLeave = useCallback((e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Only hide if leaving the drop zone entirely
     const relatedTarget = e.relatedTarget as Node | null;
     if (!dropZoneRef.current?.contains(relatedTarget)) {
@@ -86,14 +89,17 @@ export function ImageAttachmentZone({
     e.stopPropagation();
   }, []);
 
-  const handleDrop = useCallback(async (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-    
-    if (!enabled) return;
-    await onDrop(e);
-  }, [enabled, onDrop]);
+  const handleDrop = useCallback(
+    async (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragOver(false);
+
+      if (!enabled) return;
+      await onDrop(e);
+    },
+    [enabled, onDrop]
+  );
 
   // Set up drag event listeners on the document for global drop detection
   useEffect(() => {
@@ -156,6 +162,7 @@ export function ImageAttachmentZone({
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="flex-1">{error}</span>
               <button
+                type="button"
                 onClick={onClearError}
                 className="p-0.5 hover:bg-red-100 dark:hover:bg-red-800/50 rounded"
               >
@@ -170,7 +177,9 @@ export function ImageAttachmentZone({
               <ImagePlus className="w-8 h-8 mb-2" />
               <p className="text-sm font-medium">Drop images here</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {IMAGE_CONSTANTS.SUPPORTED_MIME_TYPES.map(t => t.split('/')[1].toUpperCase()).join(', ')}
+                {IMAGE_CONSTANTS.SUPPORTED_MIME_TYPES.map((t) =>
+                  t.split('/')[1].toUpperCase()
+                ).join(', ')}
               </p>
             </div>
           ) : (
@@ -208,24 +217,25 @@ export function ImageAttachmentZone({
 
               {/* Screenshot buttons */}
               {showScreenshotButton && onCaptureScreenshot && !isAtLimit && (
-                <>
-                  <button
-                    onClick={() => onCaptureScreenshot('visible')}
-                    disabled={isCapturingScreenshot}
-                    className={cn(
-                      'w-16 h-16 rounded-lg border-2',
-                      'border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500',
-                      'flex flex-col items-center justify-center',
-                      'text-gray-500 dark:text-gray-400 hover:text-primary-500 text-xs',
-                      'transition-colors',
-                      isCapturingScreenshot && 'opacity-50 cursor-not-allowed'
-                    )}
-                    title="Capture visible screen"
-                  >
-                    <Camera className={cn('w-5 h-5 mb-0.5', isCapturingScreenshot && 'animate-pulse')} />
-                    <span>Screen</span>
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => onCaptureScreenshot('visible')}
+                  disabled={isCapturingScreenshot}
+                  className={cn(
+                    'w-16 h-16 rounded-lg border-2',
+                    'border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500',
+                    'flex flex-col items-center justify-center',
+                    'text-gray-500 dark:text-gray-400 hover:text-primary-500 text-xs',
+                    'transition-colors',
+                    isCapturingScreenshot && 'opacity-50 cursor-not-allowed'
+                  )}
+                  title="Capture visible screen"
+                >
+                  <Camera
+                    className={cn('w-5 h-5 mb-0.5', isCapturingScreenshot && 'animate-pulse')}
+                  />
+                  <span>Screen</span>
+                </button>
               )}
             </div>
           )}
@@ -249,7 +259,7 @@ export function ImageAttachmentZone({
       {/* Lightbox */}
       {lightboxIndex !== null && (
         <ImageLightbox
-          images={images.map(img => ({
+          images={images.map((img) => ({
             thumbnailSrc: img.dataUrl,
             alt: `Attachment from ${img.source}`,
             source: img.source,

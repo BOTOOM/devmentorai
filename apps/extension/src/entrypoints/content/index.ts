@@ -3,27 +3,31 @@
  * Handles text selection, floating bubble, quick action toolbar, and context extraction
  */
 
-import { createFloatingBubble, removeFloatingBubble } from './FloatingBubble';
-import { createSelectionToolbar, removeSelectionToolbar } from './SelectionToolbar';
+import type {
+  QuickActionStreamMessage,
+  SelectionContext,
+  TextReplacementBehavior,
+} from '@devmentorai/shared';
+import { storageGet } from '../../lib/browser-utils';
 import {
-  createFloatingResponsePopup,
-  updateFloatingResponseContent,
-  showFloatingResponseError,
-  isFloatingResponsePopupVisible,
-  showSuccessNotice,
-} from './FloatingResponsePopup';
-import { 
-  extractContext, 
-  detectPlatform, 
+  detectPlatform,
+  extractContext,
   extractErrors,
-  startRuntimeErrorCapture,
   startConsoleCapture,
   startNetworkErrorCapture,
+  startRuntimeErrorCapture,
 } from '../../lib/context-extractor';
-import { storageGet } from '../../lib/browser-utils';
 import { detectSelection } from '../../lib/selection-detector';
 import { replaceSelectedText } from '../../lib/text-replacer';
-import type { SelectionContext, TextReplacementBehavior, QuickActionStreamMessage } from '@devmentorai/shared';
+import { createFloatingBubble, removeFloatingBubble } from './FloatingBubble';
+import {
+  createFloatingResponsePopup,
+  isFloatingResponsePopupVisible,
+  showFloatingResponseError,
+  showSuccessNotice,
+  updateFloatingResponseContent,
+} from './FloatingResponsePopup';
+import { createSelectionToolbar, removeSelectionToolbar } from './SelectionToolbar';
 
 const QUICK_ACTION_CONNECTION_HINT = 'Please check if the local DevMentorAI server is running.';
 
@@ -63,7 +67,7 @@ export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
   cssInjectionMode: 'ui',
-  
+
   main() {
     console.log('[DevMentorAI] Content script loaded on:', globalThis.location.href);
 
@@ -83,7 +87,7 @@ export default defineContentScript({
     let currentSelectionContext: SelectionContext | null = null;
     let currentTextReplacementBehavior: TextReplacementBehavior = 'ask';
     let lastSelectionRect: DOMRect | null = null;
-    
+
     // Store pending action context - preserved even when toolbar is dismissed
     let pendingQuickActionContext: SelectionContext | null = null;
     let pendingQuickActionRect: DOMRect | null = null;
@@ -91,13 +95,13 @@ export default defineContentScript({
     // Unified message listener for all message types
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       console.log('[DevMentorAI] Received message:', message.type);
-      
+
       // Health check ping - used to verify content script is loaded
       if (message.type === 'PING') {
         sendResponse({ pong: true });
         return true;
       }
-      
+
       // Context extraction
       if (message.type === 'EXTRACT_CONTEXT') {
         try {
@@ -113,21 +117,21 @@ export default defineContentScript({
         }
         return true;
       }
-      
+
       // Platform detection
       if (message.type === 'GET_PLATFORM') {
         const platform = detectPlatform();
         sendResponse({ platform });
         return true;
       }
-      
+
       // Error extraction
       if (message.type === 'GET_ERRORS') {
         const errors = extractErrors();
         sendResponse({ errors });
         return true;
       }
-      
+
       // Selection retrieval (enhanced with editable context)
       if (message.type === 'GET_SELECTION') {
         const selectionContext = detectSelection();
@@ -137,7 +141,7 @@ export default defineContentScript({
         });
         return true;
       }
-      
+
       // Floating bubble toggle
       if (message.type === 'TOGGLE_BUBBLE') {
         if (isBubbleVisible) {
@@ -150,7 +154,7 @@ export default defineContentScript({
         sendResponse({ visible: isBubbleVisible });
         return true;
       }
-      
+
       // Page context (lightweight)
       if (message.type === 'GET_PAGE_CONTEXT') {
         const selectionContext = detectSelection();
@@ -168,14 +172,14 @@ export default defineContentScript({
         // Use pending context first, fallback to current
         const contextToUse = pendingQuickActionContext || currentSelectionContext;
         const rectToUse = pendingQuickActionRect || lastSelectionRect;
-        
-        console.log('[DevMentorAI] Stream START received', { 
-          hasContext: !!contextToUse, 
+
+        console.log('[DevMentorAI] Stream START received', {
+          hasContext: !!contextToUse,
           hasRect: !!rectToUse,
           isReplaceable: contextToUse?.isReplaceable,
           usedPending: !!pendingQuickActionContext,
         });
-        
+
         const streamMsg = message as QuickActionStreamMessage;
         if (streamMsg.type === 'QUICK_ACTION_STREAM_START' && contextToUse && rectToUse) {
           // Hide toolbar immediately
@@ -195,7 +199,7 @@ export default defineContentScript({
             }
           );
           console.log('[DevMentorAI] Popup created');
-          
+
           // Clear pending since we've used it
           pendingQuickActionContext = null;
           pendingQuickActionRect = null;
@@ -205,7 +209,7 @@ export default defineContentScript({
         sendResponse({ success: true });
         return true;
       }
-      
+
       if (message.type === 'QUICK_ACTION_STREAM_DELTA') {
         console.log('[DevMentorAI] Stream DELTA received, length:', message.fullContent?.length);
         const streamMsg = message as QuickActionStreamMessage;
@@ -215,13 +219,16 @@ export default defineContentScript({
         sendResponse({ success: true });
         return true;
       }
-      
+
       if (message.type === 'QUICK_ACTION_STREAM_COMPLETE') {
-        console.log('[DevMentorAI] Stream COMPLETE received, length:', message.finalContent?.length);
+        console.log(
+          '[DevMentorAI] Stream COMPLETE received, length:',
+          message.finalContent?.length
+        );
         const streamMsg = message as QuickActionStreamMessage;
         if (streamMsg.type === 'QUICK_ACTION_STREAM_COMPLETE') {
           updateFloatingResponseContent(streamMsg.finalContent, false);
-          
+
           // Handle auto-replace behavior
           if (currentTextReplacementBehavior === 'auto' && currentSelectionContext) {
             handleAutoReplace(streamMsg.finalContent);
@@ -230,7 +237,7 @@ export default defineContentScript({
         sendResponse({ success: true });
         return true;
       }
-      
+
       if (message.type === 'QUICK_ACTION_STREAM_ERROR') {
         console.log('[DevMentorAI] Stream ERROR received:', message.error);
         const streamMsg = message as QuickActionStreamMessage;
@@ -248,9 +255,9 @@ export default defineContentScript({
     // Handle auto-replace when behavior is set to 'auto'
     async function handleAutoReplace(content: string) {
       if (!currentSelectionContext) return;
-      
+
       const result = await replaceSelectedText(currentSelectionContext, content);
-      
+
       if (result.success) {
         showSuccessNotice('Text replaced ✓');
       } else if (result.copiedToClipboard) {
@@ -276,19 +283,19 @@ export default defineContentScript({
       const path = e.composedPath?.() || [];
       const clickedInsideToolbar = !!toolbar && path.includes(toolbar);
       const clickedInsidePopup = !!popup && path.includes(popup);
-      
+
       // Small delay to ensure selection is complete
       setTimeout(() => {
         // If toolbar is visible and click was inside it — don't recreate
         if (isToolbarVisible && (clickedInsideToolbar || clickedInsidePopup)) {
           return;
         }
-        
+
         if (isToolbarVisible) {
           // Click was outside toolbar — check if there's a new selection
           const selection = globalThis.getSelection?.() ?? null;
           const selectedText = selection?.toString().trim() || '';
-          
+
           if (selectedText.length > 3) {
             // New selection — recreate toolbar at new position
             const range = selection?.getRangeAt(0);
@@ -309,7 +316,7 @@ export default defineContentScript({
           }
           return;
         }
-        
+
         // No toolbar visible yet — check if we should show one
         const selection = globalThis.getSelection?.() ?? null;
         const selectedText = selection?.toString().trim() || '';
@@ -339,11 +346,11 @@ export default defineContentScript({
           if (range) {
             const rect = range.getBoundingClientRect();
             lastSelectionRect = rect;
-            
+
             // Detect editable context
             const selectionContext = detectSelection();
             currentSelectionContext = selectionContext;
-            
+
             showToolbar(rect, selectedText, selectionContext);
             isToolbarVisible = true;
           }
@@ -359,7 +366,7 @@ export default defineContentScript({
         const path = e.composedPath?.() || [];
         const isClickInsideToolbar = !!toolbar && path.includes(toolbar);
         const isClickInsidePopup = !!popup && path.includes(popup);
-        
+
         if (!isClickInsideToolbar && !isClickInsidePopup) {
           removeSelectionToolbar();
           isToolbarVisible = false;
@@ -367,7 +374,12 @@ export default defineContentScript({
       }
     }
 
-    function showToolbar(rect: DOMRect, selectedText: string, selectionContext: SelectionContext | null, e?: MouseEvent) {
+    function showToolbar(
+      rect: DOMRect,
+      selectedText: string,
+      selectionContext: SelectionContext | null,
+      e?: MouseEvent
+    ) {
       // Position toolbar above selection
       const x = e ? e.clientX : rect.left + rect.width / 2;
       const y = rect.top - 10;
@@ -380,7 +392,11 @@ export default defineContentScript({
       });
     }
 
-    function handleQuickAction(action: string, selectedText: string, selectionContext: SelectionContext | null) {
+    function handleQuickAction(
+      action: string,
+      selectedText: string,
+      selectionContext: SelectionContext | null
+    ) {
       // Store the context for the pending quick action BEFORE sending
       // This ensures we have the context when STREAM_START arrives
       if (selectionContext?.isReplaceable && lastSelectionRect) {
@@ -388,7 +404,7 @@ export default defineContentScript({
         pendingQuickActionRect = lastSelectionRect;
         console.log('[DevMentorAI] Stored pending quick action context');
       }
-      
+
       // Send to background script with editable context
       chrome.runtime.sendMessage({
         type: 'QUICK_ACTION',
@@ -407,17 +423,13 @@ export default defineContentScript({
           showSelectionToolbar?: boolean;
           floatingBubbleEnabled?: boolean;
           textReplacementBehavior?: TextReplacementBehavior;
-        }>([
-          'showSelectionToolbar',
-          'floatingBubbleEnabled',
-          'textReplacementBehavior',
-        ]);
-        
+        }>(['showSelectionToolbar', 'floatingBubbleEnabled', 'textReplacementBehavior']);
+
         // Update text replacement behavior
         if (result.textReplacementBehavior) {
           currentTextReplacementBehavior = result.textReplacementBehavior;
         }
-        
+
         // Preferences loaded - toolbar enabled by default
         if (result.floatingBubbleEnabled) {
           createFloatingBubble();
@@ -431,11 +443,11 @@ export default defineContentScript({
     // Listen for settings changes
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== 'local') return;
-      
+
       if (changes.textReplacementBehavior) {
         currentTextReplacementBehavior = changes.textReplacementBehavior.newValue || 'ask';
       }
-      
+
       if (changes.floatingBubbleEnabled) {
         if (changes.floatingBubbleEnabled.newValue) {
           createFloatingBubble();

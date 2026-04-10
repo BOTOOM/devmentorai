@@ -1,6 +1,6 @@
-import type { FastifyInstance } from 'fastify';
 import type { ApiResponse } from '@devmentorai/shared';
-import { checkForUpdate, type UpdateInfo } from '@devmentorai/shared';
+import { type UpdateInfo, checkForUpdate } from '@devmentorai/shared';
+import type { FastifyInstance } from 'fastify';
 
 interface UpdatesResponse {
   backend: UpdateInfo;

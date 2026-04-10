@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Must use inline values in vi.mock factory (hoisted above variable declarations)
-const TEST_BASE = path.join(os.tmpdir(), 'devmentorai-test-' + process.pid);
+const TEST_BASE = path.join(os.tmpdir(), `devmentorai-test-${process.pid}`);
 
 vi.mock('../../src/lib/paths.js', () => {
   const _path = require('node:path');
   const _os = require('node:os');
   const _fs = require('node:fs');
-  const base = _path.join(_os.tmpdir(), 'devmentorai-test-' + process.pid);
+  const base = _path.join(_os.tmpdir(), `devmentorai-test-${process.pid}`);
   return {
     PID_FILE: _path.join(base, 'server.pid'),
     LOG_FILE: _path.join(base, 'logs', 'server.log'),
@@ -25,12 +25,12 @@ vi.mock('../../src/lib/paths.js', () => {
 });
 
 import {
-  writePid,
+  healthcheck,
+  isProcessRunning,
+  isServerRunning,
   readPid,
   removePid,
-  isProcessRunning,
-  healthcheck,
-  isServerRunning,
+  writePid,
 } from '../../src/lib/daemon.js';
 
 describe('daemon utilities', () => {

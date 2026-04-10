@@ -1,27 +1,28 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Header } from '../../components/Header';
-import { SessionSelector } from '../../components/SessionSelector';
-import { ChatView } from '../../components/ChatView';
-import { NewSessionModal } from '../../components/NewSessionModal';
-import { HelpModal } from '../../components/HelpModal';
-import { PageContextModal } from '../../components/PageContextModal';
-import { UpdateBanner } from '../../components/UpdateBanner';
-import { useBackendConnection } from '../../hooks/useBackendConnection';
-import { useSessions } from '../../hooks/useSessions';
-import { useChat } from '../../hooks/useChat';
-import { useSettings } from '../../hooks/useSettings';
-import { useContextExtraction } from '../../hooks/useContextExtraction';
-import { useUpdateChecker } from '../../hooks/useUpdateChecker';
-import { ApiClient } from '../../services/api-client';
 import type {
-  Session,
-  QuickAction,
-  MessageContext,
-  ImagePayload,
-  ModelInfo,
   CopilotAuthStatus,
   CopilotQuotaStatus,
+  ImagePayload,
+  MessageContext,
+  ModelInfo,
+  QuickAction,
+  Session,
 } from '@devmentorai/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChatView } from '../../components/ChatView';
+import { Header } from '../../components/Header';
+import { HelpModal } from '../../components/HelpModal';
+import { ModelSwitchModal } from '../../components/ModelSwitchModal';
+import { NewSessionModal } from '../../components/NewSessionModal';
+import { PageContextModal } from '../../components/PageContextModal';
+import { SessionSelector } from '../../components/SessionSelector';
+import { UpdateBanner } from '../../components/UpdateBanner';
+import { useBackendConnection } from '../../hooks/useBackendConnection';
+import { useChat } from '../../hooks/useChat';
+import { useContextExtraction } from '../../hooks/useContextExtraction';
+import { useSessions } from '../../hooks/useSessions';
+import { useSettings } from '../../hooks/useSettings';
+import { useUpdateChecker } from '../../hooks/useUpdateChecker';
+import { ApiClient } from '../../services/api-client';
 
 // Extend QuickAction to include tone variations
 type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
@@ -30,11 +31,12 @@ export function SidePanel() {
   const apiClient = ApiClient.getInstance();
 
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
-  const [showHelpModal, setShowHelpModal] = useState(false);         // D.2
+  const [showHelpModal, setShowHelpModal] = useState(false); // D.2
   const [showPageContextModal, setShowPageContextModal] = useState(false); // D.1
+  const [showModelSwitchModal, setShowModelSwitchModal] = useState(false);
   const [showScreenshotConfirm, setShowScreenshotConfirm] = useState(false);
   const [contextModeEnabled, setContextModeEnabled] = useState(false);
-  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
+  const [, setAvailableModels] = useState<ModelInfo[]>([]);
   const [authStatus, setAuthStatus] = useState<CopilotAuthStatus | null>(null);
   const [quotaStatus, setQuotaStatus] = useState<CopilotQuotaStatus | null>(null);
   const [isChangingModel, setIsChangingModel] = useState(false);
@@ -44,9 +46,11 @@ export function SidePanel() {
     pageUrl?: string;
     pageTitle?: string;
   } | null>(null);
-  
+
   // Ref to ChatView's addImage function (passed via callback)
-  const addImageToChatRef = useRef<((dataUrl: string, source: 'screenshot') => Promise<void>) | null>(null);
+  const addImageToChatRef = useRef<
+    ((dataUrl: string, source: 'screenshot') => Promise<void>) | null
+  >(null);
 
   // B.1 - Apply theme via settings hook
   const { settings } = useSettings();
@@ -59,18 +63,14 @@ export function SidePanel() {
     activeSession,
     isLoading: sessionsLoading,
     createSession,
-    updateSessionModel,
     selectSession,
     deleteSession,
+    refreshSessions,
   } = useSessions({ connectionStatus });
-  
-  const {
-    messages,
-    isStreaming,
-    isSending,
-    sendMessage,
-    abortMessage,
-  } = useChat(activeSession?.id);
+
+  const { messages, isStreaming, isSending, sendMessage, abortMessage } = useChat(
+    activeSession?.id
+  );
 
   // Context extraction hook
   const {
@@ -133,7 +133,7 @@ export function SidePanel() {
     const checkPendingAction = async () => {
       try {
         const response = await chrome.runtime.sendMessage({ type: 'GET_PENDING_ACTION' });
-        if (response && response.action && response.selectedText) {
+        if (response?.action && response.selectedText) {
           setPendingAction(response);
         }
       } catch (error) {
@@ -142,7 +142,7 @@ export function SidePanel() {
     };
 
     checkPendingAction();
-    
+
     // Also listen for storage changes (for quick actions from toolbar)
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.pendingAction?.newValue) {
@@ -150,7 +150,7 @@ export function SidePanel() {
         chrome.storage.local.remove('pendingAction');
       }
     };
-    
+
     chrome.storage.onChanged.addListener(handleStorageChange);
     return () => chrome.storage.onChanged.removeListener(handleStorageChange);
   }, []);
@@ -166,20 +166,29 @@ export function SidePanel() {
 
     if (pendingAction && activeSession && connectionStatus === 'connected') {
       console.log('[SidePanel] Processing pending action:', pendingAction.action);
-      
+
       const context: MessageContext = {
         selectedText: pendingAction.selectedText,
         pageUrl: pendingAction.pageUrl,
         pageTitle: pendingAction.pageTitle,
-        action: pendingAction.action.startsWith('rewrite_') ? 'rewrite' : pendingAction.action as QuickAction,
+        action: pendingAction.action.startsWith('rewrite_')
+          ? 'rewrite'
+          : (pendingAction.action as QuickAction),
       };
 
       // Get target language name for translation (B.3)
       const getLanguageName = (code: string) => {
         const languages: Record<string, string> = {
-          en: 'English', es: 'Spanish', fr: 'French', de: 'German',
-          pt: 'Portuguese', it: 'Italian', ja: 'Japanese', zh: 'Chinese',
-          ko: 'Korean', ru: 'Russian',
+          en: 'English',
+          es: 'Spanish',
+          fr: 'French',
+          de: 'German',
+          pt: 'Portuguese',
+          it: 'Italian',
+          ja: 'Japanese',
+          zh: 'Chinese',
+          ko: 'Korean',
+          ru: 'Russian',
         };
         return languages[code] || 'English';
       };
@@ -187,13 +196,15 @@ export function SidePanel() {
 
       // Build prompt based on action
       let prompt: string;
-      
+
       if (pendingAction.action === 'chat') {
         // Just open chat with context, user will type
         console.log('[SidePanel] Chat action, clearing pending');
         setPendingAction(null);
         return;
-      } else if (pendingAction.action.startsWith('rewrite_')) {
+      }
+
+      if (pendingAction.action.startsWith('rewrite_')) {
         const tone = pendingAction.action.replace('rewrite_', '');
         prompt = `Rewrite the following text in a ${tone} tone:\n\n${pendingAction.selectedText}`;
       } else {
@@ -204,7 +215,8 @@ export function SidePanel() {
           fix_grammar: 'Fix the grammar and spelling in the following:\n\n',
           summarize: 'Summarize the following:\n\n',
           expand: 'Expand on the following with more details:\n\n',
-          analyze_config: 'Analyze the following configuration for best practices and potential issues:\n\n',
+          analyze_config:
+            'Analyze the following configuration for best practices and potential issues:\n\n',
           diagnose_error: 'Diagnose the following error and suggest solutions:\n\n',
         };
         prompt = actionPrompts[pendingAction.action as QuickAction] + pendingAction.selectedText;
@@ -216,52 +228,58 @@ export function SidePanel() {
     }
   }, [pendingAction, activeSession, connectionStatus, sendMessage, settings.translationLanguage]);
 
-  const handleSendMessage = useCallback(async (content: string, useContext?: boolean, images?: ImagePayload[]) => {
-    if (useContext && activeSession?.id) {
-      // Extract context and send with full context payload
-      console.log('[SidePanel] Context mode enabled, extracting context...');
-      const aggregatedContext = await extractContext(activeSession.id, content);
-      
-      if (aggregatedContext) {
-        console.log('[SidePanel] Context extracted, sending with full context');
-        sendMessage(content, {
-          fullContext: aggregatedContext,
-          useContextAwareMode: true,
-          images,
-        });
+  const handleSendMessage = useCallback(
+    async (content: string, useContext?: boolean, images?: ImagePayload[]) => {
+      if (useContext && activeSession?.id) {
+        // Extract context and send with full context payload
+        console.log('[SidePanel] Context mode enabled, extracting context...');
+        const aggregatedContext = await extractContext(activeSession.id, content);
+
+        if (aggregatedContext) {
+          console.log('[SidePanel] Context extracted, sending with full context');
+          sendMessage(content, {
+            fullContext: aggregatedContext,
+            useContextAwareMode: true,
+            images,
+          });
+        } else {
+          // Fallback to regular send if context extraction fails
+          console.log('[SidePanel] Context extraction failed, sending without context');
+          sendMessage(content, { images });
+        }
       } else {
-        // Fallback to regular send if context extraction fails
-        console.log('[SidePanel] Context extraction failed, sending without context');
         sendMessage(content, { images });
       }
-    } else {
-      sendMessage(content, { images });
-    }
-  }, [sendMessage, extractContext, activeSession?.id]);
+    },
+    [sendMessage, extractContext, activeSession?.id]
+  );
 
   // Handle screenshot capture for context mode
   const handleScreenshotForContextMode = useCallback(async () => {
     if (!addImageToChatRef.current) return;
-    
+
     const dataUrl = await captureVisibleTabScreenshot();
     if (dataUrl) {
       await addImageToChatRef.current(dataUrl, 'screenshot');
     }
   }, [captureVisibleTabScreenshot]);
 
-  const handleCaptureScreenshot = useCallback(async (_mode: 'visible') => {
-    return captureVisibleTabScreenshot();
-  }, [captureVisibleTabScreenshot]);
+  const handleCaptureScreenshot = useCallback(
+    async (_mode: 'visible') => {
+      return captureVisibleTabScreenshot();
+    },
+    [captureVisibleTabScreenshot]
+  );
 
   // Toggle context mode and extract context if enabling
   const handleToggleContextMode = useCallback(async () => {
     const newState = !contextModeEnabled;
     setContextModeEnabled(newState);
-    
+
     if (newState && activeSession?.id) {
       // Extract context when enabling
       await extractContext(activeSession.id);
-      
+
       // Handle screenshot based on behavior setting
       if (settings.screenshotBehavior === 'auto') {
         // Auto-capture screenshot
@@ -274,57 +292,85 @@ export function SidePanel() {
       // Clear context when disabling
       clearContext();
     }
-  }, [contextModeEnabled, activeSession?.id, extractContext, clearContext, settings.screenshotBehavior, handleScreenshotForContextMode]);
+  }, [
+    contextModeEnabled,
+    activeSession?.id,
+    extractContext,
+    clearContext,
+    settings.screenshotBehavior,
+    handleScreenshotForContextMode,
+  ]);
 
   // Handle screenshot confirm response
-  const handleScreenshotConfirmResponse = useCallback(async (include: boolean) => {
-    setShowScreenshotConfirm(false);
-    if (include) {
-      await handleScreenshotForContextMode();
+  const handleScreenshotConfirmResponse = useCallback(
+    async (include: boolean) => {
+      setShowScreenshotConfirm(false);
+      if (include) {
+        await handleScreenshotForContextMode();
+      }
+    },
+    [handleScreenshotForContextMode]
+  );
+
+  const handleNewSession = useCallback(
+    async (
+      name: string,
+      type: Session['type'],
+      model?: string,
+      reasoningEffort?: 'low' | 'medium' | 'high'
+    ) => {
+      await createSession(name, type, model, reasoningEffort);
+      setShowNewSessionModal(false);
+    },
+    [createSession]
+  );
+
+  // Model switching - now opens modal for SDK v0.2.x setModel with reasoning effort
+  const canChangeSessionModel = true; // Allow changing model anytime with new SDK
+
+  const handleChangeSessionModel = useCallback(() => {
+    if (!activeSession?.id) return;
+    setShowModelSwitchModal(true);
+  }, [activeSession?.id]);
+
+  const handleModelSwitched = useCallback(async () => {
+    setShowModelSwitchModal(false);
+    if (activeSession?.id) {
+      setIsChangingModel(true);
+      try {
+        await refreshSessions();
+      } catch (error) {
+        console.error('[SidePanel] Failed to refresh sessions after model switch:', error);
+      } finally {
+        setIsChangingModel(false);
+      }
     }
-  }, [handleScreenshotForContextMode]);
-
-  const handleNewSession = useCallback(async (name: string, type: Session['type'], model?: string) => {
-    await createSession(name, type, model);
-    setShowNewSessionModal(false);
-  }, [createSession]);
-
-  const canChangeSessionModel = messages.length === 0;
-
-  const handleChangeSessionModel = useCallback(async (model: string) => {
-    if (!activeSession?.id || activeSession.model === model || !canChangeSessionModel) return;
-
-    setIsChangingModel(true);
-    try {
-      await updateSessionModel(activeSession.id, model);
-    } catch (error) {
-      console.error('[SidePanel] Failed to change session model:', error);
-    } finally {
-      setIsChangingModel(false);
-    }
-  }, [activeSession?.id, activeSession?.model, canChangeSessionModel, updateSessionModel]);
+  }, [activeSession?.id, refreshSessions]);
 
   // D.1 - Handle using page context in chat
-  const handleUsePageContext = useCallback((context: { url: string; title: string; selectedText?: string }) => {
-    const contextText = context.selectedText 
-      ? `About this page (${context.title}):\nURL: ${context.url}\n\nSelected text:\n"${context.selectedText}"\n\n`
-      : `About this page (${context.title}):\nURL: ${context.url}\n\n`;
-    
-    // Set as pending text for the chat input
-    setPendingAction({
-      action: 'chat',
-      selectedText: contextText,
-      pageUrl: context.url,
-      pageTitle: context.title,
-    });
-  }, []);
+  const handleUsePageContext = useCallback(
+    (context: { url: string; title: string; selectedText?: string }) => {
+      const contextText = context.selectedText
+        ? `About this page (${context.title}):\nURL: ${context.url}\n\nSelected text:\n"${context.selectedText}"\n\n`
+        : `About this page (${context.title}):\nURL: ${context.url}\n\n`;
+
+      // Set as pending text for the chat input
+      setPendingAction({
+        action: 'chat',
+        selectedText: contextText,
+        pageUrl: context.url,
+        pageTitle: context.title,
+      });
+    },
+    []
+  );
 
   // Show loading state
   if (sessionsLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
@@ -346,7 +392,8 @@ export function SidePanel() {
       {connectionStatus === 'connected' && authStatus && !authStatus.isAuthenticated && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
           <p className="text-xs text-amber-700 dark:text-amber-300">
-            Copilot login required. Run <code className="font-mono">github-copilot auth login</code> (or <code className="font-mono">copilot auth login</code>) and restart backend.
+            Copilot login required. Run <code className="font-mono">github-copilot auth login</code>{' '}
+            (or <code className="font-mono">copilot auth login</code>) and restart backend.
           </p>
         </div>
       )}
@@ -378,7 +425,6 @@ export function SidePanel() {
         onSendMessage={handleSendMessage}
         onAbort={abortMessage}
         onChangeModel={canChangeSessionModel ? handleChangeSessionModel : undefined}
-        availableModels={availableModels}
         disabled={connectionStatus !== 'connected' || isChangingModel}
         pendingText={pendingAction?.action === 'chat' ? pendingAction.selectedText : undefined}
         // Context-aware mode props
@@ -392,7 +438,9 @@ export function SidePanel() {
         imageAttachmentsEnabled={settings.imageAttachmentsEnabled}
         screenshotBehavior={settings.screenshotBehavior}
         onCaptureScreenshot={handleCaptureScreenshot}
-        onRegisterAddImage={(fn) => { addImageToChatRef.current = fn; }}
+        onRegisterAddImage={(fn) => {
+          addImageToChatRef.current = fn;
+        }}
       />
 
       {showNewSessionModal && (
@@ -402,14 +450,20 @@ export function SidePanel() {
         />
       )}
 
-      {showHelpModal && (
-        <HelpModal onClose={() => setShowHelpModal(false)} />
-      )}
+      {showHelpModal && <HelpModal onClose={() => setShowHelpModal(false)} />}
 
       {showPageContextModal && (
-        <PageContextModal 
-          onClose={() => setShowPageContextModal(false)} 
+        <PageContextModal
+          onClose={() => setShowPageContextModal(false)}
           onUseInChat={handleUsePageContext}
+        />
+      )}
+
+      {showModelSwitchModal && activeSession && (
+        <ModelSwitchModal
+          session={activeSession}
+          onClose={() => setShowModelSwitchModal(false)}
+          onModelSwitched={handleModelSwitched}
         />
       )}
 
@@ -421,16 +475,19 @@ export function SidePanel() {
               Include Screenshot?
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Would you like to capture a screenshot of the current page to include with your message? <span className="text-xs">(you can change this behavior in settings)</span>
+              Would you like to capture a screenshot of the current page to include with your
+              message? <span className="text-xs">(you can change this behavior in settings)</span>
             </p>
             <div className="flex gap-3 justify-end">
               <button
+                type="button"
                 onClick={() => handleScreenshotConfirmResponse(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
               >
                 No, thanks
               </button>
               <button
+                type="button"
                 onClick={() => handleScreenshotConfirmResponse(true)}
                 className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
               >

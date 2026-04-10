@@ -48,8 +48,14 @@
       "@semantic-release/github",
       {
         "assets": [
-          { "path": ".output/*-chrome.zip", "label": "DevMentorAI-${nextRelease.version}-chrome.zip" },
-          { "path": ".output/*-firefox.xpi", "label": "DevMentorAI-${nextRelease.version}-firefox.xpi" }
+          {
+            "path": ".output/*-chrome.zip",
+            "label": "DevMentorAI-${nextRelease.version}-chrome.zip"
+          },
+          {
+            "path": ".output/*-firefox.xpi",
+            "label": "DevMentorAI-${nextRelease.version}-firefox.xpi"
+          }
         ],
         "successComment": false,
         "failComment": false,

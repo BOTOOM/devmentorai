@@ -1,24 +1,24 @@
-import type { Metadata } from "next";
+import { CTASection } from '@/components/sections/CTASection';
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
 import {
-  Shield,
-  Terminal,
-  Key,
-  MousePointerClick,
-  Lock,
   CheckCircle,
   CloudOff,
-  MonitorSmartphone,
   Cpu,
+  Key,
+  Lock,
+  MonitorSmartphone,
+  MousePointerClick,
   Server,
-} from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { CTASection } from "@/components/sections/CTASection";
-import { Badge } from "@/components/ui/Badge";
+  Shield,
+  Terminal,
+} from 'lucide-react';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Trust & Privacy",
+  title: 'Trust & Privacy',
   description:
-    "DevMentorAI is privacy-first and local by design. No cloud storage, no credential retention. Your data stays on your machine.",
+    'DevMentorAI is privacy-first and local by design. No cloud storage, no credential retention. Your data stays on your machine.',
 };
 
 export default function TrustPage() {
@@ -26,11 +26,7 @@ export default function TrustPage() {
     <>
       {/* Hero */}
       <HeroSection
-        badge={
-          <Badge icon={<Shield className="h-3 w-3" />}>
-            Security Verified
-          </Badge>
-        }
+        badge={<Badge icon={<Shield className="h-3 w-3" />}>Security Verified</Badge>}
         title={
           <>
             Privacy first.
@@ -44,12 +40,9 @@ export default function TrustPage() {
       {/* Architecture Diagram */}
       <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6 md:pb-24">
         <div className="mb-12 text-center">
-          <h2 className="mb-4 text-2xl font-bold sm:text-3xl">
-            How Your Data Flows
-          </h2>
+          <h2 className="mb-4 text-2xl font-bold sm:text-3xl">How Your Data Flows</h2>
           <p className="mx-auto max-w-xl text-[var(--muted)]">
-            Visualizing the local-first architecture that keeps your workspace
-            isolated.
+            Visualizing the local-first architecture that keeps your workspace isolated.
           </p>
         </div>
 
@@ -71,9 +64,7 @@ export default function TrustPage() {
 
             {/* Connector 1 */}
             <div className="hidden flex-col items-center justify-center gap-2 md:flex">
-              <span className="text-[10px] font-bold text-[var(--muted)]">
-                HTTP / SSE
-              </span>
+              <span className="text-[10px] font-bold text-[var(--muted)]">HTTP / SSE</span>
               <div className="h-px w-full bg-gradient-to-r from-primary to-primary/30" />
             </div>
 
@@ -93,9 +84,7 @@ export default function TrustPage() {
 
             {/* Connector 2 */}
             <div className="hidden flex-col items-center justify-center gap-2 md:flex">
-              <span className="text-[10px] font-bold text-[var(--muted)]">
-                JSON-RPC
-              </span>
+              <span className="text-[10px] font-bold text-[var(--muted)]">JSON-RPC</span>
               <div className="h-px w-full bg-gradient-to-r from-primary/30 to-amber-500/50" />
             </div>
 
@@ -109,17 +98,13 @@ export default function TrustPage() {
               </div>
               <div>
                 <h3 className="font-bold">Copilot CLI</h3>
-                <p className="text-xs font-medium text-primary/80">
-                  Auth & Processing
-                </p>
+                <p className="text-xs font-medium text-primary/80">Auth & Processing</p>
               </div>
             </div>
 
             {/* Connector 3 */}
             <div className="hidden flex-col items-center justify-center gap-2 md:flex">
-              <span className="text-[10px] font-bold text-[var(--muted)]">
-                ENCRYPTED API
-              </span>
+              <span className="text-[10px] font-bold text-[var(--muted)]">ENCRYPTED API</span>
               <div className="h-px w-full bg-gradient-to-l from-emerald-500 to-amber-500/50" />
             </div>
 
@@ -155,10 +140,9 @@ export default function TrustPage() {
               </span>
             </div>
             <p className="max-w-lg text-center text-sm text-[var(--muted)]">
-              We never receive your source code, environment variables, or
-              secrets. Everything runs locally on your machine. The Copilot
-              CLI communicates directly with GitHub&apos;s LLM via encrypted
-              channels.
+              We never receive your source code, environment variables, or secrets. Everything runs
+              locally on your machine. The Copilot CLI communicates directly with GitHub&apos;s LLM
+              via encrypted channels.
             </p>
           </div>
         </div>
@@ -191,13 +175,10 @@ export default function TrustPage() {
       {/* Transparency Section */}
       <section className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-4 pb-20 sm:px-6 md:flex-row md:gap-12 md:pb-24">
         <div className="flex-1">
-          <h2 className="mb-6 text-2xl font-bold sm:text-3xl">
-            Engineered for Transparency
-          </h2>
+          <h2 className="mb-6 text-2xl font-bold sm:text-3xl">Engineered for Transparency</h2>
           <p className="mb-6 leading-relaxed text-[var(--muted)]">
-            We believe trust is earned through transparency. That&apos;s why the
-            DevMentorAI core bridge is built on top of the open-source Copilot
-            CLI infrastructure.
+            We believe trust is earned through transparency. That&apos;s why the DevMentorAI core
+            bridge is built on top of the open-source Copilot CLI infrastructure.
           </p>
           <ul className="space-y-4">
             <li className="flex items-start gap-3">

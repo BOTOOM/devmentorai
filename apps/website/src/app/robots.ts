@@ -1,11 +1,11 @@
-import type { MetadataRoute } from "next";
+import type { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
-      userAgent: "*",
-      allow: "/",
+      userAgent: '*',
+      allow: '/',
     },
-    sitemap: "https://devmentorai.edwardiaz.dev/sitemap.xml",
+    sitemap: 'https://devmentorai.edwardiaz.dev/sitemap.xml',
   };
 }

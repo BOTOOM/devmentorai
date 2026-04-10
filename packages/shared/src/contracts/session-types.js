@@ -2,16 +2,16 @@
  * Session type configurations with pre-defined agents
  */
 export const SESSION_TYPE_CONFIGS = {
-    devops: {
-        name: 'DevOps Mentor',
-        description: 'Expert in DevOps, cloud infrastructure, and best practices',
-        icon: '🛠️',
-        defaultModel: 'gpt-4.1',
-        agent: {
-            name: 'devops-mentor',
-            displayName: 'DevOps Mentor',
-            description: 'Expert in DevOps, cloud infrastructure, and best practices',
-            prompt: `You are a DevOps mentor and expert. You help users with:
+  devops: {
+    name: 'DevOps Mentor',
+    description: 'Expert in DevOps, cloud infrastructure, and best practices',
+    icon: '🛠️',
+    defaultModel: 'gpt-4.1',
+    agent: {
+      name: 'devops-mentor',
+      displayName: 'DevOps Mentor',
+      description: 'Expert in DevOps, cloud infrastructure, and best practices',
+      prompt: `You are a DevOps mentor and expert. You help users with:
 - AWS, Azure, GCP cloud services and best practices
 - Kubernetes, Docker, and container orchestration
 - CI/CD pipelines (GitHub Actions, GitLab CI, Jenkins, CircleCI)
@@ -31,18 +31,18 @@ When analyzing configurations or errors:
 5. Warn about security implications when relevant
 
 Provide a high-quality, detailed, and explanatory response that helps the user completely understand the concepts, steps, and 'why' behind the suggestions. Use code blocks for configurations and commands.`,
-        },
     },
-    writing: {
-        name: 'Writing Assistant',
-        description: 'Helps with writing, rewriting, and translation',
-        icon: '✍️',
-        defaultModel: 'gpt-4.1',
-        agent: {
-            name: 'writing-assistant',
-            displayName: 'Writing Assistant',
-            description: 'Helps with writing, rewriting, and translation',
-            prompt: `You are a professional writing assistant. You help users with:
+  },
+  writing: {
+    name: 'Writing Assistant',
+    description: 'Helps with writing, rewriting, and translation',
+    icon: '✍️',
+    defaultModel: 'gpt-4.1',
+    agent: {
+      name: 'writing-assistant',
+      displayName: 'Writing Assistant',
+      description: 'Helps with writing, rewriting, and translation',
+      prompt: `You are a professional writing assistant. You help users with:
 - Writing and composing emails (formal, casual, technical)
 - Rewriting text with different tones and styles
 - Grammar, spelling, and clarity improvements
@@ -60,18 +60,18 @@ Guidelines:
 6. Provide rich, detailed explanations and fully expand on ideas when discussing or explaining writing choices.
 
 When the user provides text to modify, respond with ONLY the modified text unless they ask for explanation.`,
-        },
     },
-    development: {
-        name: 'Development Helper',
-        description: 'Assists with code review, debugging, and best practices',
-        icon: '💻',
-        defaultModel: 'gpt-4.1',
-        agent: {
-            name: 'dev-helper',
-            displayName: 'Development Helper',
-            description: 'Assists with code review, debugging, and best practices',
-            prompt: `You are a senior software development assistant. You help users with:
+  },
+  development: {
+    name: 'Development Helper',
+    description: 'Assists with code review, debugging, and best practices',
+    icon: '💻',
+    defaultModel: 'gpt-4.1',
+    agent: {
+      name: 'dev-helper',
+      displayName: 'Development Helper',
+      description: 'Assists with code review, debugging, and best practices',
+      prompt: `You are a senior software development assistant. You help users with:
 - Code review and improvement suggestions
 - Bug diagnosis and debugging strategies
 - Architecture decisions and design patterns
@@ -96,26 +96,26 @@ When reviewing code, focus on:
 - Performance issues
 - Maintainability and readability
 - Missing error handling`,
-        },
     },
-    general: {
-        name: 'General Assistant',
-        description: 'General-purpose AI assistant',
-        icon: '💬',
-        defaultModel: 'gpt-4.1',
-        agent: null, // Uses default Copilot behavior
-    },
+  },
+  general: {
+    name: 'General Assistant',
+    description: 'General-purpose AI assistant',
+    icon: '💬',
+    defaultModel: 'gpt-4.1',
+    agent: null, // Uses default Copilot behavior
+  },
 };
 /**
  * Get the agent config for a session type
  */
 export function getAgentConfig(type) {
-    return SESSION_TYPE_CONFIGS[type]?.agent ?? null;
+  return SESSION_TYPE_CONFIGS[type]?.agent ?? null;
 }
 /**
  * Get the default model for a session type
  */
 export function getDefaultModel(type) {
-    return SESSION_TYPE_CONFIGS[type]?.defaultModel ?? 'gpt-4.1';
+  return SESSION_TYPE_CONFIGS[type]?.defaultModel ?? 'gpt-4.1';
 }
 //# sourceMappingURL=session-types.js.map

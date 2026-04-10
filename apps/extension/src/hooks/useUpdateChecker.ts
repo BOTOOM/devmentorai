@@ -1,8 +1,8 @@
+import type { UpdateInfo } from '@devmentorai/shared';
 /**
  * Hook for accessing update state from the extension background.
  */
-import { useState, useEffect, useCallback } from 'react';
-import type { UpdateInfo } from '@devmentorai/shared';
+import { useCallback, useEffect, useState } from 'react';
 
 interface UpdateState {
   extension: UpdateInfo | null;

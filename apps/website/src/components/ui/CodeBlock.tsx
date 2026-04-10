@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Check, Copy } from 'lucide-react';
+import { useState } from 'react';
 
 export function CodeBlock({
   code,
-  language = "bash",
+  language = 'bash',
 }: Readonly<{ code: string; language?: string }>) {
   const [copied, setCopied] = useState(false);
 

@@ -1,53 +1,52 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { HelpCircle, MessageCircleQuestion } from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { CTASection } from "@/components/sections/CTASection";
-import { Badge } from "@/components/ui/Badge";
+import { CTASection } from '@/components/sections/CTASection';
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
+import { HelpCircle, MessageCircleQuestion } from 'lucide-react';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
 const FAQ_ITEMS = [
   {
-    question: "Does DevMentorAI send my code to DevMentorAI servers?",
+    question: 'Does DevMentorAI send my code to DevMentorAI servers?',
     answer:
-      "No. DevMentorAI works locally with your browser extension and local backend. Your code and context are processed through your authenticated GitHub Copilot flow.",
+      'No. DevMentorAI works locally with your browser extension and local backend. Your code and context are processed through your authenticated GitHub Copilot flow.',
   },
   {
-    question: "How long does installation take?",
+    question: 'How long does installation take?',
     answer:
-      "Most users complete setup in around 2 minutes: run the backend, load the extension, and open the side panel.",
+      'Most users complete setup in around 2 minutes: run the backend, load the extension, and open the side panel.',
   },
   {
-    question: "Which browsers are supported?",
+    question: 'Which browsers are supported?',
     answer:
-      "DevMentorAI supports Chromium-based browsers and Firefox builds provided in the release artifacts.",
+      'DevMentorAI supports Chromium-based browsers and Firefox builds provided in the release artifacts.',
   },
   {
-    question: "Can I use DevMentorAI on private dashboards?",
+    question: 'Can I use DevMentorAI on private dashboards?',
     answer:
-      "Yes. Context extraction is designed for real authenticated pages while keeping data local and user-controlled.",
+      'Yes. Context extraction is designed for real authenticated pages while keeping data local and user-controlled.',
   },
   {
-    question: "Where do I report bugs or request features?",
-    answer:
-      "Use the GitHub Issues section. We review bug reports and feature requests there.",
+    question: 'Where do I report bugs or request features?',
+    answer: 'Use the GitHub Issues section. We review bug reports and feature requests there.',
   },
 ] as const;
 
 export const metadata: Metadata = {
-  title: "FAQ",
+  title: 'FAQ',
   description:
-    "Frequently asked questions about DevMentorAI installation, privacy, browser support, and issue reporting.",
+    'Frequently asked questions about DevMentorAI installation, privacy, browser support, and issue reporting.',
 };
 
 export default function FAQPage() {
   const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
     mainEntity: FAQ_ITEMS.map((item) => ({
-      "@type": "Question",
+      '@type': 'Question',
       name: item.question,
       acceptedAnswer: {
-        "@type": "Answer",
+        '@type': 'Answer',
         text: item.answer,
       },
     })),
@@ -92,12 +91,11 @@ export default function FAQPage() {
 
         <div className="mt-10 rounded-xl border border-[var(--card-border)] bg-[var(--section-alt)] p-5 sm:p-6">
           <p className="text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            Didn&apos;t find your answer? Visit the {" "}
+            Didn&apos;t find your answer? Visit the{' '}
             <Link href="/support" className="font-semibold text-primary hover:underline">
               support page
-            </Link>{" "}
+            </Link>{' '}
             to open an issue or request a feature.
-            
           </p>
         </div>
       </section>

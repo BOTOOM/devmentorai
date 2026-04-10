@@ -1,31 +1,33 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
-import {
-  processMessageImages,
-  getThumbnailFilePath,
-  deleteSessionImages,
-  deleteMessageImages,
-  toImageAttachments,
-  type ImageInput,
-  type ProcessedImage,
-} from '../../src/services/thumbnail-service.js';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DATA_DIR,
   IMAGES_DIR,
-  getSessionImagesDir,
-  getMessageImagesDir,
   deleteDir,
+  getMessageImagesDir,
+  getSessionImagesDir,
 } from '../../src/lib/paths.js';
+import {
+  type ImageInput,
+  type ProcessedImage,
+  deleteMessageImages,
+  deleteSessionImages,
+  getThumbnailFilePath,
+  processMessageImages,
+  toImageAttachments,
+} from '../../src/services/thumbnail-service.js';
 
 // Test fixtures
 // Small 1x1 red pixel PNG encoded as base64
-const RED_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jH/wAAAABJRU5ErkJggg==';
+const RED_PIXEL_PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jH/wAAAABJRU5ErkJggg==';
 const PNG_DATA_URL = `data:image/png;base64,${RED_PIXEL_PNG}`;
 
 // Another valid PNG (slightly different red pixel)
-const RED_PIXEL_PNG_2 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==';
+const RED_PIXEL_PNG_2 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAEBgIApD5fRAAAAABJRU5ErkJggg==';
 const PNG_DATA_URL_2 = `data:image/png;base64,${RED_PIXEL_PNG_2}`;
 
 const TEST_SESSION_ID = 'test_session_12345';
@@ -57,12 +59,14 @@ describe('ThumbnailService', () => {
     });
 
     it('should process a single PNG image', async () => {
-      const images: ImageInput[] = [{
-        id: 'img_1',
-        dataUrl: PNG_DATA_URL,
-        mimeType: 'image/png',
-        source: 'paste',
-      }];
+      const images: ImageInput[] = [
+        {
+          id: 'img_1',
+          dataUrl: PNG_DATA_URL,
+          mimeType: 'image/png',
+          source: 'paste',
+        },
+      ];
 
       const result = await processMessageImages(
         TEST_SESSION_ID,
@@ -112,12 +116,14 @@ describe('ThumbnailService', () => {
     });
 
     it('should handle screenshot source type', async () => {
-      const images: ImageInput[] = [{
-        id: 'screenshot_1',
-        dataUrl: PNG_DATA_URL,
-        mimeType: 'image/png',
-        source: 'screenshot',
-      }];
+      const images: ImageInput[] = [
+        {
+          id: 'screenshot_1',
+          dataUrl: PNG_DATA_URL,
+          mimeType: 'image/png',
+          source: 'screenshot',
+        },
+      ];
 
       const result = await processMessageImages(
         TEST_SESSION_ID,
@@ -148,18 +154,20 @@ describe('ThumbnailService', () => {
     });
 
     it('should create directory structure correctly', async () => {
-      const images: ImageInput[] = [{
-        id: 'img_1',
-        dataUrl: PNG_DATA_URL,
-        mimeType: 'image/png',
-        source: 'paste',
-      }];
+      const images: ImageInput[] = [
+        {
+          id: 'img_1',
+          dataUrl: PNG_DATA_URL,
+          mimeType: 'image/png',
+          source: 'paste',
+        },
+      ];
 
       await processMessageImages(TEST_SESSION_ID, TEST_MESSAGE_ID, images, TEST_BACKEND_URL);
 
       const messageDir = getMessageImagesDir(TEST_SESSION_ID, TEST_MESSAGE_ID);
       expect(fs.existsSync(messageDir)).toBe(true);
-      
+
       const files = fs.readdirSync(messageDir);
       expect(files).toContain('thumb_0.jpg');
     });
@@ -173,12 +181,14 @@ describe('ThumbnailService', () => {
 
     it('should return path for existing file', async () => {
       // First create a thumbnail
-      const images: ImageInput[] = [{
-        id: 'img_1',
-        dataUrl: PNG_DATA_URL,
-        mimeType: 'image/png',
-        source: 'paste',
-      }];
+      const images: ImageInput[] = [
+        {
+          id: 'img_1',
+          dataUrl: PNG_DATA_URL,
+          mimeType: 'image/png',
+          source: 'paste',
+        },
+      ];
 
       await processMessageImages(TEST_SESSION_ID, TEST_MESSAGE_ID, images, TEST_BACKEND_URL);
 
@@ -194,12 +204,14 @@ describe('ThumbnailService', () => {
   describe('deleteSessionImages', () => {
     it('should delete all images for a session', async () => {
       // Create images in multiple messages
-      const images: ImageInput[] = [{
-        id: 'img_1',
-        dataUrl: PNG_DATA_URL,
-        mimeType: 'image/png',
-        source: 'paste',
-      }];
+      const images: ImageInput[] = [
+        {
+          id: 'img_1',
+          dataUrl: PNG_DATA_URL,
+          mimeType: 'image/png',
+          source: 'paste',
+        },
+      ];
 
       await processMessageImages(TEST_SESSION_ID, 'msg_1', images, TEST_BACKEND_URL);
       await processMessageImages(TEST_SESSION_ID, 'msg_2', images, TEST_BACKEND_URL);
@@ -222,12 +234,14 @@ describe('ThumbnailService', () => {
 
   describe('deleteMessageImages', () => {
     it('should delete images for a specific message only', async () => {
-      const images: ImageInput[] = [{
-        id: 'img_1',
-        dataUrl: PNG_DATA_URL,
-        mimeType: 'image/png',
-        source: 'paste',
-      }];
+      const images: ImageInput[] = [
+        {
+          id: 'img_1',
+          dataUrl: PNG_DATA_URL,
+          mimeType: 'image/png',
+          source: 'paste',
+        },
+      ];
 
       await processMessageImages(TEST_SESSION_ID, 'msg_1', images, TEST_BACKEND_URL);
       await processMessageImages(TEST_SESSION_ID, 'msg_2', images, TEST_BACKEND_URL);
@@ -245,16 +259,18 @@ describe('ThumbnailService', () => {
 
   describe('toImageAttachments', () => {
     it('should convert processed images to attachment format', () => {
-      const processed: ProcessedImage[] = [{
-        id: 'img_1',
-        source: 'paste',
-        mimeType: 'image/png',
-        dimensions: { width: 100, height: 100 },
-        fileSize: 1234,
-        timestamp: '2024-01-01T00:00:00.000Z',
-        thumbnailUrl: 'http://localhost:3847/api/images/session/message/0',
-        thumbnailPath: 'images/session/message/thumb_0.jpg',
-      }];
+      const processed: ProcessedImage[] = [
+        {
+          id: 'img_1',
+          source: 'paste',
+          mimeType: 'image/png',
+          dimensions: { width: 100, height: 100 },
+          fileSize: 1234,
+          timestamp: '2024-01-01T00:00:00.000Z',
+          thumbnailUrl: 'http://localhost:3847/api/images/session/message/0',
+          thumbnailPath: 'images/session/message/thumb_0.jpg',
+        },
+      ];
 
       const attachments = toImageAttachments(processed);
 

@@ -1,7 +1,7 @@
-import { describe, it, expect } from 'vitest';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { describe, expect, it } from 'vitest';
 
 const CLI_PATH = path.resolve(__dirname, '../../dist/cli.js');
 const CLI_EXISTS = fs.existsSync(CLI_PATH);

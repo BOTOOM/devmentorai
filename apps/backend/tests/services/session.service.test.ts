@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SessionService } from '../../src/services/session.service.js';
 
 describe('SessionService', () => {
@@ -9,7 +9,7 @@ describe('SessionService', () => {
   beforeEach(() => {
     // Create in-memory database for testing
     db = new Database(':memory:');
-    
+
     // Initialize schema
     db.exec(`
       CREATE TABLE sessions (
@@ -211,7 +211,7 @@ describe('SessionService', () => {
       });
 
       const message = service.addMessage(session.id, 'user', 'Hello!');
-      
+
       expect(message.id).toMatch(/^msg_/);
       expect(message.sessionId).toBe(session.id);
       expect(message.role).toBe('user');

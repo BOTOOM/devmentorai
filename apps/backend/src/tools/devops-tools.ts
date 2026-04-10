@@ -71,10 +71,7 @@ export const readFileTool: Tool = {
       const lines = content.split('\n');
 
       if (lines.length > maxLines) {
-        return (
-          lines.slice(0, maxLines).join('\n') +
-          `\n\n[Truncated: ${lines.length - maxLines} more lines]`
-        );
+        return `${lines.slice(0, maxLines).join('\n')}\n\n[Truncated: ${lines.length - maxLines} more lines]`;
       }
 
       return content;
@@ -211,23 +208,23 @@ export const analyzeConfigTool: Tool = {
         analyzeGitHubActions(content, issues, suggestions);
         break;
       default:
-        return `Could not determine configuration type. Please specify the type parameter.`;
+        return 'Could not determine configuration type. Please specify the type parameter.';
     }
 
     let result = `## Configuration Analysis (${configType})\n\n`;
 
     if (issues.length > 0) {
-      result += `### ⚠️ Issues Found\n`;
+      result += '### ⚠️ Issues Found\n';
       issues.forEach((issue, i) => {
         result += `${i + 1}. ${issue}\n`;
       });
       result += '\n';
     } else {
-      result += `### ✅ No Critical Issues Found\n\n`;
+      result += '### ✅ No Critical Issues Found\n\n';
     }
 
     if (suggestions.length > 0) {
-      result += `### 💡 Suggestions\n`;
+      result += '### 💡 Suggestions\n';
       suggestions.forEach((suggestion, i) => {
         result += `${i + 1}. ${suggestion}\n`;
       });
@@ -530,24 +527,30 @@ export const analyzeErrorTool: Tool = {
       );
     }
 
-    let result = `## Error Analysis\n\n`;
+    let result = '## Error Analysis\n\n';
     result += `**Context:** ${context}\n\n`;
 
     if (possibleCauses.length > 0) {
-      result += `### Possible Causes\n`;
-      possibleCauses.forEach((cause) => (result += `- ${cause}\n`));
+      result += '### Possible Causes\n';
+      for (const cause of possibleCauses) {
+        result += `- ${cause}\n`;
+      }
       result += '\n';
     }
 
     if (solutions.length > 0) {
-      result += `### Suggested Solutions\n`;
-      solutions.forEach((solution, i) => (result += `${i + 1}. ${solution}\n`));
+      result += '### Suggested Solutions\n';
+      for (const [index, solution] of solutions.entries()) {
+        result += `${index + 1}. ${solution}\n`;
+      }
       result += '\n';
     }
 
     if (analysis.length > 0) {
-      result += `### Notes\n`;
-      analysis.forEach((note) => (result += `${note}\n`));
+      result += '### Notes\n';
+      for (const note of analysis) {
+        result += `${note}\n`;
+      }
     }
 
     return result;
@@ -605,14 +608,17 @@ export const fetchUrlTool: Tool = {
       const MAX_LENGTH = 15000;
 
       if (text.length > MAX_LENGTH) {
-        return (
-          text.substring(0, MAX_LENGTH) + `\n\n[Content truncated at ${MAX_LENGTH} characters]`
-        );
+        return `${text.substring(0, MAX_LENGTH)}\n\n[Content truncated at ${MAX_LENGTH} characters]`;
       }
 
       return text;
     } catch (error) {
-      if ((error as any).name === 'AbortError') {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        error.name === 'AbortError'
+      ) {
         return `Error: Request to ${targetUrl} timed out after 10 seconds.`;
       }
       return `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`;

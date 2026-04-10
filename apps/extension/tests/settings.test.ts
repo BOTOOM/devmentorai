@@ -2,8 +2,8 @@
  * Unit tests for useSettings hook and settings utilities
  * Tests settings validation, defaults, and storage
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { DEFAULT_SETTINGS, AVAILABLE_LANGUAGES, type Settings } from '../src/hooks/useSettings';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AVAILABLE_LANGUAGES, DEFAULT_SETTINGS, type Settings } from '../src/hooks/useSettings';
 
 describe('Settings', () => {
   describe('DEFAULT_SETTINGS', () => {
@@ -28,7 +28,9 @@ describe('Settings', () => {
     });
 
     it('should have valid session type', () => {
-      expect(['devops', 'writing', 'development', 'general']).toContain(DEFAULT_SETTINGS.defaultSessionType);
+      expect(['devops', 'writing', 'development', 'general']).toContain(
+        DEFAULT_SETTINGS.defaultSessionType
+      );
     });
 
     it('should have valid communication mode', () => {
@@ -77,19 +79,19 @@ describe('Settings', () => {
     });
 
     it('should include English', () => {
-      const english = AVAILABLE_LANGUAGES.find(l => l.code === 'en');
+      const english = AVAILABLE_LANGUAGES.find((l) => l.code === 'en');
       expect(english).toBeDefined();
       expect(english?.name).toBe('English');
     });
 
     it('should include Spanish', () => {
-      const spanish = AVAILABLE_LANGUAGES.find(l => l.code === 'es');
+      const spanish = AVAILABLE_LANGUAGES.find((l) => l.code === 'es');
       expect(spanish).toBeDefined();
       expect(spanish?.name).toBe('Español');
     });
 
     it('should have unique language codes', () => {
-      const codes = AVAILABLE_LANGUAGES.map(l => l.code);
+      const codes = AVAILABLE_LANGUAGES.map((l) => l.code);
       const uniqueCodes = new Set(codes);
       expect(codes.length).toBe(uniqueCodes.size);
     });
@@ -132,7 +134,7 @@ describe('Settings', () => {
       };
 
       const merged: Settings = { ...DEFAULT_SETTINGS, ...partialSettings };
-      
+
       expect(merged.theme).toBe('dark');
       expect(merged.language).toBe('fr');
       expect(merged.floatingBubbleEnabled).toBe(DEFAULT_SETTINGS.floatingBubbleEnabled);
@@ -154,11 +156,15 @@ describe('Settings', () => {
       return ['http', 'native'].includes(mode);
     };
 
-    const isValidScreenshotBehavior = (behavior: string): behavior is Settings['screenshotBehavior'] => {
+    const isValidScreenshotBehavior = (
+      behavior: string
+    ): behavior is Settings['screenshotBehavior'] => {
       return ['disabled', 'ask', 'auto'].includes(behavior);
     };
 
-    const isValidTextReplacementBehavior = (behavior: string): behavior is Settings['textReplacementBehavior'] => {
+    const isValidTextReplacementBehavior = (
+      behavior: string
+    ): behavior is Settings['textReplacementBehavior'] => {
       return ['ask', 'auto', 'never'].includes(behavior);
     };
 
@@ -230,7 +236,7 @@ describe('Settings', () => {
 
   describe('Language Selection', () => {
     const findLanguageByCode = (code: string) => {
-      return AVAILABLE_LANGUAGES.find(l => l.code === code);
+      return AVAILABLE_LANGUAGES.find((l) => l.code === code);
     };
 
     const getLanguageName = (code: string): string => {

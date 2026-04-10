@@ -1,9 +1,9 @@
+import { IMAGE_CONSTANTS, type ImageMimeType } from '@devmentorai/shared';
 /**
  * Unit tests for image utilities (from useImageAttachments)
  * Tests validation, size calculations, and MIME type handling
  */
-import { describe, it, expect } from 'vitest';
-import { IMAGE_CONSTANTS, type ImageMimeType } from '@devmentorai/shared';
+import { describe, expect, it } from 'vitest';
 
 // Re-implement the utility functions for testing (they're not exported from the hook)
 function isSupportedMimeType(mimeType: string): mimeType is ImageMimeType {
@@ -149,11 +149,11 @@ describe('Image Utilities', () => {
       const before = Date.now();
       const id = generateImageId();
       const after = Date.now();
-      
+
       // Extract timestamp from ID (format: img_TIMESTAMP_RANDOM)
       const parts = id.split('_');
-      const timestamp = parseInt(parts[1], 10);
-      
+      const timestamp = Number.parseInt(parts[1], 10);
+
       expect(timestamp).toBeGreaterThanOrEqual(before);
       expect(timestamp).toBeLessThanOrEqual(after);
     });
@@ -161,7 +161,7 @@ describe('Image Utilities', () => {
     it('should have random suffix', () => {
       const id = generateImageId();
       const parts = id.split('_');
-      
+
       // Should have 3 parts: 'img', timestamp, random
       expect(parts.length).toBe(3);
       expect(parts[2].length).toBeGreaterThan(0);
@@ -204,7 +204,7 @@ describe('Image Utilities', () => {
     it('should have reasonable max size (between 1MB and 20MB)', () => {
       const minBytes = 1 * 1024 * 1024; // 1MB
       const maxBytes = 20 * 1024 * 1024; // 20MB
-      
+
       expect(IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES).toBeGreaterThanOrEqual(minBytes);
       expect(IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES).toBeLessThanOrEqual(maxBytes);
     });

@@ -53,7 +53,8 @@ export function ImageLightbox({
   const isFullLoaded = fullImageLoaded[currentIndex];
   const hasFullError = fullImageError[currentIndex];
   const showFullImage = currentImage?.fullSrc && isFullLoaded && !hasFullError;
-  const displaySrc = showFullImage && currentImage?.fullSrc ? currentImage.fullSrc : currentImage?.thumbnailSrc;
+  const displaySrc =
+    showFullImage && currentImage?.fullSrc ? currentImage.fullSrc : currentImage?.thumbnailSrc;
   const isLoadingFull = currentImage?.fullSrc && !isFullLoaded && !hasFullError;
 
   const goNext = useCallback(() => {

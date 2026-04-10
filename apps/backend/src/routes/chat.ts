@@ -150,13 +150,18 @@ const sendMessageSchema = z.object({
 });
 
 export async function chatRoutes(fastify: FastifyInstance) {
+  interface ToolExecutionEventData {
+    toolName?: string;
+    toolCallId?: string;
+  }
+
   // Helper to build the appropriate prompt based on context type
   // Returns userPrompt (enriched with context) and promptType
   // systemPrompt is always null - we don't override Copilot's default
   const buildPrompt = (body: {
     prompt: string;
-    context?: any;
-    fullContext?: any;
+    context?: unknown;
+    fullContext?: unknown;
     useContextAwareMode?: boolean;
   }): { userPrompt: string; promptType: string } => {
     // If full context is provided and context-aware mode is enabled
@@ -169,11 +174,16 @@ export async function chatRoutes(fastify: FastifyInstance) {
     }
 
     // Fall back to simple prompt
+    const simpleContext = body.context as {
+      pageUrl?: string;
+      pageTitle?: string;
+      selectedText?: string;
+    } | undefined;
     const { userPrompt } = buildSimplePrompt(
       body.prompt,
-      body.context?.pageUrl,
-      body.context?.pageTitle,
-      body.context?.selectedText
+      simpleContext?.pageUrl,
+      simpleContext?.pageTitle,
+      simpleContext?.selectedText
     );
     return { userPrompt, promptType: 'simple' };
   };
@@ -327,7 +337,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
         processedImages = body.preUploadedImages.map((img) => ({
           id: img.id,
           source: 'screenshot' as const,
-          mimeType: (img.mimeType || 'image/jpeg') as any,
+          mimeType: (img.mimeType || 'image/jpeg') as ImageAttachment['mimeType'],
           dimensions: img.dimensions || { width: 0, height: 0 },
           fileSize: img.fileSize || 0,
           timestamp: new Date().toISOString(),
@@ -489,20 +499,26 @@ export async function chatRoutes(fastify: FastifyInstance) {
               break;
 
             case 'tool.execution_start':
-              sendSSE({
-                type: 'tool_start',
-                data: {
-                  toolName: (event.data as any).toolName,
-                  toolCallId: (event.data as any).toolCallId,
-                },
-              });
+              {
+                const toolData = event.data as ToolExecutionEventData;
+                sendSSE({
+                  type: 'tool_start',
+                  data: {
+                    toolName: toolData.toolName,
+                    toolCallId: toolData.toolCallId,
+                  },
+                });
+              }
               break;
 
             case 'tool.execution_complete':
-              sendSSE({
-                type: 'tool_complete',
-                data: { toolCallId: (event.data as any).toolCallId },
-              });
+              {
+                const toolData = event.data as ToolExecutionEventData;
+                sendSSE({
+                  type: 'tool_complete',
+                  data: { toolCallId: toolData.toolCallId },
+                });
+              }
               break;
 
             case 'session.idle':

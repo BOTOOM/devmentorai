@@ -1,21 +1,21 @@
-import type { Database } from 'better-sqlite3';
 import {
-  generateSessionId,
-  generateMessageId,
   formatDate,
+  generateMessageId,
+  generateSessionId,
   getAgentConfig,
   getDefaultModel,
 } from '@devmentorai/shared';
 import type {
-  Session,
-  SessionType,
-  SessionStatus,
   CreateSessionRequest,
-  UpdateSessionRequest,
   Message,
   MessageMetadata,
   PaginatedResponse,
+  Session,
+  SessionStatus,
+  SessionType,
+  UpdateSessionRequest,
 } from '@devmentorai/shared';
+import type { Database } from 'better-sqlite3';
 
 interface DbSession {
   id: string;
@@ -25,6 +25,9 @@ interface DbSession {
   model: string;
   system_prompt: string | null;
   custom_agent: string | null;
+  tone: string | null;
+  explain_tradeoffs: number | null; // SQLite boolean as 0/1
+  reasoning_effort: string | null; // 'low' | 'medium' | 'high'
   message_count: number;
   created_at: string;
   updated_at: string;
@@ -45,7 +48,7 @@ export class SessionService {
   // Sessions
   listSessions(page = 1, pageSize = 50): PaginatedResponse<Session> {
     const offset = (page - 1) * pageSize;
-    
+
     const countStmt = this.db.prepare('SELECT COUNT(*) as count FROM sessions');
     const count = (countStmt.get() as { count: number }).count;
 
@@ -57,7 +60,7 @@ export class SessionService {
     const rows = stmt.all(pageSize, offset) as DbSession[];
 
     return {
-      items: rows.map(this.mapDbSession),
+      items: rows.map((row) => this.mapDbSession(row)),
       total: count,
       page,
       pageSize,
@@ -76,12 +79,12 @@ export class SessionService {
     const now = formatDate();
     const agentConfig = getAgentConfig(request.type);
     const model = request.model || getDefaultModel(request.type);
-    
+
     const stmt = this.db.prepare(`
-      INSERT INTO sessions (id, name, type, model, system_prompt, custom_agent, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO sessions (id, name, type, model, system_prompt, custom_agent, tone, explain_tradeoffs, reasoning_effort, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    
+
     stmt.run(
       id,
       request.name,
@@ -89,41 +92,54 @@ export class SessionService {
       model,
       request.systemPrompt || agentConfig?.prompt || null,
       agentConfig?.name || null,
+      request.tone || 'balanced',
+      request.explainTradeoffs ? 1 : 0,
+      request.reasoningEffort || null,
       now,
       now
     );
 
-    return this.getSession(id)!;
+    const createdSession = this.getSession(id);
+
+    if (!createdSession) {
+      throw new Error(`Failed to load created session: ${id}`);
+    }
+
+    return createdSession;
   }
 
   updateSession(id: string, request: UpdateSessionRequest): Session | null {
     const session = this.getSession(id);
     if (!session) return null;
 
-    const updates: string[] = [];
-    const values: (string | number)[] = [];
+    const updateFields: Array<{ sql: string; value: string | number | null }> = [];
 
     if (request.name !== undefined) {
-      updates.push('name = ?');
-      values.push(request.name);
+      updateFields.push({ sql: 'name = ?', value: request.name });
     }
     if (request.status !== undefined) {
-      updates.push('status = ?');
-      values.push(request.status);
+      updateFields.push({ sql: 'status = ?', value: request.status });
     }
     if (request.model !== undefined) {
-      updates.push('model = ?');
-      values.push(request.model);
+      updateFields.push({ sql: 'model = ?', value: request.model });
+    }
+    if (request.tone !== undefined) {
+      updateFields.push({ sql: 'tone = ?', value: request.tone });
+    }
+    if (request.explainTradeoffs !== undefined) {
+      updateFields.push({ sql: 'explain_tradeoffs = ?', value: request.explainTradeoffs ? 1 : 0 });
+    }
+    if (request.reasoningEffort !== undefined) {
+      updateFields.push({ sql: 'reasoning_effort = ?', value: request.reasoningEffort });
     }
 
-    if (updates.length === 0) return session;
+    if (updateFields.length === 0) return session;
 
-    updates.push('updated_at = ?');
-    values.push(formatDate());
-    values.push(id);
+    const updates = updateFields.map((f) => f.sql);
+    const values = [...updateFields.map((f) => f.value), formatDate(), id];
 
     const stmt = this.db.prepare(`
-      UPDATE sessions SET ${updates.join(', ')} WHERE id = ?
+      UPDATE sessions SET ${updates.join(', ')}, updated_at = ? WHERE id = ?
     `);
     stmt.run(...values);
 
@@ -149,7 +165,9 @@ export class SessionService {
   listMessages(sessionId: string, page = 1, pageSize = 100): PaginatedResponse<Message> {
     const offset = (page - 1) * pageSize;
 
-    const countStmt = this.db.prepare('SELECT COUNT(*) as count FROM messages WHERE session_id = ?');
+    const countStmt = this.db.prepare(
+      'SELECT COUNT(*) as count FROM messages WHERE session_id = ?'
+    );
     const count = (countStmt.get(sessionId) as { count: number }).count;
 
     const stmt = this.db.prepare(`
@@ -161,7 +179,7 @@ export class SessionService {
     const rows = stmt.all(sessionId, pageSize, offset) as DbMessage[];
 
     return {
-      items: rows.map(row => this.mapDbMessage(row)),
+      items: rows.map((row) => this.mapDbMessage(row)),
       total: count,
       page,
       pageSize,
@@ -182,15 +200,8 @@ export class SessionService {
       INSERT INTO messages (id, session_id, role, content, timestamp, metadata)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    
-    stmt.run(
-      id,
-      sessionId,
-      role,
-      content,
-      timestamp,
-      metadata ? JSON.stringify(metadata) : null
-    );
+
+    stmt.run(id, sessionId, role, content, timestamp, metadata ? JSON.stringify(metadata) : null);
 
     this.incrementMessageCount(sessionId);
 
@@ -237,7 +248,16 @@ export class SessionService {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, sessionId, messageId || null, contextJson, pageUrl || null, pageTitle || null, platform || null, now);
+    stmt.run(
+      id,
+      sessionId,
+      messageId || null,
+      contextJson,
+      pageUrl || null,
+      pageTitle || null,
+      platform || null,
+      now
+    );
 
     return id;
   }
@@ -245,7 +265,15 @@ export class SessionService {
   /**
    * Get the most recent context for a session
    */
-  getLatestContext(sessionId: string): { id: string; contextJson: string; pageUrl?: string; platform?: string; extractedAt: string } | null {
+  getLatestContext(
+    sessionId: string
+  ): {
+    id: string;
+    contextJson: string;
+    pageUrl?: string;
+    platform?: string;
+    extractedAt: string;
+  } | null {
     const stmt = this.db.prepare(`
       SELECT id, context_json, page_url, platform, extracted_at
       FROM session_contexts
@@ -254,7 +282,15 @@ export class SessionService {
       LIMIT 1
     `);
 
-    const row = stmt.get(sessionId) as { id: string; context_json: string; page_url: string | null; platform: string | null; extracted_at: string } | undefined;
+    const row = stmt.get(sessionId) as
+      | {
+          id: string;
+          context_json: string;
+          page_url: string | null;
+          platform: string | null;
+          extracted_at: string;
+        }
+      | undefined;
 
     if (!row) return null;
 
@@ -270,7 +306,10 @@ export class SessionService {
   /**
    * Get context history for a session
    */
-  getContextHistory(sessionId: string, limit: number = 10): Array<{
+  getContextHistory(
+    sessionId: string,
+    limit = 10
+  ): Array<{
     id: string;
     messageId?: string;
     pageUrl?: string;
@@ -295,7 +334,7 @@ export class SessionService {
       extracted_at: string;
     }>;
 
-    return rows.map(row => ({
+    return rows.map((row) => ({
       id: row.id,
       messageId: row.message_id || undefined,
       pageUrl: row.page_url || undefined,
@@ -308,14 +347,18 @@ export class SessionService {
   /**
    * Get a specific context by ID
    */
-  getContext(contextId: string): { id: string; sessionId: string; contextJson: string; extractedAt: string } | null {
+  getContext(
+    contextId: string
+  ): { id: string; sessionId: string; contextJson: string; extractedAt: string } | null {
     const stmt = this.db.prepare(`
       SELECT id, session_id, context_json, extracted_at
       FROM session_contexts
       WHERE id = ?
     `);
 
-    const row = stmt.get(contextId) as { id: string; session_id: string; context_json: string; extracted_at: string } | undefined;
+    const row = stmt.get(contextId) as
+      | { id: string; session_id: string; context_json: string; extracted_at: string }
+      | undefined;
 
     if (!row) return null;
 
@@ -330,7 +373,7 @@ export class SessionService {
   /**
    * Clean up old contexts for a session (keep only last N)
    */
-  cleanupOldContexts(sessionId: string, keepCount: number = 20): number {
+  cleanupOldContexts(sessionId: string, keepCount = 20): number {
     // Get IDs to keep
     const keepStmt = this.db.prepare(`
       SELECT id FROM session_contexts
@@ -338,7 +381,9 @@ export class SessionService {
       ORDER BY extracted_at DESC
       LIMIT ?
     `);
-    const idsToKeep = (keepStmt.all(sessionId, keepCount) as Array<{ id: string }>).map(r => r.id);
+    const idsToKeep = (keepStmt.all(sessionId, keepCount) as Array<{ id: string }>).map(
+      (r) => r.id
+    );
 
     if (idsToKeep.length === 0) return 0;
 
@@ -357,7 +402,9 @@ export class SessionService {
    * Get context count for a session
    */
   getContextCount(sessionId: string): number {
-    const stmt = this.db.prepare('SELECT COUNT(*) as count FROM session_contexts WHERE session_id = ?');
+    const stmt = this.db.prepare(
+      'SELECT COUNT(*) as count FROM session_contexts WHERE session_id = ?'
+    );
     const result = stmt.get(sessionId) as { count: number };
     return result.count;
   }
@@ -371,6 +418,9 @@ export class SessionService {
       model: row.model,
       systemPrompt: row.system_prompt || undefined,
       customAgent: row.custom_agent || undefined,
+      tone: (row.tone as Session['tone']) || undefined,
+      explainTradeoffs: this.mapDbBoolean(row.explain_tradeoffs),
+      reasoningEffort: (row.reasoning_effort as Session['reasoningEffort']) || undefined,
       messageCount: row.message_count,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
@@ -378,8 +428,8 @@ export class SessionService {
   }
 
   private mapDbMessage(row: DbMessage): Message {
-    let metadata = row.metadata ? JSON.parse(row.metadata) : undefined;
-    
+    const metadata = row.metadata ? JSON.parse(row.metadata) : undefined;
+
     // Fix legacy image URLs that have incorrect format
     if (metadata?.images) {
       metadata.images = metadata.images.map((img: Record<string, unknown>) => ({
@@ -388,7 +438,7 @@ export class SessionService {
         fullImageUrl: this.fixImageUrl(img.fullImageUrl as string | undefined),
       }));
     }
-    
+
     return {
       id: row.id,
       sessionId: row.session_id,
@@ -400,25 +450,34 @@ export class SessionService {
   }
 
   /**
+   * Map SQLite boolean (0/1) to TypeScript boolean or undefined
+   */
+  private mapDbBoolean(value: number | null): boolean | undefined {
+    if (value === 1) return true;
+    if (value === 0) return false;
+    return undefined;
+  }
+
+  /**
    * Fix legacy image URLs that have incorrect format
    * - Adds missing port (localhost -> localhost:3847)
    * - Removes duplicate "images/images/" path
    */
   private fixImageUrl(url: string | undefined): string | undefined {
     if (!url) return url;
-    
+
     let fixed = url;
-    
+
     // Fix missing port: http://localhost/api -> http://localhost:3847/api
     if (fixed.includes('http://localhost/api')) {
       fixed = fixed.replace('http://localhost/api', 'http://localhost:3847/api');
     }
-    
+
     // Fix duplicate images path: /api/images/images/ -> /api/images/
     if (fixed.includes('/api/images/images/')) {
       fixed = fixed.replace('/api/images/images/', '/api/images/');
     }
-    
+
     return fixed;
   }
 }

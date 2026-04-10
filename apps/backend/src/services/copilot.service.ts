@@ -18,7 +18,7 @@ import { SessionService } from './session.service.js';
 
 interface CopilotSession {
   sessionId: string;
-  session: Awaited<ReturnType<CopilotClient['createSession']>>;
+  session: Awaited<ReturnType<CopilotClient['createSession']>> | null;
   type: SessionType;
 }
 
@@ -396,7 +396,7 @@ export class CopilotService {
       // Create mock session
       this.sessions.set(sessionId, {
         sessionId,
-        session: null as any,
+        session: null,
         type,
       });
       return;
@@ -505,7 +505,6 @@ export class CopilotService {
         return 'Be professional and formal. Use precise language and maintain a business-appropriate tone.';
       case 'technical':
         return 'Be technical and detailed. Provide in-depth explanations suitable for technical professionals. Include specific terminology and technical details.';
-      case 'balanced':
       default:
         return 'Be helpful and clear. Balance technical accuracy with accessibility. Explain concepts thoroughly without being overly verbose.';
     }
@@ -569,9 +568,9 @@ export class CopilotService {
    * The SDK expects tools with a `handler` function — it calls the handler
    * directly and uses the return value as the tool result (no sendToolResult needed).
    */
-  private buildSdkTools(): CopilotTool<any>[] {
+  private buildSdkTools(): CopilotTool<Record<string, unknown>>[] {
     return devopsTools.map(
-      (tool): CopilotTool<any> => ({
+      (tool): CopilotTool<Record<string, unknown>> => ({
         name: tool.name,
         description: tool.description,
         parameters: tool.parameters,
@@ -752,6 +751,7 @@ export class CopilotService {
     delayMs = 1000
   ): Promise<T> {
     let lastError: Error | undefined;
+    let currentDelayMs = delayMs;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -767,9 +767,11 @@ export class CopilotService {
         }
 
         if (attempt < maxRetries) {
-          console.warn(`[CopilotService] Attempt ${attempt} failed, retrying in ${delayMs}ms...`);
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-          delayMs *= 2; // Exponential backoff
+          console.warn(
+            `[CopilotService] Attempt ${attempt} failed, retrying in ${currentDelayMs}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, currentDelayMs));
+          currentDelayMs *= 2;
         }
       }
     }

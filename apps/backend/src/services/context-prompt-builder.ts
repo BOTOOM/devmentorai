@@ -62,7 +62,7 @@ Common diagnostic locations: Metric graphs, Alert conditions, Integration status
   grafana: `**Platform:** Grafana
 Common diagnostic locations: Query editor, Data source config, Alert rules`,
 
-  generic: ``,
+  generic: '',
 };
 
 // ============================================================================
@@ -76,7 +76,7 @@ function formatPageContext(page: ContextPayload['page']): string {
   const { platform } = page;
   const platformLabel = platform.specificProduct || platform.type.toUpperCase();
 
-  let section = `## Page Context\n`;
+  let section = '## Page Context\n';
   section += `- **Platform:** ${platformLabel}`;
   if (platform.confidence < 0.8) {
     section += ` (confidence: ${Math.round(platform.confidence * 100)}%)`;
@@ -95,7 +95,7 @@ function formatPageContext(page: ContextPayload['page']): string {
 function formatErrors(errors: ExtractedError[]): string {
   if (errors.length === 0) return '';
 
-  let section = `## Errors and Alerts on Page\n`;
+  let section = '## Errors and Alerts on Page\n';
   section += `${errors.length} issue(s) detected:\n\n`;
 
   for (const error of errors) {
@@ -115,12 +115,12 @@ function formatErrors(errors: ExtractedError[]): string {
 function formatHeadings(headings: Heading[]): string {
   if (headings.length === 0) return '';
 
-  let section = `## Page Structure (Headings)\n`;
+  let section = '## Page Structure (Headings)\n';
   for (const heading of headings.slice(0, 10)) {
     const indent = '  '.repeat(heading.level - 1);
     section += `${indent}- ${heading.text}\n`;
   }
-  return section + '\n';
+  return `${section}\n`;
 }
 
 /**
@@ -129,7 +129,7 @@ function formatHeadings(headings: Heading[]): string {
 function formatRelevantSections(sections: HTMLSection[]): string {
   if (sections.length === 0) return '';
 
-  let section = `## Relevant UI Elements\n`;
+  let section = '## Relevant UI Elements\n';
   for (const s of sections.slice(0, 5)) {
     section += `### ${s.purpose.replace('-', ' ').toUpperCase()}\n`;
     section += `\`\`\`\n${s.textContent.slice(0, 300)}\n\`\`\`\n\n`;
@@ -143,7 +143,7 @@ function formatRelevantSections(sections: HTMLSection[]): string {
 function formatCodeBlocks(codeBlocks?: HTMLSection[]): string {
   if (!codeBlocks || codeBlocks.length === 0) return '';
 
-  let section = `## Code Snippets Found on Page\n`;
+  let section = '## Code Snippets Found on Page\n';
   for (const block of codeBlocks.slice(0, 3)) {
     const lang = block.attributes.detectedLanguage || 'text';
     section += `### ${lang.toUpperCase()}\n`;
@@ -158,7 +158,7 @@ function formatCodeBlocks(codeBlocks?: HTMLSection[]): string {
 function formatTables(tables?: HTMLSection[]): string {
   if (!tables || tables.length === 0) return '';
 
-  let section = `## Data Tables\n`;
+  let section = '## Data Tables\n';
   for (const table of tables.slice(0, 2)) {
     const rows = table.attributes.rowCount || '?';
     const cols = table.attributes.columnCount || '?';
@@ -179,7 +179,7 @@ function formatConsoleLogs(
   const errors = logs.filter((l) => l.level === 'error' || l.level === 'warn');
   if (errors.length === 0) return '';
 
-  let section = `## Browser Console Logs\n`;
+  let section = '## Browser Console Logs\n';
   section += `${errors.length} error/warning message(s):\n\n`;
 
   for (const log of errors.slice(0, 5)) {
@@ -200,7 +200,7 @@ function formatNetworkErrors(
 ): string {
   if (!errors || errors.length === 0) return '';
 
-  let section = `## Network Requests Failed\n`;
+  let section = '## Network Requests Failed\n';
   section += `${errors.length} failed request(s):\n\n`;
 
   for (const err of errors.slice(0, 5)) {
@@ -217,7 +217,7 @@ function formatNetworkErrors(
 function formatModalContent(modal?: HTMLSection): string {
   if (!modal) return '';
 
-  let section = `## Active Modal/Dialog\n`;
+  let section = '## Active Modal/Dialog\n';
   const title = modal.attributes.title || 'Modal';
   section += `### ${title}\n`;
   section += `\`\`\`\n${modal.textContent.slice(0, 400)}\n\`\`\`\n\n`;
@@ -230,13 +230,13 @@ function formatModalContent(modal?: HTMLSection): string {
 function formatPlatformSpecificContext(platformContext?: Record<string, unknown>): string {
   if (!platformContext || Object.keys(platformContext).length === 0) return '';
 
-  let section = `## Platform-Specific Details\n`;
+  let section = '## Platform-Specific Details\n';
   for (const [key, value] of Object.entries(platformContext)) {
     if (value !== undefined && value !== null) {
       section += `- **${key}:** ${String(value)}\n`;
     }
   }
-  return section + '\n';
+  return `${section}\n`;
 }
 
 /**
@@ -252,7 +252,7 @@ function formatUIState(uiState: {
   modalOpen: boolean;
   formValidationErrors: number;
 }): string {
-  let section = `## UI State\n`;
+  let section = '## UI State\n';
   section += `- **Page State:** ${uiState.pageState}\n`;
 
   const issues: string[] = [];
@@ -264,13 +264,13 @@ function formatUIState(uiState: {
   if (uiState.formValidationErrors > 0)
     issues.push(`${uiState.formValidationErrors} form validation error(s)`);
   if (uiState.disabledButtons > 0) issues.push(`${uiState.disabledButtons} disabled button(s)`);
-  if (uiState.modalOpen) issues.push(`modal/dialog open`);
+  if (uiState.modalOpen) issues.push('modal/dialog open');
 
   if (issues.length > 0) {
     section += `- **UI Issues:** ${issues.join(', ')}\n`;
   }
 
-  return section + '\n';
+  return `${section}\n`;
 }
 
 /**
@@ -288,7 +288,7 @@ function formatRuntimeErrors(
 ): string {
   if (errors.length === 0) return '';
 
-  let section = `## JavaScript Runtime Errors\n`;
+  let section = '## JavaScript Runtime Errors\n';
   section += `${errors.length} runtime error(s) detected:\n\n`;
 
   for (const err of errors.slice(0, 5)) {
@@ -394,15 +394,20 @@ export function buildContextAwarePrompt(
   // Context header - explains that this data comes from user's browser
   enrichedPrompt += `# Browser Context (from user's authenticated session)\n\n`;
   enrichedPrompt += `The following context was extracted from the user's browser. `;
-  enrichedPrompt += `This may include private or authenticated content that is not publicly accessible. `;
+  enrichedPrompt +=
+    'This may include private or authenticated content that is not publicly accessible. ';
   enrichedPrompt += `Use this context to answer the user's question - DO NOT attempt to fetch URLs externally.\n\n`;
 
   // Page context (always included)
   enrichedPrompt += formatPageContext(context.page);
 
   // UI State (if available) - helps understand page state
-  if ((context.page as any).uiState) {
-    enrichedPrompt += formatUIState((context.page as any).uiState);
+  const pageWithUiState = context.page as ContextPayload['page'] & {
+    uiState?: Parameters<typeof formatUIState>[0];
+  };
+
+  if (pageWithUiState.uiState) {
+    enrichedPrompt += formatUIState(pageWithUiState.uiState);
   }
 
   // Platform-specific notes (factual locations, NOT instructions)
@@ -410,7 +415,7 @@ export function buildContextAwarePrompt(
     const platformNotes =
       PLATFORM_CONTEXT_NOTES[context.page.platform.type] || PLATFORM_CONTEXT_NOTES.generic;
     if (platformNotes) {
-      enrichedPrompt += platformNotes + '\n\n';
+      enrichedPrompt += `${platformNotes}\n\n`;
     }
   }
 
@@ -435,8 +440,12 @@ export function buildContextAwarePrompt(
   }
 
   // Runtime JavaScript errors (new)
-  if ((context.text as any).runtimeErrors?.length > 0) {
-    enrichedPrompt += formatRuntimeErrors((context.text as any).runtimeErrors);
+  const textWithRuntimeErrors = context.text as ContextPayload['text'] & {
+    runtimeErrors?: Parameters<typeof formatRuntimeErrors>[0];
+  };
+
+  if (textWithRuntimeErrors.runtimeErrors?.length) {
+    enrichedPrompt += formatRuntimeErrors(textWithRuntimeErrors.runtimeErrors);
   }
 
   // Selected text (user highlighted something specific)
@@ -500,11 +509,7 @@ function truncatePrompt(prompt: string, maxLength: number, userMessage: string):
   const truncatedContext = prompt.slice(0, availableLength);
   const lastNewline = truncatedContext.lastIndexOf('\n');
 
-  return (
-    truncatedContext.slice(0, lastNewline) +
-    '\n\n[Context truncated for length]\n\n' +
-    userMessageSection
-  );
+  return `${truncatedContext.slice(0, lastNewline)}\n\n[Context truncated for length]\n\n${userMessageSection}`;
 }
 
 /**
@@ -523,7 +528,7 @@ export function buildSimplePrompt(
 
   // Add any available context to the user message
   if (pageUrl || pageTitle || selectedText) {
-    userPrompt += `**Context:**\n`;
+    userPrompt += '**Context:**\n';
     if (pageUrl) userPrompt += `- Page URL: ${pageUrl}\n`;
     if (pageTitle) userPrompt += `- Page Title: ${pageTitle}\n`;
     if (selectedText)

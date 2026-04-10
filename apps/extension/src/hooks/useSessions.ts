@@ -1,5 +1,5 @@
 import type { CreateSessionRequest, Session, SessionType } from '@devmentorai/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiClient } from '../services/api-client';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
@@ -15,12 +15,33 @@ export function useSessions(options?: UseSessionsOptions) {
   const [error, setError] = useState<string | null>(null);
   const prevConnectionStatus = useRef<ConnectionStatus | undefined>(options?.connectionStatus);
 
-  const apiClient = ApiClient.getInstance();
+  const apiClient = useMemo(() => ApiClient.getInstance(), []);
+
+  const loadSessions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.listSessions();
+      if (response.success && response.data) {
+        setSessions(response.data.items);
+
+        if (!activeSessionId && response.data.items.length > 0) {
+          setActiveSessionId(response.data.items[0].id);
+        }
+      } else {
+        setError(response.error?.message || 'Failed to load sessions');
+      }
+    } catch (err) {
+      console.error('[useSessions] Failed to load sessions:', err);
+      setError('Failed to load sessions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeSessionId, apiClient]);
 
   // Load sessions on mount
   useEffect(() => {
-    loadSessions();
-  }, []);
+    void loadSessions();
+  }, [loadSessions]);
 
   // Reload sessions when backend reconnects
   useEffect(() => {
@@ -30,11 +51,11 @@ export function useSessions(options?: UseSessionsOptions) {
     // If backend just connected (was disconnected/connecting, now connected), reload sessions
     if (currentStatus === 'connected' && prevStatus && prevStatus !== 'connected') {
       console.log('[useSessions] Backend reconnected, reloading sessions');
-      loadSessions();
+      void loadSessions();
     }
 
     prevConnectionStatus.current = currentStatus;
-  }, [options?.connectionStatus]);
+  }, [loadSessions, options?.connectionStatus]);
 
   // Load active session from storage
   useEffect(() => {
@@ -52,28 +73,6 @@ export function useSessions(options?: UseSessionsOptions) {
     }
   }, [activeSessionId]);
 
-  const loadSessions = async () => {
-    setIsLoading(true);
-    try {
-      const response = await apiClient.listSessions();
-      if (response.success && response.data) {
-        setSessions(response.data.items);
-
-        // Auto-select first session if none selected
-        if (!activeSessionId && response.data.items.length > 0) {
-          setActiveSessionId(response.data.items[0].id);
-        }
-      } else {
-        setError(response.error?.message || 'Failed to load sessions');
-      }
-    } catch (err) {
-      console.error('[useSessions] Failed to load sessions:', err);
-      setError('Failed to load sessions');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const createSession = useCallback(
     async (
       name: string,
@@ -86,31 +85,34 @@ export function useSessions(options?: UseSessionsOptions) {
         const response = await apiClient.createSession(request);
 
         if (response.success && response.data) {
-          setSessions((prev) => [...prev, response.data!]);
-          setActiveSessionId(response.data.id);
-          return response.data;
-        } else {
-          throw new Error(response.error?.message || 'Failed to create session');
+          const createdSession = response.data;
+          setSessions((prev) => [...prev, createdSession]);
+          setActiveSessionId(createdSession.id);
+          return createdSession;
         }
+        throw new Error(response.error?.message || 'Failed to create session');
       } catch (err) {
         console.error('[useSessions] Failed to create session:', err);
         throw err;
       }
     },
-    []
+    [apiClient]
   );
 
-  const selectSession = useCallback(async (sessionId: string) => {
-    setActiveSessionId(sessionId);
+  const selectSession = useCallback(
+    async (sessionId: string) => {
+      setActiveSessionId(sessionId);
 
-    // Resume session on backend to restore Copilot context
-    try {
-      await apiClient.resumeSession(sessionId);
-    } catch (err) {
-      console.warn('[useSessions] Failed to resume session:', err);
-      // Don't fail silently - the session is still selected but may not have full context
-    }
-  }, []);
+      // Resume session on backend to restore Copilot context
+      try {
+        await apiClient.resumeSession(sessionId);
+      } catch (err) {
+        console.warn('[useSessions] Failed to resume session:', err);
+        // Don't fail silently - the session is still selected but may not have full context
+      }
+    },
+    [apiClient]
+  );
 
   const deleteSession = useCallback(
     async (sessionId: string) => {
@@ -143,7 +145,7 @@ export function useSessions(options?: UseSessionsOptions) {
         throw err;
       }
     },
-    [activeSessionId, sessions]
+    [activeSessionId, apiClient, sessions]
   );
 
   const updateSessionModel = useCallback(
@@ -155,11 +157,13 @@ export function useSessions(options?: UseSessionsOptions) {
         throw new Error(response.error?.message || 'Failed to update session model');
       }
 
+      const updatedSession = response.data;
+
       setSessions((prev) =>
-        prev.map((session) => (session.id === sessionId ? response.data! : session))
+        prev.map((session) => (session.id === sessionId ? updatedSession : session))
       );
 
-      return response.data;
+      return updatedSession;
     },
     [apiClient]
   );

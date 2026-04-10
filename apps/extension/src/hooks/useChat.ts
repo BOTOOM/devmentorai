@@ -6,7 +6,7 @@ import type {
   MessageContext,
   StreamEvent,
 } from '@devmentorai/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiClient } from '../services/api-client';
 
 export interface SendMessageOptions {
@@ -43,7 +43,21 @@ export function useChat(sessionId: string | undefined) {
   const currentMessageRef = useRef<string>('');
   const currentSessionRef = useRef<string | undefined>(sessionId);
 
-  const apiClient = ApiClient.getInstance();
+  const apiClient = useMemo(() => ApiClient.getInstance(), []);
+
+  const loadMessages = useCallback(
+    async (sid: string) => {
+      try {
+        const response = await apiClient.getSessionMessages(sid);
+        if (response.success && response.data) {
+          setMessages(response.data.items);
+        }
+      } catch (err) {
+        console.error('[useChat] Failed to load messages:', err);
+      }
+    },
+    [apiClient]
+  );
 
   // Track session changes to prevent message mixup (A.4 fix)
   useEffect(() => {
@@ -60,22 +74,11 @@ export function useChat(sessionId: string | undefined) {
       }
       setIsStreaming(false);
       setIsSending(false);
-      loadMessages(sessionId);
+      void loadMessages(sessionId);
     } else {
       setMessages([]);
     }
-  }, [sessionId]);
-
-  const loadMessages = async (sid: string) => {
-    try {
-      const response = await apiClient.getSessionMessages(sid);
-      if (response.success && response.data) {
-        setMessages(response.data.items);
-      }
-    } catch (err) {
-      console.error('[useChat] Failed to load messages:', err);
-    }
-  };
+  }, [loadMessages, sessionId]);
 
   const sendMessage = useCallback(
     async (content: string, options?: SendMessageOptions | MessageContext) => {
@@ -449,7 +452,7 @@ export function useChat(sessionId: string | undefined) {
         abortControllerRef.current = null;
       }
     },
-    [sessionId, isStreaming, isSending]
+    [apiClient, isSending, isStreaming, sessionId]
   );
 
   const abortMessage = useCallback(async () => {
@@ -467,7 +470,7 @@ export function useChat(sessionId: string | undefined) {
 
     setIsStreaming(false);
     setIsSending(false);
-  }, [sessionId]);
+  }, [apiClient, sessionId]);
 
   return {
     messages,

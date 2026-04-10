@@ -136,9 +136,10 @@ export function useSettings() {
       const updatedSettings = { ...settings };
       let hasChanges = false;
 
-      for (const [key, change] of Object.entries(changes)) {
-        if (key in DEFAULT_SETTINGS && change.newValue !== undefined) {
-          (updatedSettings as any)[key] = change.newValue;
+      for (const key of Object.keys(changes) as Array<keyof Settings>) {
+        const change = changes[key];
+        if (key in DEFAULT_SETTINGS && change?.newValue !== undefined) {
+          (updatedSettings as Record<string, unknown>)[key] = change.newValue;
           hasChanges = true;
 
           // Apply theme immediately when changed from another context
@@ -149,7 +150,7 @@ export function useSettings() {
       }
 
       if (hasChanges) {
-        setSettings(updatedSettings);
+        setSettings(updatedSettings as Settings);
       }
     };
 

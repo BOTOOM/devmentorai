@@ -28,6 +28,15 @@ export interface ScreenshotData {
   timestamp: string;
 }
 
+type AggregatedContextWithScreenshot = AggregatedContext & {
+  screenshot?: {
+    available: true;
+    width: number;
+    height: number;
+    timestamp: string;
+  };
+};
+
 export interface UseContextExtractionResult {
   extractedContext: ContextPayload | null;
   platform: PlatformDetection | null;
@@ -172,11 +181,15 @@ export function useContextExtraction(): UseContextExtractionResult {
         }
 
         // Aggregate with session info (Phase 3: no intent detection)
-        const aggregated = aggregateContext(response.context, sessionId, userMessage);
+        const aggregated: AggregatedContextWithScreenshot = aggregateContext(
+          response.context,
+          sessionId,
+          userMessage
+        );
 
         // Add screenshot reference to context if captured
         if (screenshotData) {
-          (aggregated as any).screenshot = {
+          aggregated.screenshot = {
             available: true,
             width: screenshotData.width,
             height: screenshotData.height,

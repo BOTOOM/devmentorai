@@ -11,6 +11,7 @@ const NAV_LINKS = [
   { href: "/use-cases", label: "Use Cases" },
   { href: "/installation", label: "Installation" },
   { href: "/docs", label: "Docs" },
+  { href: "/changelog", label: "Changelog" },
   { href: "/trust", label: "Trust" },
   { href: "/faq", label: "FAQ" },
   { href: "/support", label: "Support" },

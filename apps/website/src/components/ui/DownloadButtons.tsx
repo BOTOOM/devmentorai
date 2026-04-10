@@ -1,4 +1,4 @@
-import { MonitorSmartphone, Globe, Download, Store } from "lucide-react";
+import { Store } from "lucide-react";
 import type { ReleaseInfo } from "@/lib/github-releases";
 
 interface DownloadButtonsProps {

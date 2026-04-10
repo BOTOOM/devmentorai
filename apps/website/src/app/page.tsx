@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Globe, Cloud, FileEdit } from "lucide-react";
+import { Globe, Cloud, FileEdit, ArrowRight, History, Puzzle, Server } from "lucide-react";
 import { HeroSection } from "@/components/sections/HeroSection";
 import { CTASection } from "@/components/sections/CTASection";
 import { FeatureCard } from "@/components/ui/FeatureCard";
-import { PulseBadge } from "@/components/ui/Badge";
+import { Badge, PulseBadge } from "@/components/ui/Badge";
 import { LiteYouTubeEmbed } from "@/components/ui/LiteYouTubeEmbed";
+import { formatChangelogDate, getLatestChangelogEntries } from "@/lib/changelog-data";
 
 export const metadata: Metadata = {
   title: "DevMentorAI — AI Mentor for Your Entire Browser",
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
+  const latestReleases = getLatestChangelogEntries();
   const videoJsonLd = {
     "@context": "https://schema.org",
     "@type": "VideoObject",
@@ -195,6 +197,91 @@ export default function Home() {
               accentColor="purple"
             />
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 md:px-12 lg:px-20">
+        <div className="mb-8 flex flex-col gap-3 sm:mb-10">
+          <Badge icon={<History className="h-3 w-3" />}>Changelog</Badge>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight sm:text-3xl md:text-4xl">
+                What&apos;s new lately
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-[var(--muted)] sm:text-base md:text-lg">
+                Extension and backend ship on different schedules, so we track both separately and explain them in user-friendly language.
+              </p>
+            </div>
+            <Link
+              href="/changelog"
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-primary hover:underline"
+            >
+              Open full changelog
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          {[
+            {
+              kind: "Extension",
+              icon: Puzzle,
+              entry: latestReleases.extension,
+            },
+            {
+              kind: "Backend",
+              icon: Server,
+              entry: latestReleases.backend,
+            },
+          ].map(({ kind, icon: Icon, entry }) => (
+            <article
+              key={entry.tag}
+              className="rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 shadow-sm sm:p-6"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge icon={<Icon className="h-3 w-3" />}>{kind}</Badge>
+                    <span className="rounded-full border border-[var(--card-border)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)]">
+                      v{entry.version}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-xl font-bold tracking-tight">{entry.headline}</h3>
+                  <p className="mt-2 text-sm text-[var(--muted)]">{entry.summary}</p>
+                </div>
+                <span className="shrink-0 text-xs text-[var(--muted)]">
+                  {formatChangelogDate(entry.releasedAt)}
+                </span>
+              </div>
+
+              <ul className="mt-5 space-y-2 text-sm leading-relaxed text-[var(--muted)]">
+                {entry.highlights.slice(0, 2).map((highlight) => (
+                  <li key={highlight} className="flex gap-3">
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <span>{highlight}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link
+                  href="/changelog"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
+                >
+                  See full changelog
+                </Link>
+                <a
+                  href={entry.releaseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--card-border)] bg-[var(--section-alt)] px-4 py-2.5 text-sm font-semibold text-[var(--muted)] transition-colors hover:text-primary"
+                >
+                  Technical release
+                </a>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
 

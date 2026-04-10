@@ -40,6 +40,12 @@ export function Footer() {
                 Docs
               </Link>
               <Link
+                href="/changelog"
+                className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-primary"
+              >
+                Changelog
+              </Link>
+              <Link
                 href="/trust"
                 className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-primary"
               >

@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 const DEFAULT_BASE_URL = 'https://devmentorai.edwardiaz.dev';
-const SITE_TITLE = 'DevMentorAI — AI Mentor for Your Entire Browser';
+const SITE_TITLE = 'DevMentorAI — Your Browser Companion for GitHub Copilot';
 const SITE_DESCRIPTION =
-  'Context-aware AI assistance powered by GitHub Copilot. DevOps mentoring, writing help, and debugging — directly in your browser.';
+  'Bring GitHub Copilot-style help into your browser workflow with a context-aware assistant for web pages, cloud dashboards, debugging, and writing.';
 
 async function getRequestBaseUrl() {
   const requestHeaders = await headers();
@@ -47,6 +47,15 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: SITE_DESCRIPTION,
     metadataBase: new URL(baseUrl),
+    keywords: [
+      'GitHub Copilot browser extension',
+      'browser companion for GitHub Copilot',
+      'Copilot in your browser',
+      'AI browser assistant',
+      'browser extension for developers',
+      'DevOps browser assistant',
+      'context-aware browser AI',
+    ],
     openGraph: {
       title: SITE_TITLE,
       description: SITE_DESCRIPTION,
@@ -59,7 +68,7 @@ export async function generateMetadata(): Promise<Metadata> {
           url: socialImageUrl,
           width: 1200,
           height: 630,
-          alt: 'DevMentorAI — Context-Aware AI Browser Mentor',
+          alt: 'DevMentorAI — Browser companion for GitHub Copilot workflows',
         },
       ],
     },

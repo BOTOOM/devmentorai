@@ -16,6 +16,24 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
   extension: [
     {
       track: 'extension',
+      version: '1.6.0',
+      tag: 'ext-v1.6.0',
+      releasedAt: '2026-04-13',
+      headline: 'You can now fine-tune Copilot responses from the browser',
+      summary:
+        'This release makes the extension feel much more flexible and polished by adding easier model controls, optional reasoning depth, and a long list of stability improvements.',
+      highlights: [
+        'A new model switch flow makes it easier to change how the assistant responds without leaving the browser workflow.',
+        'Supported models can now use reasoning effort controls, so you can choose between faster answers and deeper thinking.',
+        'The extension became more reliable overall thanks to fixes across hooks, components, utilities, and entry points.',
+      ],
+      fixes: [
+        'Accessibility, build-output, and type-safety fixes made everyday use feel more stable and predictable.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/ext-v1.6.0',
+    },
+    {
+      track: 'extension',
       version: '1.5.0',
       tag: 'ext-v1.5.0',
       releasedAt: '2026-02-27',
@@ -90,6 +108,24 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
     },
   ],
   backend: [
+    {
+      track: 'backend',
+      version: '1.6.0',
+      tag: 'backend-v1.6.0',
+      releasedAt: '2026-04-13',
+      headline: 'Smarter sessions and better backend reliability',
+      summary:
+        'This backend release helps the browser assistant stay more dependable while adding better support for model changes and reasoning-aware Copilot sessions.',
+      highlights: [
+        'Session handling was improved so model switches and reasoning settings behave more smoothly behind the scenes.',
+        'Compatibility work keeps the backend aligned with newer GitHub Copilot protocol and runtime expectations.',
+        'CLI and service updates make the local engine that powers the browser experience more stable day to day.',
+      ],
+      fixes: [
+        'Node and SDK compatibility improvements reduced setup friction and made local startup more dependable.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/backend-v1.6.0',
+    },
     {
       track: 'backend',
       version: '1.5.0',

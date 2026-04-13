@@ -1,3 +1,42 @@
+## [1.6.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.5.0...backend-v1.6.0) (2026-04-13)
+
+### Features
+
+* **backend:** add reasoning effort support and improve session model switching ([1e610b9](https://github.com/BOTOOM/devmentorai/commit/1e610b9fc81053e90f4c3105f0ece88c47b8b449))
+* **backend:** update CLI, native host, and services for new features ([2bc16cb](https://github.com/BOTOOM/devmentorai/commit/2bc16cb2749a667191b1725c0aebe951a0b5cdc1))
+* **e2e:** add playwright runner script for automated extension rebuild ([c4a02c0](https://github.com/BOTOOM/devmentorai/commit/c4a02c0193edd6c4dae40c50afb8b1371a0e2ba5))
+* **extension:** add model switch modal and reasoning effort selector ([94bc171](https://github.com/BOTOOM/devmentorai/commit/94bc171d2281e7bb5987b13a2942d3f6a6208d56))
+* **shared:** add tone and reasoning effort types to session ([dada838](https://github.com/BOTOOM/devmentorai/commit/dada8384896ae5f52aba72a264c27202db16ef74))
+* **website:** update components and add changelog support ([a4638c8](https://github.com/BOTOOM/devmentorai/commit/a4638c821232ae92f4740dd746389a1db6df52cc))
+
+### Bug Fixes
+
+* **backend:** apply Biome formatting to CLI and service files ([d98bc41](https://github.com/BOTOOM/devmentorai/commit/d98bc41ddb7126c7ab0bc517e258eeb9531f8150))
+* **backend:** resolve lint issues in devops tools ([039da0e](https://github.com/BOTOOM/devmentorai/commit/039da0eff71b586a23aa3b47e1a12777adee5a9d))
+* **backend:** resolve type errors and lint issues in services ([6d4fc99](https://github.com/BOTOOM/devmentorai/commit/6d4fc9975cecc588e20043e015e8d57da4056c8c))
+* **backend:** resolve type errors in chat routes ([019fa17](https://github.com/BOTOOM/devmentorai/commit/019fa1768b8e1fae46101b62ff6061b69f24ffd5))
+* **backend:** resolve type errors in native messaging host ([8d27175](https://github.com/BOTOOM/devmentorai/commit/8d2717534a0e95350237d335cca967ec353f646a))
+* **e2e:** use node: prefixed imports for lint compliance ([9b99ff7](https://github.com/BOTOOM/devmentorai/commit/9b99ff7d2be8656b3ea42a4e9d8fb30d895f65c3))
+* **extension:** build hook to copy public assets to correct output directory ([49acd2e](https://github.com/BOTOOM/devmentorai/commit/49acd2ed042cab1fd44a2217579582603fc82984))
+* **extension:** resolve hook dependency and type errors in React hooks ([f9288ae](https://github.com/BOTOOM/devmentorai/commit/f9288ae852975eb26a8969113a99bfd9673fe041))
+* **extension:** resolve React accessibility and lint errors in components ([7cb83c1](https://github.com/BOTOOM/devmentorai/commit/7cb83c1cde4936155680673f5b25e074a39763d8))
+* **extension:** resolve type errors and accessibility issues in entry points ([5274813](https://github.com/BOTOOM/devmentorai/commit/527481364e551c6d0049425bb9c2da1e6e0a5836))
+* **extension:** resolve type errors and lint issues in utility libraries ([8ec2ce4](https://github.com/BOTOOM/devmentorai/commit/8ec2ce434b175490aa242132676fc7e9598b6604))
+* update pnpm-lock.yaml to match package.json changes ([13db45d](https://github.com/BOTOOM/devmentorai/commit/13db45db65c3f0321572bce6e7d1d0bb7f512e7f))
+
+### Refactoring
+
+* **extension:** reorganize imports and update components for new features ([0424e9b](https://github.com/BOTOOM/devmentorai/commit/0424e9b96c49e2646ec5ab265f3dadf8ce3f2df7))
+
+### Maintenance
+
+* add biome configuration and update backend release workflow ([4ad189b](https://github.com/BOTOOM/devmentorai/commit/4ad189bea3059729a79ec901a5bb42f3a69789a3))
+* add filtered lint and typecheck scripts to root package.json ([1db1431](https://github.com/BOTOOM/devmentorai/commit/1db1431dc19be247b2854aff06218af2240ef5f8))
+* apply Biome formatting to configuration files ([38af949](https://github.com/BOTOOM/devmentorai/commit/38af949a959866cfa9f8f84648aa586f2de17599))
+* apply Biome formatting to scripts ([6315fd7](https://github.com/BOTOOM/devmentorai/commit/6315fd71767f91f53a1809f01730e9672122e1e1))
+* ignore TypeScript declaration files in gitignore ([1d03ea0](https://github.com/BOTOOM/devmentorai/commit/1d03ea076f972f154026d1d7e19d3db830989189))
+* **shared:** apply Biome formatting to shared package files ([4e0b44f](https://github.com/BOTOOM/devmentorai/commit/4e0b44f897a2ba74c12a9c706e3d3678245b3a44))
+
 ## [1.5.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.4.1...backend-v1.5.0) (2026-03-18)
 
 ### Features

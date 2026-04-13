@@ -6,7 +6,7 @@ export const size = {
 };
 
 export const contentType = 'image/png';
-export const alt = 'DevMentorAI — Context-Aware AI Browser Mentor';
+export const alt = 'DevMentorAI — Browser companion for GitHub Copilot workflows';
 
 export default function OpenGraphImage() {
   return new ImageResponse(
@@ -51,10 +51,10 @@ export default function OpenGraphImage() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '950px' }}>
         <div style={{ fontSize: '64px', fontWeight: 800, lineHeight: 1.05 }}>
-          Context-Aware AI Browser Mentor
+          Copilot for your browser workflow
         </div>
         <div style={{ fontSize: '34px', color: '#c4b5fd', fontWeight: 600 }}>
-          Powered by GitHub Copilot CLI and Copilot SDK
+          A browser companion built for GitHub Copilot-powered work
         </div>
       </div>
 
@@ -66,7 +66,7 @@ export default function OpenGraphImage() {
           color: '#cbd5e1',
         }}
       >
-        <span>Understand pages, logs, and cloud dashboards instantly</span>
+        <span>Understand pages, docs, errors, and cloud dashboards faster</span>
         <span>devmentorai.edwardiaz.dev</span>
       </div>
     </div>,

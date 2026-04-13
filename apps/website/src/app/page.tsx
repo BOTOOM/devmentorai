@@ -9,9 +9,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'DevMentorAI — AI Mentor for Your Entire Browser',
+  title: 'DevMentorAI — Copilot in Your Browser for Real Web Work',
   description:
-    'Watch the DevMentorAI demo and learn how to install, connect, and use context-aware AI assistance in your browser with GitHub Copilot.',
+    'See how DevMentorAI brings GitHub Copilot-style help into your browser for cloud dashboards, documentation, debugging, and real web workflows.',
 };
 
 export default function Home() {
@@ -45,10 +45,10 @@ export default function Home() {
         badge={<PulseBadge>Powered by GitHub Copilot</PulseBadge>}
         title={
           <>
-            The AI Mentor for your <span className="text-primary">entire browser</span>
+            Copilot for your <span className="text-primary">browser workflow</span>
           </>
         }
-        subtitle="Context-aware assistance powered by GitHub Copilot. Understand any web page, error, or cloud dashboard instantly."
+        subtitle="Bring GitHub Copilot-style help into the pages you already use. Understand web apps, cloud dashboards, docs, and errors without leaving your browser."
         actions={
           <>
             <Link

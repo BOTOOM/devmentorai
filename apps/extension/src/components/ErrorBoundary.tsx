@@ -1,5 +1,5 @@
+import { AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react';
 import React from 'react';
-import { AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
 import { EXTENSION_VERSION } from '../version.js';
 
 interface ErrorBoundaryProps {
@@ -35,12 +35,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   handleReportIssue = () => {
     const errorDetails = encodeURIComponent(
       `**Error Message:**\n\`\`\`\n${this.state.error?.message || 'Unknown error'}\n\`\`\`\n\n` +
-      `**Stack Trace:**\n\`\`\`\n${this.state.error?.stack || 'No stack trace'}\n\`\`\`\n\n` +
-      `**Component Stack:**\n\`\`\`\n${this.state.errorInfo?.componentStack || 'No component stack'}\n\`\`\`\n\n` +
-      `**Browser:** ${navigator.userAgent}\n` +
-      `**Extension Version:** ${EXTENSION_VERSION}`
+        `**Stack Trace:**\n\`\`\`\n${this.state.error?.stack || 'No stack trace'}\n\`\`\`\n\n` +
+        `**Component Stack:**\n\`\`\`\n${this.state.errorInfo?.componentStack || 'No component stack'}\n\`\`\`\n\n` +
+        `**Browser:** ${navigator.userAgent}\n` +
+        `**Extension Version:** ${EXTENSION_VERSION}`
     );
-    
+
     const issueUrl = `https://github.com/BOTOOM/devmentorai/issues/new?title=${encodeURIComponent('[Bug] Extension Error')}&body=${errorDetails}&labels=bug,extension`;
     globalThis.open(issueUrl, '_blank');
   };
@@ -76,6 +76,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
             <div className="space-y-3">
               <button
+                type="button"
                 onClick={this.handleReload}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium shadow-sm"
               >
@@ -84,6 +85,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               </button>
 
               <button
+                type="button"
                 onClick={this.handleReportIssue}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg transition-colors font-medium"
               >

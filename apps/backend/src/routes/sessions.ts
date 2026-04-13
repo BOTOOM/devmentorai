@@ -1,13 +1,13 @@
-import type { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import type {
   ApiResponse,
+  CreateSessionRequest,
+  Message,
   PaginatedResponse,
   Session,
-  CreateSessionRequest,
   UpdateSessionRequest,
-  Message,
 } from '@devmentorai/shared';
+import type { FastifyInstance } from 'fastify';
+import { z } from 'zod';
 import { deleteSessionImages } from '../services/thumbnail-service.js';
 
 const createSessionSchema = z.object({
@@ -15,12 +15,23 @@ const createSessionSchema = z.object({
   type: z.enum(['devops', 'writing', 'development', 'general']),
   model: z.string().optional(),
   systemPrompt: z.string().optional(),
+  tone: z.enum(['concise', 'friendly', 'professional', 'technical', 'balanced']).optional(),
+  explainTradeoffs: z.boolean().optional(),
+  reasoningEffort: z.enum(['low', 'medium', 'high']).optional(),
 });
 
 const updateSessionSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   status: z.enum(['active', 'paused', 'closed']).optional(),
   model: z.string().min(1).optional(),
+  tone: z.enum(['concise', 'friendly', 'professional', 'technical', 'balanced']).optional(),
+  explainTradeoffs: z.boolean().optional(),
+  reasoningEffort: z.enum(['low', 'medium', 'high']).nullable().optional(),
+});
+
+const switchModelSchema = z.object({
+  model: z.string().min(1),
+  reasoningEffort: z.enum(['low', 'medium', 'high']).nullable().optional(),
 });
 
 export async function sessionRoutes(fastify: FastifyInstance) {
@@ -48,16 +59,20 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     try {
       const body = createSessionSchema.parse(request.body);
       console.log('[sessionRoutes] Creating session with body:', body);
-      
+
       // Create in database
       const session = fastify.sessionService.createSession(body);
-      
+
       // Create Copilot session
       await fastify.copilotService.createCopilotSession(
         session.id,
         session.type,
         session.model,
-        session.systemPrompt
+        session.systemPrompt,
+        false, // enableMcp
+        session.tone,
+        session.explainTradeoffs,
+        session.reasoningEffort
       );
 
       return reply.code(201).send({
@@ -122,16 +137,25 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         });
       }
 
-      if (body.model && body.model !== currentSession.model) {
+      const shouldReconfigureModel = body.model !== undefined || body.reasoningEffort !== undefined;
+      const nextModel = body.model ?? currentSession.model;
+
+      if (shouldReconfigureModel) {
         await fastify.copilotService.switchSessionModel(
           currentSession.id,
           currentSession.type,
-          body.model,
-          currentSession.systemPrompt
+          nextModel,
+          currentSession.systemPrompt,
+          body.reasoningEffort ?? undefined
         );
       }
 
-      const session = fastify.sessionService.updateSession(request.params.id, body);
+      const session = fastify.sessionService.updateSession(request.params.id, {
+        ...body,
+        ...(body.model !== undefined && body.reasoningEffort === undefined
+          ? { reasoningEffort: null }
+          : {}),
+      });
 
       if (!session) {
         return reply.code(404).send({
@@ -168,7 +192,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     Reply: ApiResponse<{ deleted: boolean; sessionId: string }>;
   }>('/sessions/:id', async (request, reply) => {
     const sessionId = request.params.id;
-    
+
     console.log(`[SessionRoute] Deleting session: ${sessionId}`);
 
     // First check if session exists
@@ -187,7 +211,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     try {
       await fastify.copilotService.destroySession(sessionId);
     } catch (error) {
-      console.error(`[SessionRoute] Error destroying Copilot session:`, error);
+      console.error('[SessionRoute] Error destroying Copilot session:', error);
       // Continue with DB deletion even if Copilot cleanup fails
     }
 
@@ -195,18 +219,18 @@ export async function sessionRoutes(fastify: FastifyInstance) {
     try {
       deleteSessionImages(sessionId);
     } catch (error) {
-      console.error(`[SessionRoute] Error deleting session images:`, error);
+      console.error('[SessionRoute] Error deleting session images:', error);
       // Continue with DB deletion even if image cleanup fails
     }
 
     // Delete from database (CASCADE will delete messages)
     const deleted = fastify.sessionService.deleteSession(sessionId);
-    
+
     console.log(`[SessionRoute] Session ${sessionId} deleted: ${deleted}`);
 
-    return reply.code(200).send({ 
+    return reply.code(200).send({
       success: true,
-      data: { deleted, sessionId }
+      data: { deleted, sessionId },
     });
   });
 
@@ -237,16 +261,80 @@ export async function sessionRoutes(fastify: FastifyInstance) {
         session.id,
         session.type,
         session.model,
-        session.systemPrompt
+        session.systemPrompt,
+        false,
+        session.tone,
+        session.explainTradeoffs,
+        session.reasoningEffort
       );
     }
 
     // Update status to active
     const updatedSession = fastify.sessionService.updateSession(sessionId, { status: 'active' });
 
+    if (!updatedSession) {
+      return reply.code(500).send({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to update session status',
+        },
+      });
+    }
+
     return reply.send({
       success: true,
-      data: updatedSession!,
+      data: updatedSession,
+    });
+  });
+
+  // Switch model for existing session (SDK v0.2.x+ setModel support)
+  fastify.post<{
+    Params: { id: string };
+    Body: { model: string; reasoningEffort?: 'low' | 'medium' | 'high' | null };
+    Reply: ApiResponse<Session>;
+  }>('/sessions/:id/switch-model', async (request, reply) => {
+    const sessionId = request.params.id;
+    const body = switchModelSchema.parse(request.body);
+
+    const session = fastify.sessionService.getSession(sessionId);
+    if (!session) {
+      return reply.code(404).send({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Session not found',
+        },
+      });
+    }
+
+    // Switch model in Copilot session using SDK v0.2.x setModel()
+    await fastify.copilotService.switchSessionModel(
+      sessionId,
+      session.type,
+      body.model,
+      session.systemPrompt,
+      body.reasoningEffort ?? undefined
+    );
+
+    const updatedSession = fastify.sessionService.updateSession(sessionId, {
+      model: body.model,
+      reasoningEffort: body.reasoningEffort ?? null,
+    });
+
+    if (!updatedSession) {
+      return reply.code(500).send({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to persist switched model',
+        },
+      });
+    }
+
+    return reply.send({
+      success: true,
+      data: updatedSession,
     });
   });
 

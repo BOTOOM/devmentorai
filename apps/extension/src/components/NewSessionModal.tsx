@@ -1,31 +1,51 @@
-import { useState, useEffect } from 'react';
-import { X, ChevronDown } from 'lucide-react';
+import type { ModelInfo, ReasoningEffort, SessionType } from '@devmentorai/shared';
+import { DEFAULT_CONFIG, SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
+import { ChevronDown, X } from 'lucide-react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/utils';
-import type { SessionType, ModelInfo } from '@devmentorai/shared';
-import { SESSION_TYPE_CONFIGS, DEFAULT_CONFIG } from '@devmentorai/shared';
 import { ApiClient } from '../services/api-client';
+import { ReasoningEffortSelector } from './ReasoningEffortSelector';
 
 // D.5 - Pricing tier display
 const PRICING_BADGES: Record<string, { label: string; color: string }> = {
-  free: { label: 'Free', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  cheap: { label: 'Cheap', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' },
-  premium: { label: 'Premium', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  free: {
+    label: 'Free',
+    color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  },
+  cheap: {
+    label: 'Cheap',
+    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  },
+  standard: {
+    label: 'Standard',
+    color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  },
+  premium: {
+    label: 'Premium',
+    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  },
 };
 
 interface NewSessionModalProps {
   onClose: () => void;
-  onSubmit: (name: string, type: SessionType, model?: string) => Promise<void> | void;
+  onSubmit: (
+    name: string,
+    type: SessionType,
+    model?: string,
+    reasoningEffort?: ReasoningEffort
+  ) => Promise<void> | void;
 }
 
 export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalProps>) {
   const [name, setName] = useState('');
   const [type, setType] = useState<SessionType>('devops');
   const [model, setModel] = useState<string>('gpt-4.1');
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>('medium');
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [modelSearch, setModelSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch available models
   useEffect(() => {
@@ -44,20 +64,46 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
     fetchModels();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const selectedModel = models.find((m) => m.id === model);
+
+  useEffect(() => {
+    if (!selectedModel?.supportedReasoningEfforts?.length) {
+      return;
+    }
+
+    if (!selectedModel.supportedReasoningEfforts.includes(reasoningEffort)) {
+      setReasoningEffort(selectedModel.supportedReasoningEfforts[0] as ReasoningEffort);
+    }
+  }, [selectedModel, reasoningEffort]);
+
+  useEffect(() => {
+    nameInputRef.current?.focus();
+  }, []);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!name.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     try {
-      await onSubmit(name.trim(), type, model);
+      const selectedModelInfo = models.find((m) => m.id === model);
+      const supportsReasoning =
+        selectedModelInfo?.supportedReasoningEfforts &&
+        selectedModelInfo.supportedReasoningEfforts.length > 0;
+      await onSubmit(name.trim(), type, model, supportsReasoning ? reasoningEffort : undefined);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const sessionTypes = Object.entries(SESSION_TYPE_CONFIGS) as [SessionType, typeof SESSION_TYPE_CONFIGS[SessionType]][];
-  const selectedModel = models.find(m => m.id === model);
+  const sessionTypes = Object.entries(SESSION_TYPE_CONFIGS) as [
+    SessionType,
+    (typeof SESSION_TYPE_CONFIGS)[SessionType],
+  ][];
+  const supportsReasoning =
+    selectedModel?.supportedReasoningEfforts && selectedModel.supportedReasoningEfforts.length > 0;
+  const supportedReasoningEfforts = (selectedModel?.supportedReasoningEfforts ||
+    []) as ReasoningEffort[];
   const normalizedQuery = modelSearch.trim().toLowerCase();
   const filteredModels = normalizedQuery
     ? models.filter((modelItem) => {
@@ -87,10 +133,9 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
       <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            New Session
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">New Session</h2>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
           >
@@ -109,13 +154,13 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
               Session Name
             </label>
             <input
+              ref={nameInputRef}
               id="session-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., AWS Migration, Email Draft"
               className="input"
-              autoFocus
             />
           </div>
 
@@ -139,12 +184,14 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                 >
                   <span className="text-2xl">{config.icon}</span>
                   <div>
-                    <p className={cn(
-                      'font-medium text-sm',
-                      type === typeKey
-                        ? 'text-primary-700 dark:text-primary-300'
-                        : 'text-gray-900 dark:text-white'
-                    )}>
+                    <p
+                      className={cn(
+                        'font-medium text-sm',
+                        type === typeKey
+                          ? 'text-primary-700 dark:text-primary-300'
+                          : 'text-gray-900 dark:text-white'
+                      )}
+                    >
                       {config.name}
                     </p>
                   </div>
@@ -174,10 +221,12 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                     </p>
                   )}
                 </div>
-                <ChevronDown className={cn(
-                  'w-5 h-5 text-gray-400 transition-transform',
-                  showModelPicker && 'rotate-180'
-                )} />
+                <ChevronDown
+                  className={cn(
+                    'w-5 h-5 text-gray-400 transition-transform',
+                    showModelPicker && 'rotate-180'
+                  )}
+                />
               </button>
 
               {showModelPicker && (
@@ -193,21 +242,27 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                   </div>
 
                   {filteredModels.length === 0 && (
-                    <p className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">No models found</p>
+                    <p className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
+                      No models found
+                    </p>
                   )}
 
                   {/* D.5 - Group models by pricing tier */}
-                  {['free', 'cheap', 'standard', 'premium'].map(tier => {
-                    const tierModels = filteredModels.filter(m => m.pricingTier === tier || (!m.pricingTier && tier === 'standard'));
+                  {['free', 'cheap', 'standard', 'premium'].map((tier) => {
+                    const tierModels = filteredModels.filter(
+                      (m) => m.pricingTier === tier || (!m.pricingTier && tier === 'standard')
+                    );
                     if (tierModels.length === 0) return null;
-                    
+
                     return (
                       <div key={tier}>
                         <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-                          <span className={cn(
-                            'text-xs font-medium px-2 py-0.5 rounded-full',
-                            PRICING_BADGES[tier]?.color || PRICING_BADGES.standard.color
-                          )}>
+                          <span
+                            className={cn(
+                              'text-xs font-medium px-2 py-0.5 rounded-full',
+                              PRICING_BADGES[tier]?.color || PRICING_BADGES.standard.color
+                            )}
+                          >
                             {PRICING_BADGES[tier]?.label || 'Standard'}
                           </span>
                         </div>
@@ -252,6 +307,15 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
             </div>
           </div>
 
+          {/* Reasoning Effort - only for supported models */}
+          {supportsReasoning && (
+            <ReasoningEffortSelector
+              value={reasoningEffort}
+              supportedEfforts={supportedReasoningEfforts}
+              onChange={setReasoningEffort}
+            />
+          )}
+
           {/* Description */}
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {SESSION_TYPE_CONFIGS[type].description}
@@ -259,11 +323,7 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
 
           {/* Actions */}
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 btn-secondary"
-            >
+            <button type="button" onClick={onClose} className="flex-1 btn-secondary">
               Cancel
             </button>
             <button

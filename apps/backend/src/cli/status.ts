@@ -3,9 +3,9 @@
  * Shows the current status of the DevMentorAI server.
  */
 
-import { isServerRunning, readPid, healthcheck } from '../lib/daemon.js';
-import { PID_FILE, LOG_FILE, DATA_DIR } from '../lib/paths.js';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
+import { healthcheck, isServerRunning, readPid } from '../lib/daemon.js';
+import { DATA_DIR, LOG_FILE, PID_FILE } from '../lib/paths.js';
 
 const DEFAULT_PORT = DEFAULT_CONFIG.DEFAULT_PORT;
 
@@ -26,7 +26,7 @@ export async function statusCommand(): Promise<void> {
   const pid = readPid();
   const health = await healthcheck(DEFAULT_PORT);
 
-  console.log(`  Status:  ✓ running`);
+  console.log('  Status:  ✓ running');
   console.log(`  PID:     ${pid || 'unknown'}`);
   console.log(`  Port:    ${DEFAULT_PORT}`);
   console.log(`  URL:     http://127.0.0.1:${DEFAULT_PORT}`);
@@ -38,7 +38,9 @@ export async function statusCommand(): Promise<void> {
       console.log(`  Uptime:  ${formatUptime(data.uptime as number)}`);
     }
     if (data.copilotConnected !== undefined) {
-      console.log(`  Copilot: ${data.copilotConnected ? '✓ connected' : '⊘ disconnected (mock mode)'}`);
+      console.log(
+        `  Copilot: ${data.copilotConnected ? '✓ connected' : '⊘ disconnected (mock mode)'}`
+      );
     }
   }
 

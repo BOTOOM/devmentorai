@@ -1,7 +1,7 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import Database from 'better-sqlite3';
-import path from 'path';
-import os from 'os';
-import fs from 'fs';
 
 const DB_DIR = path.join(os.homedir(), '.devmentorai');
 const DB_PATH = path.join(DB_DIR, 'devmentorai.db');
@@ -15,10 +15,10 @@ export function initDatabase(): Database.Database {
   }
 
   const db = new Database(DB_PATH);
-  
+
   // Enable WAL mode for better performance
   db.pragma('journal_mode = WAL');
-  
+
   // Create tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
@@ -63,6 +63,34 @@ export function initDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_session_contexts_session_id ON session_contexts(session_id);
     CREATE INDEX IF NOT EXISTS idx_session_contexts_extracted_at ON session_contexts(extracted_at);
   `);
+
+  // Migration: Add tone, explain_tradeoffs, reasoning_effort columns if they don't exist
+  try {
+    db.exec(`
+      ALTER TABLE sessions ADD COLUMN tone TEXT DEFAULT 'balanced';
+    `);
+    console.log('[DB] Migration: Added tone column');
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    db.exec(`
+      ALTER TABLE sessions ADD COLUMN explain_tradeoffs INTEGER DEFAULT 0;
+    `);
+    console.log('[DB] Migration: Added explain_tradeoffs column');
+  } catch {
+    // Column already exists
+  }
+
+  try {
+    db.exec(`
+      ALTER TABLE sessions ADD COLUMN reasoning_effort TEXT;
+    `);
+    console.log('[DB] Migration: Added reasoning_effort column');
+  } catch {
+    // Column already exists
+  }
 
   return db;
 }

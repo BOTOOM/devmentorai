@@ -1,17 +1,17 @@
-import Fastify from 'fastify';
+import { DEFAULT_CONFIG } from '@devmentorai/shared';
 import cors from '@fastify/cors';
-import { healthRoutes } from './routes/health.js';
-import { sessionRoutes } from './routes/sessions.js';
-import { chatRoutes } from './routes/chat.js';
-import { modelsRoutes } from './routes/models.js';
+import Fastify from 'fastify';
+import { initDatabase } from './db/index.js';
 import { accountRoutes } from './routes/account.js';
+import { chatRoutes } from './routes/chat.js';
+import { healthRoutes } from './routes/health.js';
 import { imagesRoutes } from './routes/images.js';
-import { updatesRoutes } from './routes/updates.js';
+import { modelsRoutes } from './routes/models.js';
+import { sessionRoutes } from './routes/sessions.js';
 import { registerToolsRoutes } from './routes/tools.js';
+import { updatesRoutes } from './routes/updates.js';
 import { CopilotService } from './services/copilot.service.js';
 import { SessionService } from './services/session.service.js';
-import { initDatabase } from './db/index.js';
-import { DEFAULT_CONFIG } from '@devmentorai/shared';
 
 const PORT = Number.parseInt(process.env.DEVMENTORAI_PORT || '', 10) || DEFAULT_CONFIG.DEFAULT_PORT;
 const HOST = '0.0.0.0';
@@ -25,7 +25,7 @@ const DEBUG_MODE = true;
 function truncate(str: string | undefined | null, maxLen = 500): string {
   if (!str) return '';
   if (str.length <= maxLen) return str;
-  return str.slice(0, maxLen) + `... [truncated ${str.length - maxLen} chars]`;
+  return `${str.slice(0, maxLen)}... [truncated ${str.length - maxLen} chars]`;
 }
 
 export async function createServer() {
@@ -48,7 +48,7 @@ export async function createServer() {
   // Observability middleware - log all requests and responses
   if (DEBUG_MODE) {
     fastify.log.info('🔍 Debug mode enabled - logging all requests and responses');
-    
+
     // Log after body is parsed
     fastify.addHook('preHandler', async (request) => {
       const body = request.body ? truncate(JSON.stringify(request.body)) : null;
@@ -67,7 +67,7 @@ export async function createServer() {
     fastify.addHook('onSend', async (request, reply, payload) => {
       const statusCode = reply.statusCode;
       let responseBody: string | null = null;
-      
+
       // Skip logging SSE streams (too verbose)
       if (reply.getHeader('content-type') === 'text/event-stream') {
         responseBody = '[SSE Stream]';
@@ -76,7 +76,7 @@ export async function createServer() {
       } else if (Buffer.isBuffer(payload)) {
         responseBody = truncate(payload.toString());
       }
-      
+
       fastify.log.debug({
         type: '← RESPONSE',
         method: request.method,
@@ -84,7 +84,7 @@ export async function createServer() {
         statusCode,
         body: responseBody,
       });
-      
+
       return payload;
     });
 
@@ -106,7 +106,7 @@ export async function createServer() {
   // Initialize services
   const sessionService = new SessionService(db);
   const copilotService = new CopilotService(sessionService);
-  
+
   try {
     await copilotService.initialize();
     fastify.log.info('CopilotService initialized');
@@ -134,7 +134,7 @@ export async function createServer() {
   await fastify.register(accountRoutes, { prefix: '/api' });
   await fastify.register(updatesRoutes, { prefix: '/api' });
   await fastify.register(imagesRoutes, { prefix: '/api/images' });
-  
+
   // Register tools routes (not prefixed - has /api in route definitions)
   registerToolsRoutes(fastify, copilotService);
 
@@ -146,10 +146,7 @@ async function main() {
   let shuttingDown = false;
 
   // Graceful shutdown
-  const shutdown = async (
-    reason: 'SIGINT' | 'SIGTERM' | 'UNCAUGHT_EXCEPTION',
-    error?: unknown,
-  ) => {
+  const shutdown = async (reason: 'SIGINT' | 'SIGTERM' | 'UNCAUGHT_EXCEPTION', error?: unknown) => {
     if (shuttingDown) return;
     shuttingDown = true;
 

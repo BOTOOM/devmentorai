@@ -3,13 +3,13 @@
  * Note: jsdom has limited selection support for input/textarea elements.
  * Real browser testing is done via Playwright E2E tests.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  clearTargetId,
   detectSelection,
   findElementByTargetId,
-  validateSelectionForReplacement,
-  clearTargetId,
   getInputSelectionInfo,
+  validateSelectionForReplacement,
 } from '../src/lib/selection-detector';
 
 describe('selection-detector', () => {
@@ -40,19 +40,19 @@ describe('selection-detector', () => {
       div.contentEditable = 'true';
       div.innerHTML = 'Editable content here';
       container.appendChild(div);
-      
+
       // Create a selection in the contenteditable
       const range = document.createRange();
       const textNode = div.firstChild!;
       range.setStart(textNode, 0);
       range.setEnd(textNode, 8);
-      
+
       const selection = window.getSelection()!;
       selection.removeAllRanges();
       selection.addRange(range);
-      
+
       const result = detectSelection();
-      
+
       expect(result).not.toBeNull();
       expect(result?.selectedText).toBe('Editable');
       // jsdom may not properly detect contenteditable, so we check for either
@@ -63,19 +63,19 @@ describe('selection-detector', () => {
       const p = document.createElement('p');
       p.textContent = 'Regular paragraph text';
       container.appendChild(p);
-      
+
       // Create a selection in the paragraph
       const range = document.createRange();
       const textNode = p.firstChild!;
       range.setStart(textNode, 0);
       range.setEnd(textNode, 7);
-      
+
       const selection = window.getSelection()!;
       selection.removeAllRanges();
       selection.addRange(range);
-      
+
       const result = detectSelection();
-      
+
       expect(result).not.toBeNull();
       expect(result?.selectedText).toBe('Regular');
       expect(result?.elementType).toBe('other');
@@ -87,9 +87,9 @@ describe('selection-detector', () => {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       container.appendChild(checkbox);
-      
+
       checkbox.focus();
-      
+
       const result = detectSelection();
       expect(result).toBeNull();
     });
@@ -101,12 +101,12 @@ describe('selection-detector', () => {
       input.type = 'text';
       input.value = 'Hello World';
       container.appendChild(input);
-      
+
       input.focus();
       input.setSelectionRange(0, 5);
-      
+
       const info = getInputSelectionInfo();
-      
+
       expect(info).not.toBeNull();
       expect(info?.start).toBe(0);
       expect(info?.end).toBe(5);
@@ -116,12 +116,12 @@ describe('selection-detector', () => {
       const textarea = document.createElement('textarea');
       textarea.value = 'Line 1\nLine 2';
       container.appendChild(textarea);
-      
+
       textarea.focus();
       textarea.setSelectionRange(7, 13);
-      
+
       const info = getInputSelectionInfo();
-      
+
       expect(info).not.toBeNull();
       expect(info?.start).toBe(7);
       expect(info?.end).toBe(13);
@@ -139,7 +139,7 @@ describe('selection-detector', () => {
       input.type = 'text';
       input.setAttribute('data-devmentorai-target-id', 'test-id-123');
       container.appendChild(input);
-      
+
       const found = findElementByTargetId('test-id-123');
       expect(found).toBe(input);
     });
@@ -158,7 +158,7 @@ describe('selection-detector', () => {
         isEditable: false,
         isReplaceable: false,
       };
-      
+
       const isValid = validateSelectionForReplacement(context);
       expect(isValid).toBe(false);
     });
@@ -173,7 +173,7 @@ describe('selection-detector', () => {
         selectionStart: 0,
         selectionEnd: 4,
       };
-      
+
       const isValid = validateSelectionForReplacement(context);
       expect(isValid).toBe(false);
     });
@@ -184,7 +184,7 @@ describe('selection-detector', () => {
       input.value = 'Hello World';
       input.setAttribute('data-devmentorai-target-id', 'test-id');
       container.appendChild(input);
-      
+
       const context = {
         selectedText: 'Hello',
         elementType: 'input' as const,
@@ -194,10 +194,10 @@ describe('selection-detector', () => {
         selectionStart: 0,
         selectionEnd: 5,
       };
-      
+
       // Remove element from DOM
       input.remove();
-      
+
       const isValid = validateSelectionForReplacement(context);
       expect(isValid).toBe(false);
     });
@@ -209,11 +209,11 @@ describe('selection-detector', () => {
       input.type = 'text';
       input.setAttribute('data-devmentorai-target-id', 'test-id-456');
       container.appendChild(input);
-      
+
       expect(findElementByTargetId('test-id-456')).toBe(input);
-      
+
       clearTargetId('test-id-456');
-      
+
       expect(findElementByTargetId('test-id-456')).toBeNull();
     });
 

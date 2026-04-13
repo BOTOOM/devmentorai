@@ -1,19 +1,28 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Square, Loader2, Cpu, ChevronDown, Brain, Sparkles, Globe, AlertTriangle, ImagePlus, Upload } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { MessageBubble } from './MessageBubble';
-import { ImageAttachmentZone } from './ImageAttachmentZone';
+import type {
+  ContextPayload,
+  ImagePayload,
+  Message,
+  PlatformDetection,
+  Session,
+} from '@devmentorai/shared';
+import {
+  AlertTriangle,
+  Brain,
+  ChevronDown,
+  Cpu,
+  Globe,
+  ImagePlus,
+  Loader2,
+  Send,
+  Sparkles,
+  Square,
+  Upload,
+} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useImageAttachments } from '../hooks/useImageAttachments';
-import type { Session, Message, ContextPayload, PlatformDetection, ImagePayload, ModelInfo } from '@devmentorai/shared';
-
-const PRICING_BADGES: Record<string, { label: string; color: string }> = {
-  free: { label: 'Free', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  cheap: { label: 'Cheap', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
-  standard: { label: 'Standard', color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' },
-  premium: { label: 'Premium', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
-};
-
-const MODEL_TIERS = ['free', 'cheap', 'standard', 'premium'] as const;
+import { cn } from '../lib/utils';
+import { ImageAttachmentZone } from './ImageAttachmentZone';
+import { MessageBubble } from './MessageBubble';
 
 interface ChatViewProps {
   session: Session | null;
@@ -22,8 +31,7 @@ interface ChatViewProps {
   isSending?: boolean;
   onSendMessage: (content: string, useContext?: boolean, images?: ImagePayload[]) => void;
   onAbort: () => void;
-  onChangeModel?: (model: string) => void;
-  availableModels?: ModelInfo[];
+  onChangeModel?: () => void;
   disabled?: boolean;
   pendingText?: string;
   // Context-aware mode props
@@ -49,7 +57,6 @@ export function ChatView({
   onSendMessage,
   onAbort,
   onChangeModel,
-  availableModels = [],
   disabled = false,
   pendingText,
   // Context-aware mode
@@ -66,8 +73,6 @@ export function ChatView({
   onRegisterAddImage,
 }: Readonly<ChatViewProps>) {
   const [input, setInput] = useState('');
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [modelSearch, setModelSearch] = useState('');
   const [showContextPreview, setShowContextPreview] = useState(false);
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -91,10 +96,14 @@ export function ChatView({
     clearError,
   } = useImageAttachments();
 
+  const lastMessage = messages.at(-1);
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (lastMessage) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [lastMessage]);
 
   // Focus input when session changes
   useEffect(() => {
@@ -127,7 +136,8 @@ export function ChatView({
     if (pendingText) {
       const maxLength = 50000;
       setInput((prev) => {
-        const textToInsert = pendingText.length > maxLength ? pendingText.substring(0, maxLength) : pendingText;
+        const textToInsert =
+          pendingText.length > maxLength ? pendingText.substring(0, maxLength) : pendingText;
 
         if (!prev) {
           pendingCursorPositionRef.current = textToInsert.length;
@@ -165,60 +175,69 @@ export function ChatView({
   };
 
   // Handle paste event for images
-  const handleInputPaste = useCallback(async (e: React.ClipboardEvent) => {
-    if (!imageAttachmentsEnabled) return;
-    
-    // Check if clipboard contains image data
-    const items = e.clipboardData?.items;
-    if (!items) return;
+  const handleInputPaste = useCallback(
+    async (e: React.ClipboardEvent) => {
+      if (!imageAttachmentsEnabled) return;
 
-    for (const item of Array.from(items)) {
-      if (item.type.startsWith('image/')) {
-        e.preventDefault(); // Prevent default paste behavior for images
-        await handlePaste(e.nativeEvent as ClipboardEvent);
-        return;
+      // Check if clipboard contains image data
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault(); // Prevent default paste behavior for images
+          await handlePaste(e.nativeEvent);
+          return;
+        }
       }
-    }
-    // If no images, let default text paste happen
-  }, [imageAttachmentsEnabled, handlePaste]);
+      // If no images, let default text paste happen
+    },
+    [imageAttachmentsEnabled, handlePaste]
+  );
 
   // Handle screenshot capture
-  const handleCaptureScreenshot = useCallback(async (mode: 'visible') => {
-    if (!onCaptureScreenshot || isAtLimit) return;
-    
-    setIsCapturingScreenshot(true);
-    try {
-      const dataUrl = await onCaptureScreenshot(mode);
-      if (dataUrl) {
-        await addImage(dataUrl, 'screenshot');
+  const handleCaptureScreenshot = useCallback(
+    async (mode: 'visible') => {
+      if (!onCaptureScreenshot || isAtLimit) return;
+
+      setIsCapturingScreenshot(true);
+      try {
+        const dataUrl = await onCaptureScreenshot(mode);
+        if (dataUrl) {
+          await addImage(dataUrl, 'screenshot');
+        }
+      } catch (error) {
+        console.error('[ChatView] Screenshot capture failed:', error);
+      } finally {
+        setIsCapturingScreenshot(false);
       }
-    } catch (error) {
-      console.error('[ChatView] Screenshot capture failed:', error);
-    } finally {
-      setIsCapturingScreenshot(false);
-    }
-  }, [onCaptureScreenshot, isAtLimit, addImage]);
+    },
+    [onCaptureScreenshot, isAtLimit, addImage]
+  );
 
   // Drag & drop state for form-level handling
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const dragCounterRef = useRef(0);
 
   // Handle drag events at form level
-  const handleFormDragEnter = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!imageAttachmentsEnabled || disabled || isStreaming) return;
-    
-    dragCounterRef.current++;
-    if (e.dataTransfer?.types.includes('Files')) {
-      setIsDraggingOver(true);
-    }
-  }, [imageAttachmentsEnabled, disabled, isStreaming]);
+  const handleFormDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!imageAttachmentsEnabled || disabled || isStreaming) return;
+
+      dragCounterRef.current++;
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDraggingOver(true);
+      }
+    },
+    [imageAttachmentsEnabled, disabled, isStreaming]
+  );
 
   const handleFormDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     dragCounterRef.current--;
     if (dragCounterRef.current === 0) {
       setIsDraggingOver(false);
@@ -230,29 +249,32 @@ export function ChatView({
     e.stopPropagation();
   }, []);
 
-  const handleFormDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCounterRef.current = 0;
-    setIsDraggingOver(false);
-    
-    if (!imageAttachmentsEnabled || disabled || isStreaming) return;
-    
-    // Use the handleDrop from useImageAttachments
-    await handleDrop(e.nativeEvent as DragEvent);
-  }, [imageAttachmentsEnabled, disabled, isStreaming, handleDrop]);
+  const handleFormDrop = useCallback(
+    async (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounterRef.current = 0;
+      setIsDraggingOver(false);
+
+      if (!imageAttachmentsEnabled || disabled || isStreaming) return;
+
+      // Use the handleDrop from useImageAttachments
+      await handleDrop(e.nativeEvent);
+    },
+    [imageAttachmentsEnabled, disabled, isStreaming, handleDrop]
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (disabled || isStreaming || isSending) return;
-    
+
     // Allow sending with images even without text
     const hasContent = input.trim() || images.length > 0;
     if (!hasContent) return;
 
     // Get images for sending and clear them
     const imagesToSend = images.length > 0 ? getImagesForSend() : undefined;
-    
+
     onSendMessage(input.trim(), contextEnabled, imagesToSend);
     setInput('');
     clearImages();
@@ -267,37 +289,19 @@ export function ChatView({
 
   const getSessionIcon = (type: Session['type']) => {
     switch (type) {
-      case 'devops': return '🔧';
-      case 'writing': return '✍️';
-      case 'development': return '💻';
-      default: return '🤖';
+      case 'devops':
+        return '🔧';
+      case 'writing':
+        return '✍️';
+      case 'development':
+        return '💻';
+      default:
+        return '🤖';
     }
   };
 
-  const normalizedQuery = modelSearch.trim().toLowerCase();
-  const filteredModels = normalizedQuery
-    ? availableModels.filter((model) => {
-        const searchSource = [
-          model.id,
-          model.name,
-          model.provider,
-          model.description || '',
-        ]
-          .join(' ')
-          .toLowerCase();
-        return searchSource.includes(normalizedQuery);
-      })
-    : availableModels;
-
-  const hasStartedChat = messages.length > 0;
-  const canUseModelPicker = Boolean(onChangeModel) && !disabled && !isStreaming && !hasStartedChat;
-
-  useEffect(() => {
-    if (hasStartedChat && showModelPicker) {
-      setShowModelPicker(false);
-      setModelSearch('');
-    }
-  }, [hasStartedChat, showModelPicker]);
+  // With SDK v0.2.x setModel(), we can change model anytime during chat
+  const canUseModelPicker = Boolean(onChangeModel) && !disabled && !isStreaming;
 
   let placeholderText = chrome.i18n.getMessage('placeholder_message') || 'Type a message...';
   if (contextEnabled) {
@@ -315,8 +319,8 @@ export function ChatView({
             Welcome to DevMentorAI
           </h2>
           <p className="text-gray-500 dark:text-gray-400 max-w-sm">
-            Create a new session to start chatting with your AI assistant.
-            Choose from DevOps, Writing, Development, or General assistance.
+            Create a new session to start chatting with your AI assistant. Choose from DevOps,
+            Writing, Development, or General assistance.
           </p>
         </div>
       </div>
@@ -331,85 +335,35 @@ export function ChatView({
           <span>{getSessionIcon(session.type)}</span>
           <span className="font-medium text-gray-700 dark:text-gray-300">{session.name}</span>
         </div>
-        
-        {/* Model selector */}
+
+        {/* Model selector - SDK v0.2.x allows switching anytime */}
         <div className="relative">
           <button
+            type="button"
             onClick={() => {
-              if (canUseModelPicker) {
-                setShowModelPicker(!showModelPicker);
+              if (canUseModelPicker && onChangeModel) {
+                // Open modal for model switching with reasoning effort
+                onChangeModel();
               }
             }}
             disabled={!canUseModelPicker}
             className={cn(
-              "flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors",
+              'flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors',
               canUseModelPicker
-                ? "text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer"
-                : "text-gray-400 dark:text-gray-500 cursor-default"
+                ? 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
+                : 'text-gray-400 dark:text-gray-500 cursor-default'
             )}
+            title="Click to switch model"
           >
-            {!hasStartedChat && <Cpu className="w-3.5 h-3.5" />}
+            <Cpu className="w-3.5 h-3.5" />
             <span>{session.model}</span>
-            {!hasStartedChat && onChangeModel && <ChevronDown className="w-3 h-3" />}
+            {session.reasoningEffort && (
+              <span className="text-[10px] px-1 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                {session.reasoningEffort}
+              </span>
+            )}
+            {onChangeModel && <ChevronDown className="w-3 h-3" />}
           </button>
-          
-          {showModelPicker && canUseModelPicker && availableModels.length > 0 && (
-            <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[240px] max-h-72 overflow-y-auto">
-              <div className="sticky top-0 px-2 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <input
-                  type="text"
-                  value={modelSearch}
-                  onChange={(event) => setModelSearch(event.target.value)}
-                  placeholder="Search models..."
-                  className="w-full px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
-              </div>
-
-              {filteredModels.length === 0 && (
-                <p className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">No models found</p>
-              )}
-
-              {MODEL_TIERS.map((tier) => {
-                const tierModels = filteredModels.filter(
-                  (model) => model.pricingTier === tier || (!model.pricingTier && tier === 'standard')
-                );
-                if (tierModels.length === 0) return null;
-
-                return (
-                  <div key={tier}>
-                    <div className="px-2.5 py-1.5 bg-gray-50 dark:bg-gray-900 border-y border-gray-200 dark:border-gray-700">
-                      <span
-                        className={cn(
-                          'text-[10px] font-medium px-2 py-0.5 rounded-full',
-                          PRICING_BADGES[tier]?.color || PRICING_BADGES.standard.color
-                        )}
-                      >
-                        {PRICING_BADGES[tier]?.label || 'Standard'}
-                      </span>
-                    </div>
-
-                    {tierModels.map((model) => (
-                      <button
-                        key={model.id}
-                        onClick={() => {
-                          onChangeModel?.(model.id);
-                          setShowModelPicker(false);
-                          setModelSearch('');
-                        }}
-                        className={cn(
-                          'w-full px-3 py-2 text-left text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
-                          model.id === session.model && 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                        )}
-                      >
-                        <div className="font-medium">{model.name}</div>
-                        <div className="text-[10px] text-gray-500 dark:text-gray-400">{model.id}</div>
-                      </button>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
 
@@ -424,15 +378,18 @@ export function ChatView({
               <div className="mt-4 space-y-2">
                 <p className="text-xs text-gray-400 dark:text-gray-500">Quick prompts:</p>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {['Explain Kubernetes pods', 'Best practices for CI/CD', 'Debug AWS Lambda'].map((prompt) => (
-                    <button
-                      key={prompt}
-                      onClick={() => setInput(prompt)}
-                      className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
+                  {['Explain Kubernetes pods', 'Best practices for CI/CD', 'Debug AWS Lambda'].map(
+                    (prompt) => (
+                      <button
+                        key={prompt}
+                        type="button"
+                        onClick={() => setInput(prompt)}
+                        className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        {prompt}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
             )}
@@ -440,9 +397,14 @@ export function ChatView({
               <div className="mt-4 space-y-2">
                 <p className="text-xs text-gray-400 dark:text-gray-500">Quick prompts:</p>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {['Write a professional email', 'Translate to Spanish', 'Make this more formal'].map((prompt) => (
+                  {[
+                    'Write a professional email',
+                    'Translate to Spanish',
+                    'Make this more formal',
+                  ].map((prompt) => (
                     <button
                       key={prompt}
+                      type="button"
                       onClick={() => setInput(prompt)}
                       className="px-3 py-1.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                     >
@@ -454,11 +416,9 @@ export function ChatView({
             )}
           </div>
         ) : (
-          messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))
+          messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
-        
+
         {/* Sending indicator - shown when uploading images / initiating request */}
         {isSending && !isStreaming && (
           <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg border border-amber-100 dark:border-amber-800/50">
@@ -478,9 +438,18 @@ export function ChatView({
             <div className="flex items-center gap-2">
               <Brain className="w-5 h-5 text-primary-600 dark:text-primary-400 animate-pulse" />
               <div className="flex gap-1">
-                <span className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span
+                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                  style={{ animationDelay: '0ms' }}
+                />
+                <span
+                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                  style={{ animationDelay: '150ms' }}
+                />
+                <span
+                  className="w-2 h-2 bg-primary-500 rounded-full animate-bounce"
+                  style={{ animationDelay: '300ms' }}
+                />
               </div>
             </div>
             <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
@@ -488,7 +457,7 @@ export function ChatView({
             </span>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -501,8 +470,8 @@ export function ChatView({
         onDragOver={handleFormDragOver}
         onDrop={handleFormDrop}
         className={cn(
-          "border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800 relative",
-          isDraggingOver && "ring-2 ring-primary-400 ring-inset"
+          'border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800 relative',
+          isDraggingOver && 'ring-2 ring-primary-400 ring-inset'
         )}
       >
         {/* Drag overlay */}
@@ -510,7 +479,9 @@ export function ChatView({
           <div className="absolute inset-0 bg-primary-50/80 dark:bg-primary-900/50 flex items-center justify-center z-10 rounded-lg pointer-events-none">
             <div className="text-center">
               <ImagePlus className="w-10 h-10 mx-auto mb-2 text-primary-500" />
-              <p className="text-sm font-medium text-primary-700 dark:text-primary-300">Drop images here</p>
+              <p className="text-sm font-medium text-primary-700 dark:text-primary-300">
+                Drop images here
+              </p>
             </div>
           </div>
         )}
@@ -526,7 +497,9 @@ export function ChatView({
             error={lastError}
             onClearError={clearError}
             enabled={imageAttachmentsEnabled && !disabled && !isStreaming}
-            onCaptureScreenshot={screenshotBehavior === 'disabled' ? undefined : handleCaptureScreenshot}
+            onCaptureScreenshot={
+              screenshotBehavior === 'disabled' ? undefined : handleCaptureScreenshot
+            }
             isCapturingScreenshot={isCapturingScreenshot}
             showScreenshotButton={screenshotBehavior !== 'disabled' && !!onCaptureScreenshot}
           />
@@ -561,7 +534,7 @@ export function ChatView({
                 {showContextPreview ? 'Hide' : 'Preview'}
               </button>
             </div>
-            
+
             {showContextPreview && (
               <div className="mt-2 pt-2 border-t border-indigo-200 dark:border-indigo-700 space-y-1 text-xs text-gray-600 dark:text-gray-400">
                 <div className="truncate">
@@ -569,12 +542,17 @@ export function ChatView({
                 </div>
                 {extractedContext.text.selectedText && (
                   <div className="truncate">
-                    <span className="font-medium">Selection:</span> {extractedContext.text.selectedText.substring(0, 100)}...
+                    <span className="font-medium">Selection:</span>{' '}
+                    {extractedContext.text.selectedText.substring(0, 100)}...
                   </div>
                 )}
                 {extractedContext.text.headings.length > 0 && (
                   <div className="truncate">
-                    <span className="font-medium">Headings:</span> {extractedContext.text.headings.slice(0, 3).map(h => h.text).join(', ')}
+                    <span className="font-medium">Headings:</span>{' '}
+                    {extractedContext.text.headings
+                      .slice(0, 3)
+                      .map((h) => h.text)
+                      .join(', ')}
                   </div>
                 )}
               </div>
@@ -596,9 +574,12 @@ export function ChatView({
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600',
                 (isStreaming || isExtractingContext) && 'opacity-50 cursor-not-allowed'
               )}
-              title={contextEnabled 
-                ? (chrome.i18n.getMessage('context_mode_on') || 'Context mode ON - Click to disable')
-                : (chrome.i18n.getMessage('context_mode_off') || 'Use page context')}
+              title={
+                contextEnabled
+                  ? chrome.i18n.getMessage('context_mode_on') ||
+                    'Context mode ON - Click to disable'
+                  : chrome.i18n.getMessage('context_mode_off') || 'Use page context'
+              }
             >
               {isExtractingContext ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -687,10 +668,10 @@ export function ChatView({
               type="button"
               onClick={onAbort}
               className={cn(
-                "flex items-center justify-center w-12 h-12 rounded-xl text-white transition-colors shrink-0",
-                isStreaming ? "bg-red-500 hover:bg-red-600" : "bg-amber-500 hover:bg-amber-600"
+                'flex items-center justify-center w-12 h-12 rounded-xl text-white transition-colors shrink-0',
+                isStreaming ? 'bg-red-500 hover:bg-red-600' : 'bg-amber-500 hover:bg-amber-600'
               )}
-              title={isStreaming ? "Stop" : "Cancel"}
+              title={isStreaming ? 'Stop' : 'Cancel'}
             >
               {isSending && !isStreaming ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -714,11 +695,12 @@ export function ChatView({
             </button>
           )}
         </div>
-        
+
         {/* Context mode indicator text */}
         {contextEnabled && (
           <div className="mt-2 text-[10px] text-center text-indigo-600 dark:text-indigo-400">
-            {chrome.i18n.getMessage('context_mode_hint') || 'Context mode: AI will analyze the current page'}
+            {chrome.i18n.getMessage('context_mode_hint') ||
+              'Context mode: AI will analyze the current page'}
           </div>
         )}
 

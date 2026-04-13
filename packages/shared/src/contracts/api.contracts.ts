@@ -4,17 +4,17 @@
  */
 
 import type {
-  Session,
-  CreateSessionRequest,
-  UpdateSessionRequest,
-  Message,
-  SendMessageRequest,
   ApiResponse,
-  PaginatedResponse,
-  HealthResponse,
-  ModelInfo,
   CopilotAuthStatus,
   CopilotQuotaStatus,
+  CreateSessionRequest,
+  HealthResponse,
+  Message,
+  ModelInfo,
+  PaginatedResponse,
+  SendMessageRequest,
+  Session,
+  UpdateSessionRequest,
 } from '../types/index.js';
 
 /**
@@ -23,18 +23,18 @@ import type {
 export const API_ENDPOINTS = {
   // Health
   HEALTH: '/api/health',
-  
+
   // Sessions
   SESSIONS: '/api/sessions',
   SESSION: (id: string) => `/api/sessions/${id}`,
   SESSION_RESUME: (id: string) => `/api/sessions/${id}/resume`,
   SESSION_ABORT: (id: string) => `/api/sessions/${id}/abort`,
   SESSION_MESSAGES: (id: string) => `/api/sessions/${id}/messages`,
-  
+
   // Chat
   CHAT: (sessionId: string) => `/api/sessions/${sessionId}/chat`,
   CHAT_STREAM: (sessionId: string) => `/api/sessions/${sessionId}/chat/stream`,
-  
+
   // Image upload (pre-upload before sending chat)
   IMAGE_UPLOAD: (sessionId: string) => `/api/sessions/${sessionId}/images/upload`,
 
@@ -54,62 +54,62 @@ export interface ApiEndpoints {
   'GET /api/health': {
     response: ApiResponse<HealthResponse>;
   };
-  
+
   // GET /api/sessions
   'GET /api/sessions': {
     response: ApiResponse<PaginatedResponse<Session>>;
   };
-  
+
   // POST /api/sessions
   'POST /api/sessions': {
     body: CreateSessionRequest;
     response: ApiResponse<Session>;
   };
-  
+
   // GET /api/sessions/:id
   'GET /api/sessions/:id': {
     params: { id: string };
     response: ApiResponse<Session>;
   };
-  
+
   // PATCH /api/sessions/:id
   'PATCH /api/sessions/:id': {
     params: { id: string };
     body: UpdateSessionRequest;
     response: ApiResponse<Session>;
   };
-  
+
   // DELETE /api/sessions/:id
   'DELETE /api/sessions/:id': {
     params: { id: string };
     response: ApiResponse<void>;
   };
-  
+
   // POST /api/sessions/:id/resume
   'POST /api/sessions/:id/resume': {
     params: { id: string };
     response: ApiResponse<Session>;
   };
-  
+
   // POST /api/sessions/:id/abort
   'POST /api/sessions/:id/abort': {
     params: { id: string };
     response: ApiResponse<void>;
   };
-  
+
   // GET /api/sessions/:id/messages
   'GET /api/sessions/:id/messages': {
     params: { id: string };
     response: ApiResponse<PaginatedResponse<Message>>;
   };
-  
+
   // POST /api/sessions/:id/chat
   'POST /api/sessions/:id/chat': {
     params: { id: string };
     body: SendMessageRequest;
     response: ApiResponse<Message>;
   };
-  
+
   // POST /api/sessions/:id/chat/stream (SSE)
   'POST /api/sessions/:id/chat/stream': {
     params: { id: string };
@@ -121,9 +121,16 @@ export interface ApiEndpoints {
   'POST /api/sessions/:id/images/upload': {
     params: { id: string };
     body: { images: Array<{ id: string; dataUrl: string; mimeType: string; source: string }> };
-    response: ApiResponse<{ images: Array<{ id: string; thumbnailUrl: string; fullImageUrl: string; fullImagePath: string }> }>;
+    response: ApiResponse<{
+      images: Array<{
+        id: string;
+        thumbnailUrl: string;
+        fullImageUrl: string;
+        fullImagePath: string;
+      }>;
+    }>;
   };
-  
+
   // GET /api/models
   'GET /api/models': {
     response: ApiResponse<{ models: ModelInfo[]; default: string }>;

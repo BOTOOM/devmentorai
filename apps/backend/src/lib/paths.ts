@@ -1,13 +1,13 @@
 /**
  * Cross-Platform Path Utilities
- * 
+ *
  * Provides consistent path handling across Windows, macOS, and Linux.
  * Uses the same pattern as db/index.ts for data directory location.
  */
 
-import path from 'node:path';
-import os from 'node:os';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 /** Base data directory: ~/.devmentorai */
 export const DATA_DIR = path.join(os.homedir(), '.devmentorai');

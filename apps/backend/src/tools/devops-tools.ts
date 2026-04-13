@@ -1,6 +1,6 @@
 /**
  * Custom DevOps Analysis Tools for DevMentorAI
- * 
+ *
  * These tools extend Copilot's capabilities with specialized DevOps functionality:
  * - Configuration file analysis
  * - Infrastructure best practices checking
@@ -8,33 +8,33 @@
  * - Cost estimation helpers
  */
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 export interface Tool {
   name: string;
   description: string;
   parameters: {
     type: 'object';
-    properties: Record<string, {
-      type: string;
-      description: string;
-      enum?: string[];
-    }>;
+    properties: Record<
+      string,
+      {
+        type: string;
+        description: string;
+        enum?: string[];
+      }
+    >;
     required: string[];
   };
   handler: (params: Record<string, unknown>) => Promise<string>;
 }
 
 // Allowed directories for file access (security sandbox)
-const ALLOWED_DIRECTORIES = [
-  process.env.HOME || '/home',
-  '/tmp',
-];
+const ALLOWED_DIRECTORIES = [process.env.HOME || '/home', '/tmp'];
 
 function isPathAllowed(filePath: string): boolean {
   const resolved = path.resolve(filePath);
-  return ALLOWED_DIRECTORIES.some(dir => resolved.startsWith(dir));
+  return ALLOWED_DIRECTORIES.some((dir) => resolved.startsWith(dir));
 }
 
 /**
@@ -42,7 +42,8 @@ function isPathAllowed(filePath: string): boolean {
  */
 export const readFileTool: Tool = {
   name: 'read_file',
-  description: 'Read the contents of a local file. Use this to analyze configuration files, logs, or code.',
+  description:
+    'Read the contents of a local file. Use this to analyze configuration files, logs, or code.',
   parameters: {
     type: 'object',
     properties: {
@@ -68,12 +69,11 @@ export const readFileTool: Tool = {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       const lines = content.split('\n');
-      
+
       if (lines.length > maxLines) {
-        return lines.slice(0, maxLines).join('\n') + 
-          `\n\n[Truncated: ${lines.length - maxLines} more lines]`;
+        return `${lines.slice(0, maxLines).join('\n')}\n\n[Truncated: ${lines.length - maxLines} more lines]`;
       }
-      
+
       return content;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -106,26 +106,26 @@ export const listDirectoryTool: Tool = {
   },
   handler: async (params) => {
     const dirPath = params.path as string;
-    const recursive = params.recursive as boolean || false;
+    const recursive = (params.recursive as boolean) || false;
 
     if (!isPathAllowed(dirPath)) {
       return `Error: Access denied. Path "${dirPath}" is outside allowed directories.`;
     }
 
-    async function listDir(dir: string, depth: number = 0): Promise<string[]> {
+    async function listDir(dir: string, depth = 0): Promise<string[]> {
       if (depth > 3) return [];
-      
+
       const entries = await fs.readdir(dir, { withFileTypes: true });
       const results: string[] = [];
-      
+
       for (const entry of entries) {
         const prefix = '  '.repeat(depth);
         const fullPath = path.join(dir, entry.name);
-        
+
         if (entry.isDirectory()) {
           results.push(`${prefix}📁 ${entry.name}/`);
           if (recursive) {
-            results.push(...await listDir(fullPath, depth + 1));
+            results.push(...(await listDir(fullPath, depth + 1)));
           }
         } else {
           const stats = await fs.stat(fullPath);
@@ -133,7 +133,7 @@ export const listDirectoryTool: Tool = {
           results.push(`${prefix}📄 ${entry.name} (${size})`);
         }
       }
-      
+
       return results;
     }
 
@@ -162,7 +162,8 @@ function formatSize(bytes: number): string {
  */
 export const analyzeConfigTool: Tool = {
   name: 'analyze_config',
-  description: 'Analyze a configuration file for DevOps best practices. Supports Kubernetes, Docker, Terraform, and CloudFormation.',
+  description:
+    'Analyze a configuration file for DevOps best practices. Supports Kubernetes, Docker, Terraform, and CloudFormation.',
   parameters: {
     type: 'object',
     properties: {
@@ -180,7 +181,7 @@ export const analyzeConfigTool: Tool = {
   },
   handler: async (params) => {
     const content = params.content as string;
-    let configType = params.type as string || 'auto';
+    let configType = (params.type as string) || 'auto';
 
     // Auto-detect config type
     if (configType === 'auto') {
@@ -207,23 +208,23 @@ export const analyzeConfigTool: Tool = {
         analyzeGitHubActions(content, issues, suggestions);
         break;
       default:
-        return `Could not determine configuration type. Please specify the type parameter.`;
+        return 'Could not determine configuration type. Please specify the type parameter.';
     }
 
     let result = `## Configuration Analysis (${configType})\n\n`;
-    
+
     if (issues.length > 0) {
-      result += `### ⚠️ Issues Found\n`;
+      result += '### ⚠️ Issues Found\n';
       issues.forEach((issue, i) => {
         result += `${i + 1}. ${issue}\n`;
       });
       result += '\n';
     } else {
-      result += `### ✅ No Critical Issues Found\n\n`;
+      result += '### ✅ No Critical Issues Found\n\n';
     }
 
     if (suggestions.length > 0) {
-      result += `### 💡 Suggestions\n`;
+      result += '### 💡 Suggestions\n';
       suggestions.forEach((suggestion, i) => {
         result += `${i + 1}. ${suggestion}\n`;
       });
@@ -235,9 +236,11 @@ export const analyzeConfigTool: Tool = {
 
 function detectConfigType(content: string): string {
   if (content.includes('apiVersion:') && content.includes('kind:')) return 'kubernetes';
-  if (content.includes('FROM ') || content.includes('COPY ') || content.includes('RUN ')) return 'docker';
+  if (content.includes('FROM ') || content.includes('COPY ') || content.includes('RUN '))
+    return 'docker';
   if (content.includes('resource "') || content.includes('provider "')) return 'terraform';
-  if (content.includes('AWSTemplateFormatVersion') || content.includes('Resources:')) return 'cloudformation';
+  if (content.includes('AWSTemplateFormatVersion') || content.includes('Resources:'))
+    return 'cloudformation';
   if (content.includes('jobs:') && content.includes('runs-on:')) return 'github-actions';
   return 'unknown';
 }
@@ -245,24 +248,26 @@ function detectConfigType(content: string): string {
 function analyzeKubernetes(content: string, issues: string[], suggestions: string[]): void {
   // Resource limits
   if (!content.includes('resources:') || !content.includes('limits:')) {
-    issues.push('Missing resource limits. Pods without limits can consume excessive cluster resources.');
+    issues.push(
+      'Missing resource limits. Pods without limits can consume excessive cluster resources.'
+    );
   }
-  
+
   // Security context
   if (!content.includes('securityContext:')) {
     suggestions.push('Consider adding securityContext to restrict container privileges.');
   }
-  
+
   // Image tag
   if (content.includes(':latest')) {
     issues.push('Using :latest tag. Pin specific image versions for reproducible deployments.');
   }
-  
+
   // Probes
   if (!content.includes('livenessProbe:') && !content.includes('readinessProbe:')) {
     suggestions.push('Add health probes (livenessProbe/readinessProbe) for better reliability.');
   }
-  
+
   // Namespace
   if (!content.includes('namespace:')) {
     suggestions.push('Explicitly specify namespace to avoid deploying to default namespace.');
@@ -276,36 +281,45 @@ function analyzeKubernetes(content: string, issues: string[], suggestions: strin
 
 function analyzeDocker(content: string, issues: string[], suggestions: string[]): void {
   const lines = content.split('\n');
-  
+
   // Base image
-  const fromLine = lines.find(l => l.trim().startsWith('FROM '));
+  const fromLine = lines.find((l) => l.trim().startsWith('FROM '));
   if (fromLine?.includes(':latest')) {
     issues.push('Using :latest base image. Pin a specific version for reproducible builds.');
   }
-  
+
   // Multiple RUN commands
-  const runCount = lines.filter(l => l.trim().startsWith('RUN ')).length;
+  const runCount = lines.filter((l) => l.trim().startsWith('RUN ')).length;
   if (runCount > 5) {
-    suggestions.push(`${runCount} separate RUN commands. Consider combining them to reduce image layers.`);
+    suggestions.push(
+      `${runCount} separate RUN commands. Consider combining them to reduce image layers.`
+    );
   }
-  
+
   // COPY vs ADD
   if (content.includes('ADD ') && !content.includes('.tar') && !content.includes('http')) {
-    suggestions.push('Use COPY instead of ADD for simple file copying. ADD has extra features that may be unnecessary.');
+    suggestions.push(
+      'Use COPY instead of ADD for simple file copying. ADD has extra features that may be unnecessary.'
+    );
   }
-  
+
   // .dockerignore reminder
   if (content.includes('COPY . ') || content.includes('COPY ./ ')) {
-    suggestions.push('Copying entire context. Ensure .dockerignore is configured to exclude unnecessary files.');
+    suggestions.push(
+      'Copying entire context. Ensure .dockerignore is configured to exclude unnecessary files.'
+    );
   }
-  
+
   // Non-root user
   if (!content.includes('USER ')) {
     suggestions.push('No USER directive. Consider running as non-root user for security.');
   }
-  
+
   // Multi-stage builds
-  if (!content.includes('AS ') && content.includes('npm install') || content.includes('go build')) {
+  if (
+    (!content.includes('AS ') && content.includes('npm install')) ||
+    content.includes('go build')
+  ) {
     suggestions.push('Consider multi-stage builds to reduce final image size.');
   }
 }
@@ -313,35 +327,34 @@ function analyzeDocker(content: string, issues: string[], suggestions: string[])
 function analyzeTerraform(content: string, issues: string[], suggestions: string[]): void {
   // Version constraints
   if (!content.includes('required_version') && !content.includes('required_providers')) {
-    issues.push('Missing version constraints. Pin Terraform and provider versions for reproducibility.');
+    issues.push(
+      'Missing version constraints. Pin Terraform and provider versions for reproducibility.'
+    );
   }
-  
+
   // Hardcoded values
-  const hardcodedPatterns = [
-    /ami-[a-z0-9]+/,
-    /subnet-[a-z0-9]+/,
-    /sg-[a-z0-9]+/,
-    /vpc-[a-z0-9]+/,
-  ];
+  const hardcodedPatterns = [/ami-[a-z0-9]+/, /subnet-[a-z0-9]+/, /sg-[a-z0-9]+/, /vpc-[a-z0-9]+/];
   for (const pattern of hardcodedPatterns) {
     if (pattern.test(content)) {
-      suggestions.push('Hardcoded AWS resource IDs detected. Consider using data sources or variables.');
+      suggestions.push(
+        'Hardcoded AWS resource IDs detected. Consider using data sources or variables.'
+      );
       break;
     }
   }
-  
+
   // State backend
   if (!content.includes('backend "')) {
     suggestions.push('No remote backend configured. Use S3/GCS/Azure for team collaboration.');
   }
-  
+
   // Sensitive variables
   if (content.includes('password') || content.includes('secret') || content.includes('api_key')) {
     if (!content.includes('sensitive = true')) {
       issues.push('Potentially sensitive variables without sensitive = true flag.');
     }
   }
-  
+
   // Encryption
   if (content.includes('aws_s3_bucket') && !content.includes('server_side_encryption')) {
     suggestions.push('S3 bucket without explicit encryption configuration.');
@@ -355,15 +368,17 @@ function analyzeCloudFormation(content: string, issues: string[], suggestions: s
       issues.push('Stateful resources without DeletionPolicy. Data may be lost on stack deletion.');
     }
   }
-  
+
   // UpdateReplacePolicy
   if (!content.includes('UpdateReplacePolicy')) {
     suggestions.push('Consider adding UpdateReplacePolicy for stateful resources.');
   }
-  
+
   // Stack drift detection hint
-  suggestions.push('Run `aws cloudformation detect-stack-drift` regularly to catch manual changes.');
-  
+  suggestions.push(
+    'Run `aws cloudformation detect-stack-drift` regularly to catch manual changes.'
+  );
+
   // Parameters without constraints
   if (content.includes('Parameters:') && !content.includes('AllowedValues')) {
     suggestions.push('Consider adding AllowedValues constraints to parameters.');
@@ -375,23 +390,25 @@ function analyzeGitHubActions(content: string, issues: string[], suggestions: st
   if (content.includes('uses: ') && !content.includes('@v') && !content.includes('@sha')) {
     issues.push('Actions without version pinning. Pin to specific versions or SHA for security.');
   }
-  
+
   // Secrets in env
   if (content.includes('${{ secrets.') && content.includes('echo ')) {
     issues.push('Potential secret exposure in echo/print commands.');
   }
-  
+
   // Permissions
   if (!content.includes('permissions:')) {
     suggestions.push('Explicitly define job permissions for better security (least privilege).');
   }
-  
+
   // Caching
-  if ((content.includes('npm ') || content.includes('pip ') || content.includes('go ')) && 
-      !content.includes('actions/cache')) {
+  if (
+    (content.includes('npm ') || content.includes('pip ') || content.includes('go ')) &&
+    !content.includes('actions/cache')
+  ) {
     suggestions.push('Consider adding caching to speed up workflows.');
   }
-  
+
   // Timeout
   if (!content.includes('timeout-minutes:')) {
     suggestions.push('Add timeout-minutes to prevent stuck workflows from running indefinitely.');
@@ -421,88 +438,119 @@ export const analyzeErrorTool: Tool = {
   },
   handler: async (params) => {
     const error = params.error as string;
-    const context = params.context as string || 'general';
+    const context = (params.context as string) || 'general';
 
     const analysis: string[] = [];
     const possibleCauses: string[] = [];
     const solutions: string[] = [];
 
-    // Common patterns
+    // Common patterns - collect all causes and solutions first, then apply
+    const causesToAdd: string[] = [];
+    const solutionsToAdd: string[] = [];
+
     if (error.includes('permission denied') || error.includes('EACCES')) {
-      possibleCauses.push('Insufficient file system permissions');
-      solutions.push('Check file/directory permissions with `ls -la`');
-      solutions.push('Try running with appropriate user or `sudo` if necessary');
+      causesToAdd.push('Insufficient file system permissions');
+      solutionsToAdd.push(
+        'Check file/directory permissions with `ls -la`',
+        'Try running with appropriate user or `sudo` if necessary'
+      );
     }
 
     if (error.includes('connection refused') || error.includes('ECONNREFUSED')) {
-      possibleCauses.push('Target service is not running or not listening on expected port');
-      solutions.push('Verify the service is running: `systemctl status <service>`');
-      solutions.push('Check if the port is open: `netstat -tlnp | grep <port>`');
+      causesToAdd.push('Target service is not running or not listening on expected port');
+      solutionsToAdd.push(
+        'Verify the service is running: `systemctl status <service>`',
+        'Check if the port is open: `netstat -tlnp | grep <port>`'
+      );
     }
 
     if (error.includes('out of memory') || error.includes('OOMKilled')) {
-      possibleCauses.push('Application exceeded memory limits');
-      solutions.push('Increase memory limits if possible');
-      solutions.push('Profile memory usage to find leaks');
-      solutions.push('Consider horizontal scaling');
+      causesToAdd.push('Application exceeded memory limits');
+      solutionsToAdd.push(
+        'Increase memory limits if possible',
+        'Profile memory usage to find leaks',
+        'Consider horizontal scaling'
+      );
     }
 
     if (error.includes('timeout') || error.includes('ETIMEDOUT')) {
-      possibleCauses.push('Network latency or unreachable endpoint');
-      possibleCauses.push('Slow database queries or API responses');
-      solutions.push('Check network connectivity: `ping`, `traceroute`');
-      solutions.push('Review and optimize slow queries');
-      solutions.push('Consider increasing timeout values');
+      causesToAdd.push(
+        'Network latency or unreachable endpoint',
+        'Slow database queries or API responses'
+      );
+      solutionsToAdd.push(
+        'Check network connectivity: `ping`, `traceroute`',
+        'Review and optimize slow queries',
+        'Consider increasing timeout values'
+      );
     }
 
     // Context-specific patterns
     if (context === 'kubernetes') {
       if (error.includes('CrashLoopBackOff')) {
-        possibleCauses.push('Container fails to start or crashes immediately');
-        solutions.push('Check container logs: `kubectl logs <pod> --previous`');
-        solutions.push('Verify image exists and is pullable');
-        solutions.push('Check resource limits and requests');
+        causesToAdd.push('Container fails to start or crashes immediately');
+        solutionsToAdd.push(
+          'Check container logs: `kubectl logs <pod> --previous`',
+          'Verify image exists and is pullable',
+          'Check resource limits and requests'
+        );
       }
       if (error.includes('ImagePullBackOff')) {
-        possibleCauses.push('Cannot pull container image');
-        solutions.push('Verify image name and tag');
-        solutions.push('Check image registry credentials (imagePullSecrets)');
+        causesToAdd.push('Cannot pull container image');
+        solutionsToAdd.push(
+          'Verify image name and tag',
+          'Check image registry credentials (imagePullSecrets)'
+        );
       }
     }
 
     if (context === 'docker') {
       if (error.includes('no space left on device')) {
-        possibleCauses.push('Docker disk space exhausted');
-        solutions.push('Clean up: `docker system prune -a`');
-        solutions.push('Remove unused images: `docker image prune`');
+        causesToAdd.push('Docker disk space exhausted');
+        solutionsToAdd.push(
+          'Clean up: `docker system prune -a`',
+          'Remove unused images: `docker image prune`'
+        );
       }
     }
 
+    // Apply collected items
+    possibleCauses.push(...causesToAdd);
+    solutions.push(...solutionsToAdd);
+
     if (possibleCauses.length === 0) {
-      analysis.push('No specific pattern matched. Consider:');
-      analysis.push('- Searching the error message in documentation');
-      analysis.push('- Checking application logs for more context');
-      analysis.push('- Verifying configuration and environment variables');
+      analysis.push(
+        'No specific pattern matched. Consider:',
+        '- Searching the error message in documentation',
+        '- Checking application logs for more context',
+        '- Verifying configuration and environment variables'
+      );
     }
 
-    let result = `## Error Analysis\n\n`;
+    let result = '## Error Analysis\n\n';
     result += `**Context:** ${context}\n\n`;
-    
+
     if (possibleCauses.length > 0) {
-      result += `### Possible Causes\n`;
-      possibleCauses.forEach(cause => result += `- ${cause}\n`);
+      result += '### Possible Causes\n';
+      for (const cause of possibleCauses) {
+        result += `- ${cause}\n`;
+      }
       result += '\n';
     }
-    
+
     if (solutions.length > 0) {
-      result += `### Suggested Solutions\n`;
-      solutions.forEach((solution, i) => result += `${i + 1}. ${solution}\n`);
+      result += '### Suggested Solutions\n';
+      for (const [index, solution] of solutions.entries()) {
+        result += `${index + 1}. ${solution}\n`;
+      }
       result += '\n';
     }
-    
+
     if (analysis.length > 0) {
-      result += `### Notes\n`;
-      analysis.forEach(note => result += `${note}\n`);
+      result += '### Notes\n';
+      for (const note of analysis) {
+        result += `${note}\n`;
+      }
     }
 
     return result;
@@ -514,7 +562,8 @@ export const analyzeErrorTool: Tool = {
  */
 export const fetchUrlTool: Tool = {
   name: 'fetch_url',
-  description: 'Fetch the text content of a public URL. Use this to read documentation, github issues, or other public web pages when the user shares a URL.',
+  description:
+    'Fetch the text content of a public URL. Use this to read documentation, github issues, or other public web pages when the user shares a URL.',
   parameters: {
     type: 'object',
     properties: {
@@ -527,7 +576,7 @@ export const fetchUrlTool: Tool = {
   },
   handler: async (params) => {
     const targetUrl = params.url as string;
-    
+
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       return `Error: Only HTTP/HTTPS URLs are supported, got "${targetUrl}"`;
     }
@@ -536,36 +585,40 @@ export const fetchUrlTool: Tool = {
       // Abort after 10 seconds to avoid hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
+
       const response = await fetch(targetUrl, {
         signal: controller.signal,
         headers: {
           'User-Agent': 'DevMentorAI/1.0',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8',
         },
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         return `Error: Server responded with status ${response.status} ${response.statusText}`;
       }
-      
-      const contentType = response.headers.get('content-type') || '';
+
       const text = await response.text();
-      
-      // If it's an HTML page, we should ideally strip tags, but for a simple tool, 
+
+      // If it's an HTML page, we should ideally strip tags, but for a simple tool,
       // returning the raw text/HTML up to a reasonable limit is a good start.
       // We'll limit the response size to avoid overwhelming the LLM context.
       const MAX_LENGTH = 15000;
-      
+
       if (text.length > MAX_LENGTH) {
-        return text.substring(0, MAX_LENGTH) + `\n\n[Content truncated at ${MAX_LENGTH} characters]`;
+        return `${text.substring(0, MAX_LENGTH)}\n\n[Content truncated at ${MAX_LENGTH} characters]`;
       }
-      
+
       return text;
     } catch (error) {
-      if ((error as any).name === 'AbortError') {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'name' in error &&
+        error.name === 'AbortError'
+      ) {
         return `Error: Request to ${targetUrl} timed out after 10 seconds.`;
       }
       return `Error fetching URL: ${error instanceof Error ? error.message : String(error)}`;
@@ -585,5 +638,5 @@ export const devopsTools: Tool[] = [
 ];
 
 export function getToolByName(name: string): Tool | undefined {
-  return devopsTools.find(tool => tool.name === name);
+  return devopsTools.find((tool) => tool.name === name);
 }

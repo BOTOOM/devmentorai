@@ -1,24 +1,24 @@
-import type { Metadata } from "next";
+import { CTASection } from '@/components/sections/CTASection';
+import { HeroSection } from '@/components/sections/HeroSection';
+import { Badge } from '@/components/ui/Badge';
 import {
-  Eye,
-  Terminal,
-  FileEdit,
-  ShieldCheck,
-  MessageSquare,
+  Bug,
   CheckCircle,
   Cloud,
   Cpu,
-  Bug,
+  Eye,
+  FileEdit,
   Layers,
-} from "lucide-react";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { CTASection } from "@/components/sections/CTASection";
-import { Badge } from "@/components/ui/Badge";
+  MessageSquare,
+  ShieldCheck,
+  Terminal,
+} from 'lucide-react';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Features",
+  title: 'Features',
   description:
-    "Full page awareness, DevOps mentoring, writing assistance, and privacy-first architecture. Explore all DevMentorAI capabilities.",
+    'Full page awareness, DevOps mentoring, writing assistance, and privacy-first architecture. Explore all DevMentorAI capabilities.',
 };
 
 export default function FeaturesPage() {
@@ -29,8 +29,7 @@ export default function FeaturesPage() {
         badge={<Badge>Powerful Capabilities</Badge>}
         title={
           <>
-            Engineered for the modern{" "}
-            <span className="text-primary">DevOps stack.</span>
+            Engineered for the modern <span className="text-primary">DevOps stack.</span>
           </>
         }
         subtitle="Everything you need to debug, deploy, and document complex distributed systems without ever leaving your workflow."
@@ -71,9 +70,7 @@ export default function FeaturesPage() {
                   <p className="font-mono text-[12px] text-red-400">
                     404 NOT FOUND: /api/v1/user/auth
                   </p>
-                  <p className="text-[10px] text-red-400/60">
-                    Source: network-logs.js line 42
-                  </p>
+                  <p className="text-[10px] text-red-400/60">Source: network-logs.js line 42</p>
                 </div>
               </div>
             </div>
@@ -85,9 +82,8 @@ export default function FeaturesPage() {
             </div>
             <h2 className="mb-6 text-3xl font-bold">Full Page Awareness</h2>
             <p className="mb-6 text-lg leading-relaxed text-[var(--muted)]">
-              Stop explaining context to your AI. DevMentorAI automatically
-              captures your application&apos;s state, giving your Copilot eyes
-              into the front-end.
+              Stop explaining context to your AI. DevMentorAI automatically captures your
+              application&apos;s state, giving your Copilot eyes into the front-end.
             </p>
             <ul className="space-y-4">
               <FeatureItem
@@ -119,9 +115,8 @@ export default function FeaturesPage() {
             </div>
             <h2 className="mb-6 text-3xl font-bold">DevOps Mentor Mode</h2>
             <p className="mb-6 text-lg leading-relaxed text-[var(--muted)]">
-              Infrastructure is hard. DevMentorAI acts as a senior SRE sitting
-              next to you, providing specialized knowledge across the entire
-              cloud landscape.
+              Infrastructure is hard. DevMentorAI acts as a senior SRE sitting next to you,
+              providing specialized knowledge across the entire cloud landscape.
             </p>
             <div className="mb-8 grid grid-cols-3 gap-4">
               <PlatformBadge icon={<Cloud className="h-5 w-5 text-blue-400" />} label="Azure" />
@@ -133,9 +128,7 @@ export default function FeaturesPage() {
           <div className="relative">
             <div className="overflow-hidden rounded-xl border border-[var(--card-border)] bg-[var(--code-bg)] font-mono text-sm leading-relaxed shadow-2xl">
               <div className="flex items-center justify-between border-b border-white/5 bg-[#1c2128] px-4 py-2">
-                <span className="text-xs text-slate-400">
-                  DevMentorAI — devops-session
-                </span>
+                <span className="text-xs text-slate-400">DevMentorAI — devops-session</span>
               </div>
               <div className="space-y-4 p-6">
                 {/* User message */}
@@ -167,12 +160,10 @@ export default function FeaturesPage() {
                       Based on your K8s dashboard context, I can see:
                     </p>
                     <div className="border-l-2 border-red-500 bg-red-500/10 p-2">
-                      <p className="text-[11px] font-bold text-red-400">
-                        Memory Leak Detected
-                      </p>
+                      <p className="text-[11px] font-bold text-red-400">Memory Leak Detected</p>
                       <p className="text-[10px] text-slate-400">
-                        Pod &apos;auth-service-7f4b&apos; is at 94% memory.
-                        Recommend increasing limits or running heap analysis.
+                        Pod &apos;auth-service-7f4b&apos; is at 94% memory. Recommend increasing
+                        limits or running heap analysis.
                       </p>
                     </div>
                   </div>
@@ -199,9 +190,7 @@ export default function FeaturesPage() {
                       Drafting PR Description...
                     </span>
                   </div>
-                  <span className="text-[10px] text-slate-500">
-                    Slack | Email | GitHub
-                  </span>
+                  <span className="text-[10px] text-slate-500">Slack | Email | GitHub</span>
                 </div>
                 <div className="space-y-3">
                   <div className="h-4 w-full rounded bg-primary/20" />
@@ -232,9 +221,8 @@ export default function FeaturesPage() {
             </div>
             <h2 className="mb-6 text-3xl font-bold">Writing & Language</h2>
             <p className="mb-8 text-lg leading-relaxed text-[var(--muted)]">
-              Technical communication is just as important as code. Generate PR
-              descriptions, stakeholder emails, and Slack status updates in
-              seconds.
+              Technical communication is just as important as code. Generate PR descriptions,
+              stakeholder emails, and Slack status updates in seconds.
             </p>
             <div className="space-y-6">
               <FeatureItem
@@ -262,9 +250,8 @@ export default function FeaturesPage() {
               </div>
               <h2 className="mb-6 text-3xl font-bold">Local & Private</h2>
               <p className="mb-6 text-lg leading-relaxed text-[var(--muted)]">
-                Security isn&apos;t an afterthought. DevMentorAI leverages the
-                GitHub Copilot CLI for local processing, ensuring your sensitive
-                data never leaves your machine.
+                Security isn&apos;t an afterthought. DevMentorAI leverages the GitHub Copilot CLI
+                for local processing, ensuring your sensitive data never leaves your machine.
               </p>
               <div className="flex flex-wrap gap-3">
                 <span className="rounded-full border border-[var(--card-border)] bg-[var(--card)] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">
@@ -285,9 +272,7 @@ export default function FeaturesPage() {
                 <div className="relative z-10 flex flex-col items-center rounded-3xl border border-[var(--card-border)] bg-[var(--background)] p-8 shadow-2xl">
                   <Terminal className="mb-4 h-12 w-12 text-primary" />
                   <p className="text-sm font-bold">Local Engine</p>
-                  <p className="font-mono text-[10px] text-[var(--muted)]">
-                    127.0.0.1:3847
-                  </p>
+                  <p className="font-mono text-[10px] text-[var(--muted)]">127.0.0.1:3847</p>
                 </div>
               </div>
             </div>
@@ -301,8 +286,8 @@ export default function FeaturesPage() {
           <div className="mx-auto mb-16 max-w-2xl text-center">
             <h2 className="mb-4 text-3xl font-bold">Multi-Session Support</h2>
             <p className="text-[var(--muted)]">
-              Context-switching without the cognitive load. Keep track of dozens
-              of debugging streams simultaneously.
+              Context-switching without the cognitive load. Keep track of dozens of debugging
+              streams simultaneously.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
@@ -367,10 +352,7 @@ function FeatureItem({
   );
 }
 
-function PlatformBadge({
-  icon,
-  label,
-}: Readonly<{ icon: React.ReactNode; label: string }>) {
+function PlatformBadge({ icon, label }: Readonly<{ icon: React.ReactNode; label: string }>) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-lg border border-[var(--card-border)] bg-[var(--background)] p-3">
       {icon}
@@ -398,14 +380,14 @@ function SessionCard({
     <div
       className={`cursor-pointer rounded-xl border p-5 transition-all ${
         active
-          ? "border-primary/30 bg-[var(--card)] shadow-lg"
-          : "border-[var(--card-border)] bg-[var(--card)] hover:border-primary/20"
+          ? 'border-primary/30 bg-[var(--card)] shadow-lg'
+          : 'border-[var(--card-border)] bg-[var(--card)] hover:border-primary/20'
       }`}
     >
       <div className="mb-4 flex items-center gap-3">
         <div
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-            active ? "bg-primary-light" : "bg-[var(--section-alt)]"
+            active ? 'bg-primary-light' : 'bg-[var(--section-alt)]'
           }`}
         >
           {icon}
@@ -417,10 +399,7 @@ function SessionCard({
       </div>
       {progress !== undefined && (
         <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--section-alt)]">
-          <div
-            className="h-full rounded-full bg-slate-500"
-            style={{ width: `${progress}%` }}
-          />
+          <div className="h-full rounded-full bg-slate-500" style={{ width: `${progress}%` }} />
         </div>
       )}
     </div>

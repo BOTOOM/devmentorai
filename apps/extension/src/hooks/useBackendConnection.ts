@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
 import type { HealthResponse } from '@devmentorai/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { storageGet } from '../lib/browser-utils';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
@@ -20,7 +20,9 @@ export function useBackendConnection() {
   const checkHealth = useCallback(async () => {
     try {
       const { backendUrl } = await storageGet<{ backendUrl?: string }>('backendUrl');
-      const resolvedBaseUrl = backendUrl?.trim() ? backendUrl.trim().replace(/\/+$/, '') : defaultBaseUrl;
+      const resolvedBaseUrl = backendUrl?.trim()
+        ? backendUrl.trim().replace(/\/+$/, '')
+        : defaultBaseUrl;
       setBaseUrl(resolvedBaseUrl);
 
       const response = await fetch(`${resolvedBaseUrl}/api/health`, {
@@ -33,7 +35,7 @@ export function useBackendConnection() {
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         setHealth(data.data);
         setStatus('connected');
@@ -47,7 +49,7 @@ export function useBackendConnection() {
       setHealth(null);
       setError(
         chrome.i18n.getMessage('error_connection') ||
-        'Failed to connect to backend. Make sure the DevMentorAI server is running.'
+          'Failed to connect to backend. Make sure the DevMentorAI server is running.'
       );
     }
   }, [defaultBaseUrl]);

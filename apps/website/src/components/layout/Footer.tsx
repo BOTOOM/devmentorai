@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { Heart, Coffee, CodeXml } from "lucide-react";
-import { DevMentorLogo } from "@/components/ui/DevMentorLogo";
+import { DevMentorLogo } from '@/components/ui/DevMentorLogo';
+import { CodeXml, Coffee, Heart } from 'lucide-react';
+import Link from 'next/link';
 
 export function Footer() {
   return (
@@ -38,6 +38,12 @@ export function Footer() {
                 className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-primary"
               >
                 Docs
+              </Link>
+              <Link
+                href="/changelog"
+                className="text-sm font-medium text-[var(--muted)] transition-colors hover:text-primary"
+              >
+                Changelog
               </Link>
               <Link
                 href="/trust"
@@ -93,8 +99,8 @@ export function Footer() {
           {/* Bottom row */}
           <div className="flex flex-col items-center gap-4">
             <p className="text-sm text-[var(--muted)]">
-              &copy; {new Date().getFullYear()} DevMentorAI. All rights
-              reserved. Built for developers, by developers.
+              &copy; {new Date().getFullYear()} DevMentorAI. All rights reserved. Built for
+              developers, by developers.
             </p>
           </div>
         </div>

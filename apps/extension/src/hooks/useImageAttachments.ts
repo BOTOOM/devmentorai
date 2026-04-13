@@ -1,12 +1,17 @@
 /**
  * useImageAttachments Hook
- * 
+ *
  * Manages draft image attachments for chat messages.
  * Handles paste, drag & drop, and screenshot attachments.
  */
 
-import { useState, useCallback, useRef } from 'react';
-import { IMAGE_CONSTANTS, type ImageAttachment, type ImageSource, type ImageMimeType } from '@devmentorai/shared';
+import {
+  IMAGE_CONSTANTS,
+  type ImageAttachment,
+  type ImageMimeType,
+  type ImageSource,
+} from '@devmentorai/shared';
+import { useCallback, useRef, useState } from 'react';
 
 export interface DraftImage extends ImageAttachment {
   /** Always present for draft images (before sending) */
@@ -106,95 +111,101 @@ export function useImageAttachments(): UseImageAttachmentsResult {
   /**
    * Add an image from a data URL
    */
-  const addImage = useCallback(async (dataUrl: string, source: ImageSource): Promise<boolean> => {
-    // Prevent concurrent processing issues
-    if (processingRef.current) return false;
-    processingRef.current = true;
+  const addImage = useCallback(
+    async (dataUrl: string, source: ImageSource): Promise<boolean> => {
+      // Prevent concurrent processing issues
+      if (processingRef.current) return false;
+      processingRef.current = true;
 
-    try {
-      // Check limit
-      if (images.length >= IMAGE_CONSTANTS.MAX_IMAGES_PER_MESSAGE) {
-        setLastError(`Maximum ${IMAGE_CONSTANTS.MAX_IMAGES_PER_MESSAGE} images allowed`);
+      try {
+        // Check limit
+        if (images.length >= IMAGE_CONSTANTS.MAX_IMAGES_PER_MESSAGE) {
+          setLastError(`Maximum ${IMAGE_CONSTANTS.MAX_IMAGES_PER_MESSAGE} images allowed`);
+          return false;
+        }
+
+        // Extract MIME type from data URL
+        const mimeMatch = dataUrl.match(/^data:(image\/[^;]+);base64,/);
+        if (!mimeMatch) {
+          setLastError('Invalid image format');
+          return false;
+        }
+
+        const mimeType = mimeMatch[1];
+        if (!isSupportedMimeType(mimeType)) {
+          setLastError(`Unsupported image format: ${mimeType}`);
+          return false;
+        }
+
+        // Check file size
+        const fileSize = getBase64Size(dataUrl);
+        if (fileSize > IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES) {
+          const maxMB = IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES / (1024 * 1024);
+          setLastError(`Image too large. Maximum size is ${maxMB}MB`);
+          return false;
+        }
+
+        // Get dimensions
+        const dimensions = await getImageDimensions(dataUrl);
+
+        const newImage: DraftImage = {
+          id: generateImageId(),
+          source,
+          mimeType,
+          dimensions,
+          fileSize,
+          timestamp: new Date().toISOString(),
+          dataUrl,
+        };
+
+        setImages((prev) => [...prev, newImage]);
+        setLastError(null);
+        return true;
+      } catch (error) {
+        console.error('[useImageAttachments] Failed to add image:', error);
+        setLastError('Failed to process image');
         return false;
+      } finally {
+        processingRef.current = false;
       }
-
-      // Extract MIME type from data URL
-      const mimeMatch = dataUrl.match(/^data:(image\/[^;]+);base64,/);
-      if (!mimeMatch) {
-        setLastError('Invalid image format');
-        return false;
-      }
-
-      const mimeType = mimeMatch[1];
-      if (!isSupportedMimeType(mimeType)) {
-        setLastError(`Unsupported image format: ${mimeType}`);
-        return false;
-      }
-
-      // Check file size
-      const fileSize = getBase64Size(dataUrl);
-      if (fileSize > IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES) {
-        const maxMB = IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES / (1024 * 1024);
-        setLastError(`Image too large. Maximum size is ${maxMB}MB`);
-        return false;
-      }
-
-      // Get dimensions
-      const dimensions = await getImageDimensions(dataUrl);
-
-      const newImage: DraftImage = {
-        id: generateImageId(),
-        source,
-        mimeType,
-        dimensions,
-        fileSize,
-        timestamp: new Date().toISOString(),
-        dataUrl,
-      };
-
-      setImages(prev => [...prev, newImage]);
-      setLastError(null);
-      return true;
-    } catch (error) {
-      console.error('[useImageAttachments] Failed to add image:', error);
-      setLastError('Failed to process image');
-      return false;
-    } finally {
-      processingRef.current = false;
-    }
-  }, [images.length]);
+    },
+    [images.length]
+  );
 
   /**
    * Add an image from a File object
    */
-  const addImageFromFile = useCallback(async (file: File, source: ImageSource): Promise<boolean> => {
-    try {
-      // Quick validation before reading
-      if (!isSupportedMimeType(file.type)) {
-        setLastError(`Unsupported file type: ${file.type}`);
+  const addImageFromFile = useCallback(
+    async (file: File, source: ImageSource): Promise<boolean> => {
+      try {
+        // Quick validation before reading
+        if (!isSupportedMimeType(file.type)) {
+          setLastError(`Unsupported file type: ${file.type}`);
+          return false;
+        }
+
+        if (file.size > IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES) {
+          const maxMB = IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES / (1024 * 1024);
+          setLastError(`File too large. Maximum size is ${maxMB}MB`);
+          return false;
+        }
+
+        const dataUrl = await readFileAsDataUrl(file);
+        return addImage(dataUrl, source);
+      } catch (error) {
+        console.error('[useImageAttachments] Failed to read file:', error);
+        setLastError('Failed to read image file');
         return false;
       }
-
-      if (file.size > IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES) {
-        const maxMB = IMAGE_CONSTANTS.MAX_IMAGE_SIZE_BYTES / (1024 * 1024);
-        setLastError(`File too large. Maximum size is ${maxMB}MB`);
-        return false;
-      }
-
-      const dataUrl = await readFileAsDataUrl(file);
-      return addImage(dataUrl, source);
-    } catch (error) {
-      console.error('[useImageAttachments] Failed to read file:', error);
-      setLastError('Failed to read image file');
-      return false;
-    }
-  }, [addImage]);
+    },
+    [addImage]
+  );
 
   /**
    * Remove an image by ID
    */
   const removeImage = useCallback((id: string) => {
-    setImages(prev => prev.filter(img => img.id !== id));
+    setImages((prev) => prev.filter((img) => img.id !== id));
   }, []);
 
   /**
@@ -210,12 +221,12 @@ export function useImageAttachments(): UseImageAttachmentsResult {
    */
   const getImagesForSend = useCallback(() => {
     console.log('[useImageAttachments] getImagesForSend called, images count:', images.length);
-    const result = images.map(img => {
-      console.log('[useImageAttachments] Image:', { 
-        id: img.id, 
+    const result = images.map((img) => {
+      console.log('[useImageAttachments] Image:', {
+        id: img.id,
         source: img.source,
         hasDataUrl: !!img.dataUrl,
-        dataUrlLength: img.dataUrl?.length || 0
+        dataUrlLength: img.dataUrl?.length || 0,
       });
       return {
         id: img.id,
@@ -230,50 +241,56 @@ export function useImageAttachments(): UseImageAttachmentsResult {
   /**
    * Handle paste event - extracts images from clipboard
    */
-  const handlePaste = useCallback(async (e: ClipboardEvent): Promise<boolean> => {
-    const items = e.clipboardData?.items;
-    if (!items) return false;
+  const handlePaste = useCallback(
+    async (e: ClipboardEvent): Promise<boolean> => {
+      const items = e.clipboardData?.items;
+      if (!items) return false;
 
-    let addedAny = false;
+      let addedAny = false;
 
-    for (const item of Array.from(items)) {
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          const success = await addImageFromFile(file, 'paste');
-          if (success) addedAny = true;
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            const success = await addImageFromFile(file, 'paste');
+            if (success) addedAny = true;
+          }
         }
       }
-    }
 
-    return addedAny;
-  }, [addImageFromFile]);
+      return addedAny;
+    },
+    [addImageFromFile]
+  );
 
   /**
    * Handle drop event - extracts images from dropped files
    */
-  const handleDrop = useCallback(async (e: DragEvent): Promise<boolean> => {
-    const files = e.dataTransfer?.files;
-    console.log('[useImageAttachments] handleDrop called, files:', files?.length || 0);
-    if (!files || files.length === 0) return false;
+  const handleDrop = useCallback(
+    async (e: DragEvent): Promise<boolean> => {
+      const files = e.dataTransfer?.files;
+      console.log('[useImageAttachments] handleDrop called, files:', files?.length || 0);
+      if (!files || files.length === 0) return false;
 
-    let addedAny = false;
+      let addedAny = false;
 
-    for (const file of Array.from(files)) {
-      console.log('[useImageAttachments] Processing file:', file.name, file.type, file.size);
-      if (file.type.startsWith('image/')) {
-        const success = await addImageFromFile(file, 'drop');
-        console.log('[useImageAttachments] addImageFromFile result:', success);
-        if (success) addedAny = true;
-        // Stop if we hit the limit
-        if (images.length + (addedAny ? 1 : 0) >= IMAGE_CONSTANTS.MAX_IMAGES_PER_MESSAGE) {
-          break;
+      for (const file of Array.from(files)) {
+        console.log('[useImageAttachments] Processing file:', file.name, file.type, file.size);
+        if (file.type.startsWith('image/')) {
+          const success = await addImageFromFile(file, 'drop');
+          console.log('[useImageAttachments] addImageFromFile result:', success);
+          if (success) addedAny = true;
+          // Stop if we hit the limit
+          if (images.length + (addedAny ? 1 : 0) >= IMAGE_CONSTANTS.MAX_IMAGES_PER_MESSAGE) {
+            break;
+          }
         }
       }
-    }
 
-    return addedAny;
-  }, [addImageFromFile, images.length]);
+      return addedAny;
+    },
+    [addImageFromFile, images.length]
+  );
 
   /**
    * Clear the last error

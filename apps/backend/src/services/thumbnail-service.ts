@@ -1,25 +1,25 @@
 /**
  * ThumbnailService
- * 
+ *
  * Handles image processing and thumbnail generation.
  * Stores thumbnails AND full images on disk and provides URLs for serving.
  */
 
-import sharp from 'sharp';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { ImageAttachment, ImageMimeType, ImageSource } from '@devmentorai/shared';
+import sharp from 'sharp';
 import {
+  deleteDir,
+  ensureDir,
+  fileExists,
   getMessageImagesDir,
   getSessionImagesDir,
   getThumbnailPath,
-  toRelativePath,
   toImageRelativePath,
+  toRelativePath,
   toUrlPath,
-  ensureDir,
-  deleteDir,
-  fileExists,
 } from '../lib/paths.js';
-import type { ImageAttachment, ImageSource, ImageMimeType } from '@devmentorai/shared';
 
 /** Thumbnail generation settings */
 const THUMBNAIL_CONFIG = {
@@ -64,10 +64,10 @@ export interface ProcessedImage {
 function parseDataUrl(dataUrl: string): { buffer: Buffer; mimeType: string } | null {
   const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
   if (!match) return null;
-  
+
   const [, mimeType, base64Data] = match;
   const buffer = Buffer.from(base64Data, 'base64');
-  
+
   return { buffer, mimeType };
 }
 
@@ -124,14 +124,19 @@ function getExtensionForMimeType(mimeType: string): string {
 /**
  * Get the file path for a full image
  */
-export function getFullImagePath(sessionId: string, messageId: string, index: number, extension: string): string {
+export function getFullImagePath(
+  sessionId: string,
+  messageId: string,
+  index: number,
+  extension: string
+): string {
   const messageDir = getMessageImagesDir(sessionId, messageId);
   return path.join(messageDir, `image_${index}.${extension}`);
 }
 
 /**
  * Process images for a message, generating and storing thumbnails AND full images
- * 
+ *
  * @param sessionId - The session ID
  * @param messageId - The message ID
  * @param images - Array of image inputs with data URLs
@@ -154,7 +159,7 @@ export async function processMessageImages(
 
   for (let index = 0; index < images.length; index++) {
     const image = images[index];
-    
+
     try {
       // Parse the data URL
       const parsed = parseDataUrl(image.dataUrl);
@@ -185,7 +190,7 @@ export async function processMessageImages(
 
       // Generate relative paths for DB storage (from DATA_DIR)
       const thumbnailRelativePath = toRelativePath(thumbnailAbsPath);
-      
+
       // Generate URL paths for serving (from IMAGES_DIR, no "images/" prefix)
       const thumbnailUrlPath = toUrlPath(toImageRelativePath(thumbnailAbsPath));
       const fullImageUrlPath = toUrlPath(toImageRelativePath(fullImageAbsPath));
@@ -203,7 +208,9 @@ export async function processMessageImages(
         fullImageUrl: `${backendUrl}/api/images/${fullImageUrlPath}`,
       });
 
-      console.log(`[ThumbnailService] Processed image ${index + 1}/${images.length} for message ${messageId}`);
+      console.log(
+        `[ThumbnailService] Processed image ${index + 1}/${images.length} for message ${messageId}`
+      );
     } catch (error) {
       console.error(`[ThumbnailService] Failed to process image ${image.id}:`, error);
       // Continue with other images even if one fails
@@ -215,7 +222,7 @@ export async function processMessageImages(
 
 /**
  * Get the absolute path for a thumbnail from URL path segments
- * 
+ *
  * @param sessionId - The session ID
  * @param messageId - The message ID
  * @param index - The image index
@@ -232,7 +239,7 @@ export function getThumbnailFilePath(
 
 /**
  * Delete all images for a session (cleanup)
- * 
+ *
  * @param sessionId - The session ID
  */
 export function deleteSessionImages(sessionId: string): void {
@@ -243,7 +250,7 @@ export function deleteSessionImages(sessionId: string): void {
 
 /**
  * Delete all images for a message (cleanup)
- * 
+ *
  * @param sessionId - The session ID
  * @param messageId - The message ID
  */
@@ -257,7 +264,7 @@ export function deleteMessageImages(sessionId: string, messageId: string): void 
  * Convert processed images to ImageAttachment format for storage
  */
 export function toImageAttachments(processedImages: ProcessedImage[]): ImageAttachment[] {
-  return processedImages.map(img => ({
+  return processedImages.map((img) => ({
     id: img.id,
     source: img.source,
     mimeType: img.mimeType,

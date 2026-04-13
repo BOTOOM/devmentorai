@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 /**
  * Native Messaging Host Installation Script
- * 
+ *
  * This script installs the Native Messaging host manifest in the appropriate
  * location for Chrome/Chromium browsers on different operating systems.
- * 
+ *
  * Usage:
  *   node install-native-host.js <extension-id>
  *   node install-native-host.js <extension-id> --uninstall
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-import { fileURLToPath } from 'url';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,13 +40,14 @@ function getManifestPaths(): ManifestPaths {
         chrome: path.join(home, '.config/google-chrome/NativeMessagingHosts'),
         chromium: path.join(home, '.config/chromium/NativeMessagingHosts'),
       };
-    case 'win32':
+    case 'win32': {
       // Windows uses registry, but we'll use the user-level manifest location
       const appData = process.env.LOCALAPPDATA || path.join(home, 'AppData/Local');
       return {
         chrome: path.join(appData, 'Google/Chrome/User Data/NativeMessagingHosts'),
         chromium: path.join(appData, 'Chromium/User Data/NativeMessagingHosts'),
       };
+    }
     default:
       throw new Error(`Unsupported platform: ${platform}`);
   }
@@ -55,7 +56,7 @@ function getManifestPaths(): ManifestPaths {
 function createManifest(extensionId: string): object {
   // Get the path to the native host executable
   const hostPath = path.resolve(__dirname, 'host.js');
-  
+
   // On Windows, we need a batch wrapper
   let executablePath: string;
   if (os.platform() === 'win32') {
@@ -157,7 +158,9 @@ if (args.includes('--uninstall')) {
   const extensionId = args[0];
   if (!/^[a-z]{32}$/i.test(extensionId)) {
     console.error('Error: Invalid extension ID format');
-    console.error('Extension ID should be 32 lowercase letters (e.g., abcdefghijklmnopqrstuvwxyzabcdef)');
+    console.error(
+      'Extension ID should be 32 lowercase letters (e.g., abcdefghijklmnopqrstuvwxyzabcdef)'
+    );
     process.exit(1);
   }
   install(extensionId);

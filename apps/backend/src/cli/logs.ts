@@ -4,8 +4,8 @@
  */
 
 import fs from 'node:fs';
-import { LOG_FILE } from '../lib/paths.js';
 import type { CliOptions } from '../cli.js';
+import { LOG_FILE } from '../lib/paths.js';
 
 export async function logsCommand(options: CliOptions): Promise<void> {
   const lines = options.lines || 50;

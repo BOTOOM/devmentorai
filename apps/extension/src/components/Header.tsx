@@ -1,6 +1,6 @@
-import { Settings, Plus, Wifi, WifiOff, Loader2, HelpCircle, User } from 'lucide-react';
-import { cn } from '../lib/utils';
 import type { CopilotAuthStatus, CopilotQuotaStatus } from '@devmentorai/shared';
+import { HelpCircle, Loader2, Plus, Settings, User, Wifi, WifiOff } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 interface HeaderProps {
   connectionStatus: 'connecting' | 'connected' | 'disconnected';
@@ -8,8 +8,8 @@ interface HeaderProps {
   quotaStatus?: CopilotQuotaStatus | null;
   onNewSession: () => void;
   onOpenSettings?: () => void;
-  onOpenHelp?: () => void;      // D.2
-  onViewPage?: () => void;      // D.1
+  onOpenHelp?: () => void; // D.2
+  onViewPage?: () => void; // D.1
 }
 
 function formatQuota(status?: CopilotQuotaStatus | null): string | null {
@@ -25,7 +25,8 @@ function formatQuota(status?: CopilotQuotaStatus | null): string | null {
   const used = typeof status.used === 'number' ? status.used : null;
   const included = typeof status.included === 'number' ? status.included : null;
 
-  const compactPct = typeof pctRemaining === 'number' ? `${Math.max(0, Math.round(pctRemaining))}% left` : null;
+  const compactPct =
+    typeof pctRemaining === 'number' ? `${Math.max(0, Math.round(pctRemaining))}% left` : null;
   const compactUsage = used !== null && included !== null ? `${used}/${included}` : null;
 
   if (compactPct && compactUsage) return `${compactPct} · ${compactUsage}`;
@@ -66,9 +67,7 @@ export function Header({
   const StatusIcon = status.icon;
   const quotaLabel = formatQuota(quotaStatus);
   const accountName = authStatus?.login || 'copilot-user';
-  const loginLabel = authStatus?.isAuthenticated
-    ? `@${accountName}`
-    : 'Copilot login required';
+  const loginLabel = authStatus?.isAuthenticated ? `@${accountName}` : 'Copilot login required';
 
   return (
     <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 gap-3">
@@ -78,7 +77,7 @@ export function Header({
             DevMentorAI
           </span>
         </div>
-        
+
         <div className="flex items-center gap-1.5 text-xs shrink-0">
           <span className={cn('w-2 h-2 rounded-full', status.dotClassName)} />
           <StatusIcon className={cn('w-3.5 h-3.5', status.className)} />
@@ -130,9 +129,9 @@ export function Header({
         </button>*/}
 
         {/* D.2 - Help */}
-        
 
         <button
+          type="button"
           onClick={onNewSession}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
           aria-label="New session"
@@ -145,6 +144,7 @@ export function Header({
         </button>
 
         <button
+          type="button"
           onClick={onOpenSettings}
           className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           title="Settings"
@@ -152,6 +152,7 @@ export function Header({
           <Settings className="w-5 h-5" />
         </button>
         <button
+          type="button"
           onClick={onOpenHelp}
           className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           title="Help & shortcuts"

@@ -1,19 +1,20 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useState } from "react";
-import { Menu, X, Github, Heart } from "lucide-react";
-import { DevMentorLogo } from "@/components/ui/DevMentorLogo";
-import { ThemeToggle } from "./ThemeToggle";
+import { DevMentorLogo } from '@/components/ui/DevMentorLogo';
+import { Github, Heart, Menu, X } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
+import { ThemeToggle } from './ThemeToggle';
 
 const NAV_LINKS = [
-  { href: "/features", label: "Features" },
-  { href: "/use-cases", label: "Use Cases" },
-  { href: "/installation", label: "Installation" },
-  { href: "/docs", label: "Docs" },
-  { href: "/trust", label: "Trust" },
-  { href: "/faq", label: "FAQ" },
-  { href: "/support", label: "Support" },
+  { href: '/features', label: 'Features' },
+  { href: '/use-cases', label: 'Use Cases' },
+  { href: '/installation', label: 'Installation' },
+  { href: '/docs', label: 'Docs' },
+  { href: '/changelog', label: 'Changelog' },
+  { href: '/trust', label: 'Trust' },
+  { href: '/faq', label: 'FAQ' },
+  { href: '/support', label: 'Support' },
 ];
 
 export function Header() {

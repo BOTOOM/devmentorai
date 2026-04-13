@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode } from 'react';
 
 interface FeatureCardProps {
   readonly icon: ReactNode;
@@ -13,16 +13,16 @@ export function FeatureCard({
   title,
   description,
   tags,
-  accentColor = "primary",
+  accentColor = 'primary',
 }: FeatureCardProps) {
   const hoverBorderMap: Record<string, string> = {
-    orange: "hover:border-orange-500/50",
-    purple: "hover:border-purple-500/50",
-    emerald: "hover:border-emerald-500/50",
-    red: "hover:border-red-500/50",
-    primary: "hover:border-primary/50",
+    orange: 'hover:border-orange-500/50',
+    purple: 'hover:border-purple-500/50',
+    emerald: 'hover:border-emerald-500/50',
+    red: 'hover:border-red-500/50',
+    primary: 'hover:border-primary/50',
   };
-  const hoverBorderClass = hoverBorderMap[accentColor] ?? "hover:border-primary/50";
+  const hoverBorderClass = hoverBorderMap[accentColor] ?? 'hover:border-primary/50';
 
   return (
     <div
@@ -33,9 +33,7 @@ export function FeatureCard({
       </div>
       <div className="flex flex-col gap-2">
         <h3 className="text-xl font-bold">{title}</h3>
-        <p className="text-sm leading-relaxed text-[var(--muted)]">
-          {description}
-        </p>
+        <p className="text-sm leading-relaxed text-[var(--muted)]">{description}</p>
       </div>
       {tags && tags.length > 0 && (
         <div className="mt-auto flex gap-2 pt-4">

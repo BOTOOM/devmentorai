@@ -1,8 +1,8 @@
 /**
  * Context Prompt Builder Tests
- * 
+ *
  * Tests for the context-aware prompt building service.
- * 
+ *
  * PHASE 3: These tests verify that:
  * - Prompts contain FACTUAL context only
  * - NO intent instructions are included (agent decides)
@@ -10,14 +10,14 @@
  * - systemPrompt is always null (don't override Copilot)
  */
 
-import { describe, it, expect } from 'vitest';
+import type { ContextPayload } from '@devmentorai/shared';
+import { describe, expect, it } from 'vitest';
 import {
   buildContextAwarePrompt,
   buildSimplePrompt,
-  validateContext,
   sanitizeContext,
+  validateContext,
 } from '../../src/services/context-prompt-builder.ts';
-import type { ContextPayload } from '@devmentorai/shared';
 
 // Helper to create a minimal valid context
 function createMockContext(overrides: Partial<ContextPayload> = {}): ContextPayload {
@@ -50,7 +50,11 @@ function createMockContext(overrides: Partial<ContextPayload> = {}): ContextPayl
       visibleText: 'Create virtual machine\nSize: Standard_D2s_v3\nStatus: Running',
       headings: [
         { level: 1, text: 'Virtual Machines', hierarchy: 'Virtual Machines' },
-        { level: 2, text: 'Create a virtual machine', hierarchy: 'Virtual Machines > Create a virtual machine' },
+        {
+          level: 2,
+          text: 'Create a virtual machine',
+          hierarchy: 'Virtual Machines > Create a virtual machine',
+        },
       ],
       errors: [],
     },
@@ -324,25 +328,25 @@ describe('Context Prompt Builder', () => {
 
     it('should return false for missing metadata', () => {
       const context = createMockContext();
-      delete (context as Record<string, unknown>).metadata;
+      (context as Record<string, unknown>).metadata = undefined;
       expect(validateContext(context)).toBe(false);
     });
 
     it('should return false for missing page', () => {
       const context = createMockContext();
-      delete (context as Record<string, unknown>).page;
+      (context as Record<string, unknown>).page = undefined;
       expect(validateContext(context)).toBe(false);
     });
 
     it('should return false for missing text', () => {
       const context = createMockContext();
-      delete (context as Record<string, unknown>).text;
+      (context as Record<string, unknown>).text = undefined;
       expect(validateContext(context)).toBe(false);
     });
 
     it('should return false for missing session', () => {
       const context = createMockContext();
-      delete (context as Record<string, unknown>).session;
+      (context as Record<string, unknown>).session = undefined;
       expect(validateContext(context)).toBe(false);
     });
   });
@@ -399,11 +403,13 @@ describe('Context Prompt Builder', () => {
       const sanitized = sanitizeContext(context);
 
       // URL encoding may encode the brackets, so check for both possibilities
-      const hasTokenRedacted = sanitized.page.url.includes('token=[REDACTED]') || 
-                               sanitized.page.url.includes('token=%5BREDACTED%5D');
-      const hasKeyRedacted = sanitized.page.url.includes('key=[REDACTED]') || 
-                             sanitized.page.url.includes('key=%5BREDACTED%5D');
-      
+      const hasTokenRedacted =
+        sanitized.page.url.includes('token=[REDACTED]') ||
+        sanitized.page.url.includes('token=%5BREDACTED%5D');
+      const hasKeyRedacted =
+        sanitized.page.url.includes('key=[REDACTED]') ||
+        sanitized.page.url.includes('key=%5BREDACTED%5D');
+
       expect(hasTokenRedacted).toBe(true);
       expect(hasKeyRedacted).toBe(true);
       expect(sanitized.page.url).not.toContain('secret123');
@@ -451,9 +457,7 @@ describe('Context Prompt Builder', () => {
           selectedText: undefined,
           visibleText: 'Error occurred',
           headings: [],
-          errors: [
-            { message: 'Critical system failure', type: 'error', severity: 'critical' },
-          ],
+          errors: [{ message: 'Critical system failure', type: 'error', severity: 'critical' }],
         },
       });
 
@@ -527,8 +531,16 @@ describe('Context Prompt Builder', () => {
     it('should include console error logs in prompt factually', () => {
       const context = createMockContext();
       context.text.consoleLogs = [
-        { level: 'error', message: 'Uncaught TypeError: Cannot read property of undefined', timestamp: '2024-01-01T12:00:00Z' },
-        { level: 'warn', message: 'Deprecation warning: This API will be removed', timestamp: '2024-01-01T12:00:01Z' },
+        {
+          level: 'error',
+          message: 'Uncaught TypeError: Cannot read property of undefined',
+          timestamp: '2024-01-01T12:00:00Z',
+        },
+        {
+          level: 'warn',
+          message: 'Deprecation warning: This API will be removed',
+          timestamp: '2024-01-01T12:00:01Z',
+        },
       ];
 
       const result = buildContextAwarePrompt(context, 'What are the errors?');
@@ -542,11 +554,12 @@ describe('Context Prompt Builder', () => {
     it('should include stack trace for errors', () => {
       const context = createMockContext();
       context.text.consoleLogs = [
-        { 
-          level: 'error', 
-          message: 'Error in component', 
+        {
+          level: 'error',
+          message: 'Error in component',
           timestamp: '2024-01-01T12:00:00Z',
-          stackTrace: 'at Component.render (app.js:123)\n  at Object.updateComponent (react.js:456)'
+          stackTrace:
+            'at Component.render (app.js:123)\n  at Object.updateComponent (react.js:456)',
         },
       ];
 
@@ -575,8 +588,20 @@ describe('Context Prompt Builder', () => {
     it('should include network errors in prompt factually', () => {
       const context = createMockContext();
       context.text.networkErrors = [
-        { url: 'https://api.example.com/users', method: 'GET', status: 404, statusText: 'Not Found', timestamp: '2024-01-01T12:00:00Z' },
-        { url: 'https://api.example.com/posts', method: 'POST', status: 500, statusText: 'Internal Server Error', timestamp: '2024-01-01T12:00:01Z' },
+        {
+          url: 'https://api.example.com/users',
+          method: 'GET',
+          status: 404,
+          statusText: 'Not Found',
+          timestamp: '2024-01-01T12:00:00Z',
+        },
+        {
+          url: 'https://api.example.com/posts',
+          method: 'POST',
+          status: 500,
+          statusText: 'Internal Server Error',
+          timestamp: '2024-01-01T12:00:01Z',
+        },
       ];
 
       const result = buildContextAwarePrompt(context, 'Why are requests failing?');
@@ -591,7 +616,12 @@ describe('Context Prompt Builder', () => {
     it('should include network errors without status', () => {
       const context = createMockContext();
       context.text.networkErrors = [
-        { url: 'https://api.example.com/data', method: 'GET', errorMessage: 'Network request failed', timestamp: '2024-01-01T12:00:00Z' },
+        {
+          url: 'https://api.example.com/data',
+          method: 'GET',
+          errorMessage: 'Network request failed',
+          timestamp: '2024-01-01T12:00:00Z',
+        },
       ];
 
       const result = buildContextAwarePrompt(context, 'Network issue');
@@ -604,17 +634,17 @@ describe('Context Prompt Builder', () => {
     it('should include code blocks in prompt', () => {
       const context = createMockContext();
       context.structure.codeBlocks = [
-        { 
-          purpose: 'code-block', 
+        {
+          purpose: 'code-block',
           outerHTML: '<pre><code>const x = 1;</code></pre>',
           textContent: 'const x = 1;',
-          attributes: { detectedLanguage: 'javascript' }
+          attributes: { detectedLanguage: 'javascript' },
         },
-        { 
-          purpose: 'code-block', 
+        {
+          purpose: 'code-block',
           outerHTML: '<pre><code>apiVersion: v1</code></pre>',
           textContent: 'apiVersion: v1\nkind: Pod',
-          attributes: { detectedLanguage: 'yaml' }
+          attributes: { detectedLanguage: 'yaml' },
         },
       ];
 
@@ -632,11 +662,11 @@ describe('Context Prompt Builder', () => {
     it('should include tables in prompt', () => {
       const context = createMockContext();
       context.structure.tables = [
-        { 
-          purpose: 'table', 
+        {
+          purpose: 'table',
           outerHTML: '<table>...</table>',
           textContent: 'Name | Status | Age\nPod-1 | Running | 5d',
-          attributes: { rowCount: '10', columnCount: '3' }
+          attributes: { rowCount: '10', columnCount: '3' },
         },
       ];
 
@@ -655,7 +685,7 @@ describe('Context Prompt Builder', () => {
         purpose: 'modal',
         outerHTML: '<div role="dialog">...</div>',
         textContent: 'Confirm deletion\n\nAre you sure you want to delete this resource?',
-        attributes: { title: 'Delete Resource' }
+        attributes: { title: 'Delete Resource' },
       };
 
       const result = buildContextAwarePrompt(context, 'What is this dialog asking?');
@@ -682,8 +712,8 @@ describe('Context Prompt Builder', () => {
             specificContext: {
               subscriptionId: 'sub-12345',
               resourceGroup: 'my-resource-group',
-              bladeName: 'VirtualMachines'
-            }
+              bladeName: 'VirtualMachines',
+            },
           },
         },
       });
@@ -702,7 +732,12 @@ describe('Context Prompt Builder', () => {
           url: 'https://console.aws.amazon.com/ec2',
           hostname: 'console.aws.amazon.com',
           title: 'EC2 Dashboard',
-          urlParsed: { protocol: 'https:', pathname: '/ec2', search: '?region=us-east-1', hash: '' },
+          urlParsed: {
+            protocol: 'https:',
+            pathname: '/ec2',
+            search: '?region=us-east-1',
+            hash: '',
+          },
           platform: {
             type: 'aws',
             confidence: 0.95,
@@ -711,8 +746,8 @@ describe('Context Prompt Builder', () => {
             specificContext: {
               service: 'ec2',
               region: 'us-east-1',
-              activeAlarms: 2
-            }
+              activeAlarms: 2,
+            },
           },
         },
       });
@@ -730,19 +765,27 @@ describe('Context Prompt Builder', () => {
     it('should exclude Phase 2 content when options are disabled', () => {
       const context = createMockContext();
       context.text.consoleLogs = [
-        { level: 'error', message: 'Test error', timestamp: '2024-01-01T12:00:00Z' }
+        { level: 'error', message: 'Test error', timestamp: '2024-01-01T12:00:00Z' },
       ];
       context.text.networkErrors = [
-        { url: 'https://api.example.com', method: 'GET', status: 500, timestamp: '2024-01-01T12:00:00Z' }
+        {
+          url: 'https://api.example.com',
+          method: 'GET',
+          status: 500,
+          timestamp: '2024-01-01T12:00:00Z',
+        },
       ];
       context.structure.codeBlocks = [
-        { purpose: 'code-block', outerHTML: '<code/>', textContent: 'code', attributes: {} }
+        { purpose: 'code-block', outerHTML: '<code/>', textContent: 'code', attributes: {} },
       ];
       context.structure.tables = [
-        { purpose: 'table', outerHTML: '<table/>', textContent: 'data', attributes: {} }
+        { purpose: 'table', outerHTML: '<table/>', textContent: 'data', attributes: {} },
       ];
       context.structure.modal = {
-        purpose: 'modal', outerHTML: '<div/>', textContent: 'modal', attributes: {}
+        purpose: 'modal',
+        outerHTML: '<div/>',
+        textContent: 'modal',
+        attributes: {},
       };
 
       const result = buildContextAwarePrompt(context, 'Test', {

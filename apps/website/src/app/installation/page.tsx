@@ -1,31 +1,26 @@
-import type { Metadata } from "next";
-import Link from "next/link";
-import { HeroSection } from "@/components/sections/HeroSection";
-import { StepCard } from "@/components/ui/StepCard";
-import { CodeBlock } from "@/components/ui/CodeBlock";
-import { DownloadButtons } from "@/components/ui/DownloadButtons";
-import {
-  getLatestExtensionRelease,
-  getFallbackRelease,
-} from "@/lib/github-releases";
+import { HeroSection } from '@/components/sections/HeroSection';
+import { CodeBlock } from '@/components/ui/CodeBlock';
+import { DownloadButtons } from '@/components/ui/DownloadButtons';
+import { StepCard } from '@/components/ui/StepCard';
+import { getFallbackRelease, getLatestExtensionRelease } from '@/lib/github-releases';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: "Installation",
+  title: 'Installation',
   description:
-    "Get started with DevMentorAI in 2 minutes. Install the backend server and browser extension for Chrome or Firefox.",
+    'Get started with DevMentorAI in 2 minutes. Install the backend server and browser extension for Chrome or Firefox.',
 };
 
 export default async function InstallationPage() {
-  const release =
-    (await getLatestExtensionRelease()) ?? getFallbackRelease();
+  const release = (await getLatestExtensionRelease()) ?? getFallbackRelease();
 
   return (
     <>
       <HeroSection
         title={
           <>
-            Get started in{" "}
-            <span className="text-primary">2 minutes.</span>
+            Get started in <span className="text-primary">2 minutes.</span>
           </>
         }
         subtitle="Follow these three simple steps to set up your AI-powered developer mentoring environment."
@@ -65,7 +60,7 @@ export default async function InstallationPage() {
               </div>
             </div>
             <p className="mt-4 text-sm text-[var(--muted)]">
-              Requires{" "}
+              Requires{' '}
               <a
                 href="https://nodejs.org"
                 target="_blank"
@@ -73,8 +68,8 @@ export default async function InstallationPage() {
                 className="font-medium text-primary hover:underline"
               >
                 Node.js 20+
-              </a>{" "}
-              installed locally. Backend package is available on{" "}
+              </a>{' '}
+              installed locally. Backend package is available on{' '}
               <a
                 href="https://www.npmjs.com/package/devmentorai-server"
                 target="_blank"
@@ -82,7 +77,8 @@ export default async function InstallationPage() {
                 className="font-medium text-primary hover:underline"
               >
                 npm
-              </a>.
+              </a>
+              .
             </p>
           </StepCard>
 
@@ -94,10 +90,10 @@ export default async function InstallationPage() {
           >
             <DownloadButtons release={release} />
             <p className="mt-4 text-sm text-[var(--muted)]">
-              For Chrome: unzip and load via{" "}
+              For Chrome: unzip and load via{' '}
               <code className="rounded bg-[var(--section-alt)] px-1.5 py-0.5 font-mono text-xs">
                 chrome://extensions
-              </code>{" "}
+              </code>{' '}
               → Enable Developer mode → Load unpacked.
             </p>
           </StepCard>
@@ -125,9 +121,7 @@ export default async function InstallationPage() {
                 </div>
               </div>
               <div className="relative z-10 flex flex-col items-center gap-2">
-                <p className="text-sm font-bold text-primary">
-                  Waiting for connection...
-                </p>
+                <p className="text-sm font-bold text-primary">Waiting for connection...</p>
                 <div className="flex gap-1">
                   <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
                   <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
@@ -155,7 +149,7 @@ export default async function InstallationPage() {
             </a>
           </div>
           <p className="text-sm text-[var(--muted)]">
-            Need help?{" "}
+            Need help?{' '}
             <a
               href="https://github.com/BOTOOM/devmentorai/blob/master/README.md"
               target="_blank"
@@ -163,8 +157,8 @@ export default async function InstallationPage() {
               className="font-medium text-primary hover:underline"
             >
               Read the full documentation
-            </a>{" "}
-            or{" "}
+            </a>{' '}
+            or{' '}
             <a
               href="https://github.com/BOTOOM/devmentorai/issues"
               target="_blank"
@@ -172,7 +166,8 @@ export default async function InstallationPage() {
               className="font-medium text-primary hover:underline"
             >
               open an issue on GitHub
-            </a>.
+            </a>
+            .
           </p>
         </div>
       </section>

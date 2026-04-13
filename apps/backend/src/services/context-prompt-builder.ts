@@ -1,8 +1,8 @@
 /**
  * Context Prompt Builder Service
- * 
+ *
  * Builds context-enriched prompts for the Copilot SDK based on extracted page context.
- * 
+ *
  * PHASE 3 DESIGN PRINCIPLE - AUTONOMOUS AGENT:
  * ============================================
  * 1. We provide PURELY FACTUAL context (what's on the page)
@@ -11,19 +11,19 @@
  * 4. We do NOT use keyword matching (multilingual support, agent autonomy)
  * 5. The agent (Copilot) is fully autonomous in deciding:
  *    - What the user wants
- *    - How to respond  
+ *    - How to respond
  *    - What context is relevant
- * 
+ *
  * CustomAgents (DevOps Mentor, etc.) are set at session creation and provide
  * domain expertise. This function ONLY adds situational context from the page.
  */
 
 import type {
   ContextPayload,
-  PlatformDetection,
   ExtractedError,
   HTMLSection,
   Heading,
+  PlatformDetection,
 } from '@devmentorai/shared';
 
 // ============================================================================
@@ -62,7 +62,7 @@ Common diagnostic locations: Metric graphs, Alert conditions, Integration status
   grafana: `**Platform:** Grafana
 Common diagnostic locations: Query editor, Data source config, Alert rules`,
 
-  generic: ``,
+  generic: '',
 };
 
 // ============================================================================
@@ -75,8 +75,8 @@ Common diagnostic locations: Query editor, Data source config, Alert rules`,
 function formatPageContext(page: ContextPayload['page']): string {
   const { platform } = page;
   const platformLabel = platform.specificProduct || platform.type.toUpperCase();
-  
-  let section = `## Page Context\n`;
+
+  let section = '## Page Context\n';
   section += `- **Platform:** ${platformLabel}`;
   if (platform.confidence < 0.8) {
     section += ` (confidence: ${Math.round(platform.confidence * 100)}%)`;
@@ -84,7 +84,7 @@ function formatPageContext(page: ContextPayload['page']): string {
   section += '\n';
   section += `- **URL:** ${page.url}\n`;
   section += `- **Title:** ${page.title}\n`;
-  
+
   return section;
 }
 
@@ -95,7 +95,7 @@ function formatPageContext(page: ContextPayload['page']): string {
 function formatErrors(errors: ExtractedError[]): string {
   if (errors.length === 0) return '';
 
-  let section = `## Errors and Alerts on Page\n`;
+  let section = '## Errors and Alerts on Page\n';
   section += `${errors.length} issue(s) detected:\n\n`;
 
   for (const error of errors) {
@@ -115,12 +115,12 @@ function formatErrors(errors: ExtractedError[]): string {
 function formatHeadings(headings: Heading[]): string {
   if (headings.length === 0) return '';
 
-  let section = `## Page Structure (Headings)\n`;
+  let section = '## Page Structure (Headings)\n';
   for (const heading of headings.slice(0, 10)) {
     const indent = '  '.repeat(heading.level - 1);
     section += `${indent}- ${heading.text}\n`;
   }
-  return section + '\n';
+  return `${section}\n`;
 }
 
 /**
@@ -129,7 +129,7 @@ function formatHeadings(headings: Heading[]): string {
 function formatRelevantSections(sections: HTMLSection[]): string {
   if (sections.length === 0) return '';
 
-  let section = `## Relevant UI Elements\n`;
+  let section = '## Relevant UI Elements\n';
   for (const s of sections.slice(0, 5)) {
     section += `### ${s.purpose.replace('-', ' ').toUpperCase()}\n`;
     section += `\`\`\`\n${s.textContent.slice(0, 300)}\n\`\`\`\n\n`;
@@ -143,7 +143,7 @@ function formatRelevantSections(sections: HTMLSection[]): string {
 function formatCodeBlocks(codeBlocks?: HTMLSection[]): string {
   if (!codeBlocks || codeBlocks.length === 0) return '';
 
-  let section = `## Code Snippets Found on Page\n`;
+  let section = '## Code Snippets Found on Page\n';
   for (const block of codeBlocks.slice(0, 3)) {
     const lang = block.attributes.detectedLanguage || 'text';
     section += `### ${lang.toUpperCase()}\n`;
@@ -158,7 +158,7 @@ function formatCodeBlocks(codeBlocks?: HTMLSection[]): string {
 function formatTables(tables?: HTMLSection[]): string {
   if (!tables || tables.length === 0) return '';
 
-  let section = `## Data Tables\n`;
+  let section = '## Data Tables\n';
   for (const table of tables.slice(0, 2)) {
     const rows = table.attributes.rowCount || '?';
     const cols = table.attributes.columnCount || '?';
@@ -171,15 +171,17 @@ function formatTables(tables?: HTMLSection[]): string {
 /**
  * Format console logs for the prompt (Phase 2) - FACTUAL ONLY
  */
-function formatConsoleLogs(logs?: Array<{ level: string; message: string; timestamp: string; stackTrace?: string }>): string {
+function formatConsoleLogs(
+  logs?: Array<{ level: string; message: string; timestamp: string; stackTrace?: string }>
+): string {
   if (!logs || logs.length === 0) return '';
 
-  const errors = logs.filter(l => l.level === 'error' || l.level === 'warn');
+  const errors = logs.filter((l) => l.level === 'error' || l.level === 'warn');
   if (errors.length === 0) return '';
 
-  let section = `## Browser Console Logs\n`;
+  let section = '## Browser Console Logs\n';
   section += `${errors.length} error/warning message(s):\n\n`;
-  
+
   for (const log of errors.slice(0, 5)) {
     section += `- **${log.level.toUpperCase()}:** ${log.message.slice(0, 200)}\n`;
     if (log.stackTrace) {
@@ -193,14 +195,16 @@ function formatConsoleLogs(logs?: Array<{ level: string; message: string; timest
 /**
  * Format network errors for the prompt (Phase 2) - FACTUAL ONLY
  */
-function formatNetworkErrors(errors?: Array<{ url: string; method: string; status?: number; errorMessage?: string }>): string {
+function formatNetworkErrors(
+  errors?: Array<{ url: string; method: string; status?: number; errorMessage?: string }>
+): string {
   if (!errors || errors.length === 0) return '';
 
-  let section = `## Network Requests Failed\n`;
+  let section = '## Network Requests Failed\n';
   section += `${errors.length} failed request(s):\n\n`;
-  
+
   for (const err of errors.slice(0, 5)) {
-    const status = err.status ? `HTTP ${err.status}` : (err.errorMessage || 'Failed');
+    const status = err.status ? `HTTP ${err.status}` : err.errorMessage || 'Failed';
     section += `- **${err.method}** ${err.url.slice(0, 80)}${err.url.length > 80 ? '...' : ''}\n`;
     section += `  Status: ${status}\n\n`;
   }
@@ -213,7 +217,7 @@ function formatNetworkErrors(errors?: Array<{ url: string; method: string; statu
 function formatModalContent(modal?: HTMLSection): string {
   if (!modal) return '';
 
-  let section = `## Active Modal/Dialog\n`;
+  let section = '## Active Modal/Dialog\n';
   const title = modal.attributes.title || 'Modal';
   section += `### ${title}\n`;
   section += `\`\`\`\n${modal.textContent.slice(0, 400)}\n\`\`\`\n\n`;
@@ -226,13 +230,13 @@ function formatModalContent(modal?: HTMLSection): string {
 function formatPlatformSpecificContext(platformContext?: Record<string, unknown>): string {
   if (!platformContext || Object.keys(platformContext).length === 0) return '';
 
-  let section = `## Platform-Specific Details\n`;
+  let section = '## Platform-Specific Details\n';
   for (const [key, value] of Object.entries(platformContext)) {
     if (value !== undefined && value !== null) {
       section += `- **${key}:** ${String(value)}\n`;
     }
   }
-  return section + '\n';
+  return `${section}\n`;
 }
 
 /**
@@ -248,41 +252,45 @@ function formatUIState(uiState: {
   modalOpen: boolean;
   formValidationErrors: number;
 }): string {
-  let section = `## UI State\n`;
+  let section = '## UI State\n';
   section += `- **Page State:** ${uiState.pageState}\n`;
-  
+
   const issues: string[] = [];
-  if (uiState.loadingIndicators > 0) issues.push(`${uiState.loadingIndicators} loading indicator(s)`);
+  if (uiState.loadingIndicators > 0)
+    issues.push(`${uiState.loadingIndicators} loading indicator(s)`);
   if (uiState.errorStates > 0) issues.push(`${uiState.errorStates} error state(s)`);
   if (uiState.emptyStates > 0) issues.push(`${uiState.emptyStates} empty state(s)`);
   if (uiState.toastNotifications > 0) issues.push(`${uiState.toastNotifications} notification(s)`);
-  if (uiState.formValidationErrors > 0) issues.push(`${uiState.formValidationErrors} form validation error(s)`);
+  if (uiState.formValidationErrors > 0)
+    issues.push(`${uiState.formValidationErrors} form validation error(s)`);
   if (uiState.disabledButtons > 0) issues.push(`${uiState.disabledButtons} disabled button(s)`);
-  if (uiState.modalOpen) issues.push(`modal/dialog open`);
-  
+  if (uiState.modalOpen) issues.push('modal/dialog open');
+
   if (issues.length > 0) {
     section += `- **UI Issues:** ${issues.join(', ')}\n`;
   }
-  
-  return section + '\n';
+
+  return `${section}\n`;
 }
 
 /**
  * Format runtime JavaScript errors for the prompt
  */
-function formatRuntimeErrors(errors: Array<{
-  message: string;
-  source?: string;
-  lineno?: number;
-  colno?: number;
-  stack?: string;
-  type: string;
-}>): string {
+function formatRuntimeErrors(
+  errors: Array<{
+    message: string;
+    source?: string;
+    lineno?: number;
+    colno?: number;
+    stack?: string;
+    type: string;
+  }>
+): string {
   if (errors.length === 0) return '';
 
-  let section = `## JavaScript Runtime Errors\n`;
+  let section = '## JavaScript Runtime Errors\n';
   section += `${errors.length} runtime error(s) detected:\n\n`;
-  
+
   for (const err of errors.slice(0, 5)) {
     const errType = err.type === 'unhandledrejection' ? 'Promise Rejection' : 'JS Error';
     section += `- **${errType}:** ${err.message.slice(0, 200)}\n`;
@@ -302,14 +310,17 @@ function formatRuntimeErrors(errors: Array<{
  */
 function formatSelectedText(selectedText?: string): string {
   if (!selectedText) return '';
-  
+
   return `## User Selected Text\nThe user has highlighted this text on the page:\n\`\`\`\n${selectedText}\n\`\`\`\n\n`;
 }
 
 /**
  * Format session history for the prompt - FACTUAL ONLY
  */
-function formatSessionHistory(messages: { count: number; lastN: Array<{ role: string; content: string }> }): string {
+function formatSessionHistory(messages: {
+  count: number;
+  lastN: Array<{ role: string; content: string }>;
+}): string {
   if (messages.count === 0 || messages.lastN.length === 0) return '';
 
   let section = `## Recent Conversation (${messages.count} messages total)\n`;
@@ -355,17 +366,17 @@ const DEFAULT_OPTIONS: ContextAwarePromptOptions = {
 
 /**
  * Build a context-enriched user prompt from extracted page context.
- * 
+ *
  * PHASE 3 - AUTONOMOUS AGENT DESIGN:
  * ==================================
  * - Returns ONLY factual context (what's on the page)
  * - Does NOT tell the agent what to do
  * - Does NOT interpret user intent
  * - The agent decides everything based on the context and user message
- * 
+ *
  * CustomAgents (DevOps Mentor, etc.) are set at session creation and provide
  * domain expertise. This function ONLY adds situational context.
- * 
+ *
  * IMPORTANT: The context comes from the user's authenticated browser session.
  * The agent should use this context to answer questions about private/internal
  * pages that are not publicly accessible.
@@ -376,30 +387,35 @@ export function buildContextAwarePrompt(
   options: ContextAwarePromptOptions = {}
 ): { systemPrompt: string | null; userPrompt: string } {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  
+
   // Build the enriched user prompt with FACTUAL context sections
   let enrichedPrompt = '';
-  
+
   // Context header - explains that this data comes from user's browser
   enrichedPrompt += `# Browser Context (from user's authenticated session)\n\n`;
   enrichedPrompt += `The following context was extracted from the user's browser. `;
-  enrichedPrompt += `This may include private or authenticated content that is not publicly accessible. `;
+  enrichedPrompt +=
+    'This may include private or authenticated content that is not publicly accessible. ';
   enrichedPrompt += `Use this context to answer the user's question - DO NOT attempt to fetch URLs externally.\n\n`;
 
   // Page context (always included)
   enrichedPrompt += formatPageContext(context.page);
 
   // UI State (if available) - helps understand page state
-  if ((context.page as any).uiState) {
-    enrichedPrompt += formatUIState((context.page as any).uiState);
+  const pageWithUiState = context.page as ContextPayload['page'] & {
+    uiState?: Parameters<typeof formatUIState>[0];
+  };
+
+  if (pageWithUiState.uiState) {
+    enrichedPrompt += formatUIState(pageWithUiState.uiState);
   }
 
   // Platform-specific notes (factual locations, NOT instructions)
   if (opts.includePlatformNotes) {
-    const platformNotes = PLATFORM_CONTEXT_NOTES[context.page.platform.type] || 
-                          PLATFORM_CONTEXT_NOTES.generic;
+    const platformNotes =
+      PLATFORM_CONTEXT_NOTES[context.page.platform.type] || PLATFORM_CONTEXT_NOTES.generic;
     if (platformNotes) {
-      enrichedPrompt += platformNotes + '\n\n';
+      enrichedPrompt += `${platformNotes}\n\n`;
     }
   }
 
@@ -424,8 +440,12 @@ export function buildContextAwarePrompt(
   }
 
   // Runtime JavaScript errors (new)
-  if ((context.text as any).runtimeErrors?.length > 0) {
-    enrichedPrompt += formatRuntimeErrors((context.text as any).runtimeErrors);
+  const textWithRuntimeErrors = context.text as ContextPayload['text'] & {
+    runtimeErrors?: Parameters<typeof formatRuntimeErrors>[0];
+  };
+
+  if (textWithRuntimeErrors.runtimeErrors?.length) {
+    enrichedPrompt += formatRuntimeErrors(textWithRuntimeErrors.runtimeErrors);
   }
 
   // Selected text (user highlighted something specific)
@@ -488,13 +508,13 @@ function truncatePrompt(prompt: string, maxLength: number, userMessage: string):
   // Find a good truncation point
   const truncatedContext = prompt.slice(0, availableLength);
   const lastNewline = truncatedContext.lastIndexOf('\n');
-  
-  return truncatedContext.slice(0, lastNewline) + '\n\n[Context truncated for length]\n\n' + userMessageSection;
+
+  return `${truncatedContext.slice(0, lastNewline)}\n\n[Context truncated for length]\n\n${userMessageSection}`;
 }
 
 /**
  * Build a simple prompt without full context (fallback)
- * 
+ *
  * This also does NOT replace Copilot's system prompt.
  * Just enriches the user message with available context.
  */
@@ -505,16 +525,17 @@ export function buildSimplePrompt(
   selectedText?: string
 ): { systemPrompt: string | null; userPrompt: string } {
   let userPrompt = '';
-  
+
   // Add any available context to the user message
   if (pageUrl || pageTitle || selectedText) {
-    userPrompt += `**Context:**\n`;
+    userPrompt += '**Context:**\n';
     if (pageUrl) userPrompt += `- Page URL: ${pageUrl}\n`;
     if (pageTitle) userPrompt += `- Page Title: ${pageTitle}\n`;
-    if (selectedText) userPrompt += `- Selected Text: "${selectedText.slice(0, 500)}${selectedText.length > 500 ? '...' : ''}"\n`;
+    if (selectedText)
+      userPrompt += `- Selected Text: "${selectedText.slice(0, 500)}${selectedText.length > 500 ? '...' : ''}"\n`;
     userPrompt += '\n**Question:** ';
   }
-  
+
   userPrompt += userMessage;
 
   // Return null for systemPrompt - we don't override Copilot's default
@@ -526,15 +547,15 @@ export function buildSimplePrompt(
  */
 export function validateContext(context: unknown): context is ContextPayload {
   if (!context || typeof context !== 'object') return false;
-  
+
   const c = context as Record<string, unknown>;
-  
+
   // Check required fields
   if (!c.metadata || typeof c.metadata !== 'object') return false;
   if (!c.page || typeof c.page !== 'object') return false;
   if (!c.text || typeof c.text !== 'object') return false;
   if (!c.session || typeof c.session !== 'object') return false;
-  
+
   return true;
 }
 

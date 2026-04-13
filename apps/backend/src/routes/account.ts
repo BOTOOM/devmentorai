@@ -1,5 +1,5 @@
-import type { FastifyInstance } from 'fastify';
 import type { ApiResponse, CopilotAuthStatus, CopilotQuotaStatus } from '@devmentorai/shared';
+import type { FastifyInstance } from 'fastify';
 
 export async function accountRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get<{

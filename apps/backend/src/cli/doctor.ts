@@ -6,8 +6,8 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
-import { DATA_DIR, LOG_DIR, IMAGES_DIR } from '../lib/paths.js';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
+import { DATA_DIR, IMAGES_DIR, LOG_DIR } from '../lib/paths.js';
 
 const DEFAULT_PORT = DEFAULT_CONFIG.DEFAULT_PORT;
 
@@ -90,9 +90,17 @@ function checkPort(port: number): Promise<CheckResult> {
     const server = net.createServer();
     server.once('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
-        resolve({ name: `Port ${port}`, status: 'warn', message: `Port ${port} is in use (server may already be running)` });
+        resolve({
+          name: `Port ${port}`,
+          status: 'warn',
+          message: `Port ${port} is in use (server may already be running)`,
+        });
       } else {
-        resolve({ name: `Port ${port}`, status: 'fail', message: `Cannot bind port ${port}: ${err.message}` });
+        resolve({
+          name: `Port ${port}`,
+          status: 'fail',
+          message: `Cannot bind port ${port}: ${err.message}`,
+        });
       }
     });
     server.once('listening', () => {
@@ -106,12 +114,19 @@ function checkPort(port: number): Promise<CheckResult> {
 
 function checkCopilotCli(): CheckResult {
   try {
-    const version = execSync('github-copilot --version 2>/dev/null || copilot --version 2>/dev/null', {
-      encoding: 'utf-8',
-      timeout: 5000,
-    }).trim();
+    const version = execSync(
+      'github-copilot --version 2>/dev/null || copilot --version 2>/dev/null',
+      {
+        encoding: 'utf-8',
+        timeout: 5000,
+      }
+    ).trim();
     return { name: 'Copilot CLI', status: 'pass', message: version || 'installed' };
   } catch {
-    return { name: 'Copilot CLI', status: 'warn', message: 'Not found — server will run in mock mode' };
+    return {
+      name: 'Copilot CLI',
+      status: 'warn',
+      message: 'Not found — server will run in mock mode',
+    };
   }
 }

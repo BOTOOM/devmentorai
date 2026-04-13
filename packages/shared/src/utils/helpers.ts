@@ -51,7 +51,7 @@ export function truncate(text: string, maxLength: number, suffix = '...'): strin
  * Sleep for a given number of milliseconds
  */
 export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -66,29 +66,24 @@ export async function retry<T>(
     backoffFactor?: number;
   } = {}
 ): Promise<T> {
-  const {
-    maxAttempts = 3,
-    initialDelay = 1000,
-    maxDelay = 30000,
-    backoffFactor = 2,
-  } = options;
-  
+  const { maxAttempts = 3, initialDelay = 1000, maxDelay = 30000, backoffFactor = 2 } = options;
+
   let lastError: Error | undefined;
   let delay = initialDelay;
-  
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      
+
       if (attempt === maxAttempts) break;
-      
+
       await sleep(delay);
       delay = Math.min(delay * backoffFactor, maxDelay);
     }
   }
-  
+
   throw lastError;
 }
 

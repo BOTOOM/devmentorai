@@ -69,7 +69,7 @@ export function compareSemver(a: string, b: string): number {
 export async function checkForUpdate(
   component: ComponentType,
   currentVersion: string,
-  fetchFn: typeof fetch = globalThis.fetch,
+  fetchFn: typeof fetch = globalThis.fetch
 ): Promise<UpdateInfo> {
   const cacheKey = `${component}:${currentVersion}`;
   const cached = cache.get(cacheKey);
@@ -93,7 +93,7 @@ export async function checkForUpdate(
       {
         headers: { Accept: 'application/vnd.github.v3+json' },
         signal: AbortSignal.timeout(5000),
-      },
+      }
     );
 
     if (!response.ok) {
@@ -105,7 +105,7 @@ export async function checkForUpdate(
 
     // Find the latest non-draft, non-prerelease release matching our tag prefix
     const matching = releases.find(
-      (r) => r.tag_name.startsWith(prefix) && !r.draft && !r.prerelease,
+      (r) => r.tag_name.startsWith(prefix) && !r.draft && !r.prerelease
     );
 
     if (!matching) {
@@ -126,7 +126,7 @@ export async function checkForUpdate(
     }
 
     if (component === 'backend') {
-      downloadUrls.npm = `https://www.npmjs.com/package/devmentorai-server`;
+      downloadUrls.npm = 'https://www.npmjs.com/package/devmentorai-server';
     }
 
     const result: UpdateInfo = {

@@ -1,9 +1,9 @@
+import type { UpdateInfo } from '@devmentorai/shared';
 /**
  * Update notification banner.
  * Shows when a newer version of extension or backend is available.
  */
 import { useState } from 'react';
-import type { UpdateInfo } from '@devmentorai/shared';
 
 interface UpdateBannerProps {
   extensionUpdate: UpdateInfo | null;
@@ -11,7 +11,11 @@ interface UpdateBannerProps {
   onDismiss: () => void;
 }
 
-export function UpdateBanner({ extensionUpdate, backendUpdate, onDismiss }: UpdateBannerProps) {
+export function UpdateBanner({
+  extensionUpdate,
+  backendUpdate,
+  onDismiss,
+}: Readonly<UpdateBannerProps>) {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
@@ -31,14 +35,15 @@ export function UpdateBanner({ extensionUpdate, backendUpdate, onDismiss }: Upda
       <div className="flex-1 min-w-0">
         {hasExtUpdate && (
           <p className="text-xs text-amber-800 dark:text-amber-300">
-            🔄 Extension v{extensionUpdate.latestVersion} available
+            🔄 Extension v{extensionUpdate.latestVersion} is rolling out through your browser store.
+            You should receive it automatically soon.
             <a
               href={extensionUpdate.releaseUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="ml-1 underline hover:text-amber-600 dark:hover:text-amber-200"
             >
-              Download
+              What changed?
             </a>
           </p>
         )}
@@ -52,6 +57,7 @@ export function UpdateBanner({ extensionUpdate, backendUpdate, onDismiss }: Upda
         )}
       </div>
       <button
+        type="button"
         onClick={handleDismiss}
         className="text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 text-xs font-medium shrink-0"
         title="Dismiss"

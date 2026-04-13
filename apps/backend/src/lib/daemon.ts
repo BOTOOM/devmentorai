@@ -4,12 +4,12 @@
  * Handles PID file, process spawning, and healthcheck for the background server.
  */
 
-import { fork, type ChildProcess } from 'node:child_process';
+import { type ChildProcess, fork } from 'node:child_process';
 import fs from 'node:fs';
-import path from 'node:path';
 import http from 'node:http';
-import { PID_FILE, LOG_FILE, LOG_DIR, ensureDir } from './paths.js';
+import path from 'node:path';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
+import { LOG_DIR, LOG_FILE, PID_FILE, ensureDir } from './paths.js';
 
 const DEFAULT_PORT = DEFAULT_CONFIG.DEFAULT_PORT;
 
@@ -22,8 +22,8 @@ export function writePid(pid: number): void {
 export function readPid(): number | null {
   try {
     const content = fs.readFileSync(PID_FILE, 'utf-8').trim();
-    const pid = parseInt(content, 10);
-    return isNaN(pid) ? null : pid;
+    const pid = Number.parseInt(content, 10);
+    return Number.isNaN(pid) ? null : pid;
   } catch {
     return null;
   }
@@ -49,14 +49,19 @@ export function isProcessRunning(pid: number): boolean {
 }
 
 /** HTTP healthcheck against the running server */
-export function healthcheck(port: number = DEFAULT_PORT, timeoutMs: number = 3000): Promise<{
+export function healthcheck(
+  port: number = DEFAULT_PORT,
+  timeoutMs = 3000
+): Promise<{
   ok: boolean;
   data?: Record<string, unknown>;
 }> {
   return new Promise((resolve) => {
     const req = http.get(`http://127.0.0.1:${port}/api/health`, { timeout: timeoutMs }, (res) => {
       let body = '';
-      res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+      res.on('data', (chunk: Buffer) => {
+        body += chunk.toString();
+      });
       res.on('end', () => {
         try {
           const data = JSON.parse(body);
@@ -130,7 +135,10 @@ export function spawnServer(port: number = DEFAULT_PORT): ChildProcess {
 }
 
 /** Wait for the server to become healthy */
-export async function waitForHealthy(port: number = DEFAULT_PORT, maxWaitMs: number = 10000): Promise<boolean> {
+export async function waitForHealthy(
+  port: number = DEFAULT_PORT,
+  maxWaitMs = 10000
+): Promise<boolean> {
   const start = Date.now();
   const interval = 500;
 

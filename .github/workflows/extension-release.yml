@@ -2,7 +2,7 @@ name: Extension Release
 
 on:
   push:
-    branches: [master, develop]
+    branches: [develop]
     paths:
       - 'apps/extension/**'
       - 'packages/shared/**'
@@ -17,17 +17,29 @@ on:
         required: false
         type: boolean
         default: false
-
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+      run_release:
+        description: 'Run release job'
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      skip_tests:
+        required: false
+        type: boolean
+        default: false
+      run_release:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   test:
     name: Test & Build
     runs-on: ubuntu-latest
     if: ${{ !inputs.skip_tests }}
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,13 +77,21 @@ jobs:
   release:
     name: Release
     needs: test
-    if: ${{ github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && (always() && (needs.test.result == 'success' || inputs.skip_tests)) }}
+    if: ${{ inputs.run_release && github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && (always() && (needs.test.result == 'success' || inputs.skip_tests)) }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: extension-release-${{ github.ref_name }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup pnpm

@@ -21,8 +21,8 @@ importers:
         specifier: ^10.0.2
         version: 10.1.0
       '@github/copilot':
-        specifier: ^1.0.20
-        version: 1.0.21
+        specifier: ^1.0.43
+        version: 1.0.43
       '@github/copilot-sdk':
         specifier: ^0.2.1
         version: 0.2.1
@@ -1018,26 +1018,26 @@ packages:
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
 
-  '@github/copilot-darwin-arm64@1.0.21':
-    resolution: {integrity: sha512-aB+s9ldTwcyCOYmzjcQ4SknV6g81z92T8aUJEJZBwOXOTBeWKAJtk16ooAKangZgdwuLgO3or1JUjx1FJAm5nQ==}
+  '@github/copilot-darwin-arm64@1.0.43':
+    resolution: {integrity: sha512-VMaWfoUwIt19TGzmvTv/In5ITgFWfu91ZILt4Lb77gSmVbwbs+DahP2lbvM1s/GtGwOknwhOJLp4q2WMgK3CoQ==}
     cpu: [arm64]
     os: [darwin]
     hasBin: true
 
-  '@github/copilot-darwin-x64@1.0.21':
-    resolution: {integrity: sha512-aNad81DOGuGShmaiFNIxBUSZLwte0dXmDYkGfAF9WJIgY4qP4A8CPWFoNr8//gY+4CwaIf9V+f/OC6k2BdECbw==}
+  '@github/copilot-darwin-x64@1.0.43':
+    resolution: {integrity: sha512-lCxg75zbgtWggb1p+IHhlhmulQj7BKIc+9pUsTwJ3Mjt51kiUYmD6LF2BD1/Ed4M3GMumSu4UTSIv9pL96n0Wg==}
     cpu: [x64]
     os: [darwin]
     hasBin: true
 
-  '@github/copilot-linux-arm64@1.0.21':
-    resolution: {integrity: sha512-FL0NsCnHax4czHVv1S8iBqPLGZDhZ28N3+6nT29xWGhmjBWTkIofxLThKUPcyyMsfPTTxIlrdwWa8qQc5z2Q+g==}
+  '@github/copilot-linux-arm64@1.0.43':
+    resolution: {integrity: sha512-Jr1rvt/Syz5oVSiU53keRKEV8f5xTLkmiB2qasAV6Emk7K82/BZW5HfW8cDadfHnlAS1+UVPpoO+8ykgx4dikw==}
     cpu: [arm64]
     os: [linux]
     hasBin: true
 
-  '@github/copilot-linux-x64@1.0.21':
-    resolution: {integrity: sha512-S7pWVI16hesZtxYbIyfw+MHZpc5ESoGKUVr5Y+lZJNaM2340gJGPQzQwSpvKIRMLHRKI2hXLwciAnYeMFxE/Tg==}
+  '@github/copilot-linux-x64@1.0.43':
+    resolution: {integrity: sha512-uyWyPpcwMC1tIHJTA1OPzIm1i/Eeku0NjFzPYnFvpfGug9pkL4xcUr8A2UNl8cVvxq/VQMwtYckV3G12ySJTFw==}
     cpu: [x64]
     os: [linux]
     hasBin: true
@@ -1046,20 +1046,20 @@ packages:
     resolution: {integrity: sha512-S1n/4X1viqbSAWcHDZcFyZ/7hgTLAXr3NY7yNmHoX/CL4LTuYIJ6y5w2jrqUnrJNQgtNrMDSFGwFU+H1GeynFw==}
     engines: {node: '>=20.0.0'}
 
-  '@github/copilot-win32-arm64@1.0.21':
-    resolution: {integrity: sha512-a9qc2Ku+XbyBkXCclbIvBbIVnECACTIWnPctmXWsQeSdeapGxgfHGux7y8hAFV5j6+nhCm6cnyEMS3rkZjAhdA==}
+  '@github/copilot-win32-arm64@1.0.43':
+    resolution: {integrity: sha512-vY3rwkW1h7ixSqYd9XT/xGjxkepvQVJK2q1sYhSPBN4Wvuk37fRjN7ox3QU1lhpxlYQMc/g+ZR58u5cx31n1lw==}
     cpu: [arm64]
     os: [win32]
     hasBin: true
 
-  '@github/copilot-win32-x64@1.0.21':
-    resolution: {integrity: sha512-9klu+7NQ6tEyb8sibb0rsbimBivDrnNltZho10Bgbf1wh3o+erTjffXDjW9Zkyaw8lZA9Fz8bqhVkKntZq58Lg==}
+  '@github/copilot-win32-x64@1.0.43':
+    resolution: {integrity: sha512-AjGsebDbJmBxe9FFf2McSN5r2Joi8cFY879lxaQaXxfGjzOHblzvbhflbsX9x2GnvCfDdDiow413WvOGqKDH8g==}
     cpu: [x64]
     os: [win32]
     hasBin: true
 
-  '@github/copilot@1.0.21':
-    resolution: {integrity: sha512-P+nORjNKAtl92jYCG6Qr1Rsw2JoyScgeQSkIR6O2WB37WS5JVdA4ax1WVualMbfuc9V58CPHX6fwyNpkI89FkQ==}
+  '@github/copilot@1.0.43':
+    resolution: {integrity: sha512-2FO825Aq4bwmHcXVyplW+CpZaJFUYjqtqjBGnueM31gu4ufn6ReurzB2swBQ6bn4Pquyy2KeodMRPpT6JaLMhw==}
     hasBin: true
 
   '@humanfs/core@0.19.1':
@@ -4898,6 +4898,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  semver@7.8.0:
+    resolution: {integrity: sha512-AcM7dV/5ul4EekoQ29Agm5vri8JNqRyj39o0qpX6vDF2GZrtutZl5RwgD1XnZjiTAfncsJhMI48QQH3sN87YNA==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   set-cookie-parser@2.7.2:
     resolution: {integrity: sha512-oeM1lpU/UvhTxw+g3cIfxXHyJRc/uidd3yK1P242gzHds0udQBYzs3y8j4gCCW+ZJ7ad0yctld8RYO+bdurlvw==}
 
@@ -5483,6 +5488,7 @@ packages:
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   validate-npm-package-license@3.0.4:
@@ -6349,38 +6355,38 @@ snapshots:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.3.0
 
-  '@github/copilot-darwin-arm64@1.0.21':
+  '@github/copilot-darwin-arm64@1.0.43':
     optional: true
 
-  '@github/copilot-darwin-x64@1.0.21':
+  '@github/copilot-darwin-x64@1.0.43':
     optional: true
 
-  '@github/copilot-linux-arm64@1.0.21':
+  '@github/copilot-linux-arm64@1.0.43':
     optional: true
 
-  '@github/copilot-linux-x64@1.0.21':
+  '@github/copilot-linux-x64@1.0.43':
     optional: true
 
   '@github/copilot-sdk@0.2.1':
     dependencies:
-      '@github/copilot': 1.0.21
+      '@github/copilot': 1.0.43
       vscode-jsonrpc: 8.2.1
       zod: 4.3.6
 
-  '@github/copilot-win32-arm64@1.0.21':
+  '@github/copilot-win32-arm64@1.0.43':
     optional: true
 
-  '@github/copilot-win32-x64@1.0.21':
+  '@github/copilot-win32-x64@1.0.43':
     optional: true
 
-  '@github/copilot@1.0.21':
+  '@github/copilot@1.0.43':
     optionalDependencies:
-      '@github/copilot-darwin-arm64': 1.0.21
-      '@github/copilot-darwin-x64': 1.0.21
-      '@github/copilot-linux-arm64': 1.0.21
-      '@github/copilot-linux-x64': 1.0.21
-      '@github/copilot-win32-arm64': 1.0.21
-      '@github/copilot-win32-x64': 1.0.21
+      '@github/copilot-darwin-arm64': 1.0.43
+      '@github/copilot-darwin-x64': 1.0.43
+      '@github/copilot-linux-arm64': 1.0.43
+      '@github/copilot-linux-x64': 1.0.43
+      '@github/copilot-win32-arm64': 1.0.43
+      '@github/copilot-win32-x64': 1.0.43
 
   '@humanfs/core@0.19.1': {}
 
@@ -8251,7 +8257,7 @@ snapshots:
       eslint: 9.39.2(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
       eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-react: 7.37.5(eslint@9.39.2(jiti@2.6.1))
       eslint-plugin-react-hooks: 7.0.1(eslint@9.39.2(jiti@2.6.1))
@@ -8284,7 +8290,7 @@ snapshots:
       tinyglobby: 0.2.16
       unrs-resolver: 1.11.1
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1))
+      eslint-plugin-import: 2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.2(jiti@2.6.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -8299,7 +8305,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1)))(eslint@9.39.2(jiti@2.6.1)):
+  eslint-plugin-import@2.32.0(@typescript-eslint/parser@8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.2(jiti@2.6.1)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.9
@@ -8743,7 +8749,7 @@ snapshots:
       '@petamoriken/float16': 3.9.3
       debug: 4.4.3
       env-paths: 3.0.0
-      semver: 7.7.4
+      semver: 7.8.0
       shell-quote: 1.8.3
       which: 4.0.0
     transitivePeerDependencies:
@@ -10393,6 +10399,9 @@ snapshots:
   semver@7.7.3: {}
 
   semver@7.7.4: {}
+
+  semver@7.8.0:
+    optional: true
 
   set-cookie-parser@2.7.2: {}
 

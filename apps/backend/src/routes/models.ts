@@ -4,8 +4,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 const TIER_ORDER: ModelPricingTier[] = ['free', 'cheap', 'standard', 'premium'];
 
 const FALLBACK_MODEL: ModelInfo = {
-  id: 'gpt-4.1',
-  name: 'GPT-4.1',
+  id: 'gpt-5-mini',
+  name: 'GPT-5 Mini',
   description: 'Recommended baseline model for DevMentorAI sessions',
   provider: 'openai',
   available: true,

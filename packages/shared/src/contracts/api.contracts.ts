@@ -151,7 +151,7 @@ export interface ApiEndpoints {
  * Default configuration values
  */
 export const DEFAULT_CONFIG = {
-  DEFAULT_MODEL: 'gpt-4.1',
+  DEFAULT_MODEL: 'gpt-5-mini',
   DEFAULT_PORT: 3847,
   DEFAULT_HOST: 'localhost',
   REQUEST_TIMEOUT_MS: 60000,

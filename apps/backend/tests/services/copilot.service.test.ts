@@ -80,14 +80,14 @@ describe('CopilotService', () => {
     });
 
     it('should create a mock session for DevOps type', async () => {
-      await copilotService.createCopilotSession('test-session-1', 'devops', 'gpt-4.1');
+      await copilotService.createCopilotSession('test-session-1', 'devops', 'gpt-5-mini');
 
       // Should not throw in mock mode
       expect(copilotService.isMockMode()).toBe(true);
     });
 
     it('should create a mock session for Writing type', async () => {
-      await copilotService.createCopilotSession('test-session-2', 'writing', 'gpt-4.1');
+      await copilotService.createCopilotSession('test-session-2', 'writing', 'gpt-5-mini');
 
       expect(copilotService.isMockMode()).toBe(true);
     });
@@ -96,7 +96,7 @@ describe('CopilotService', () => {
       await copilotService.createCopilotSession(
         'test-session-3',
         'general',
-        'gpt-4.1',
+        'gpt-5-mini',
         'Custom system prompt for testing'
       );
 
@@ -110,7 +110,7 @@ describe('CopilotService', () => {
     });
 
     it('should destroy session without error', async () => {
-      await copilotService.createCopilotSession('test-session-4', 'devops', 'gpt-4.1');
+      await copilotService.createCopilotSession('test-session-4', 'devops', 'gpt-5-mini');
 
       // Should not throw
       await copilotService.destroySession('test-session-4');
@@ -120,7 +120,7 @@ describe('CopilotService', () => {
   describe('mock message handling', () => {
     beforeEach(async () => {
       await copilotService.initialize();
-      await copilotService.createCopilotSession('mock-session', 'devops', 'gpt-4.1');
+      await copilotService.createCopilotSession('mock-session', 'devops', 'gpt-5-mini');
     });
 
     it('should generate mock response for explain action', async () => {
@@ -181,7 +181,7 @@ describe('CopilotService', () => {
   describe('streaming', () => {
     beforeEach(async () => {
       await copilotService.initialize();
-      await copilotService.createCopilotSession('stream-session', 'devops', 'gpt-4.1');
+      await copilotService.createCopilotSession('stream-session', 'devops', 'gpt-5-mini');
     });
 
     it('should stream mock response with events', async () => {
@@ -240,7 +240,7 @@ describe('CopilotService', () => {
     });
 
     it('should abort request without error in mock mode', async () => {
-      await copilotService.createCopilotSession('abort-session', 'devops', 'gpt-4.1');
+      await copilotService.createCopilotSession('abort-session', 'devops', 'gpt-5-mini');
 
       // Should not throw
       await copilotService.abortRequest('abort-session');
@@ -252,7 +252,7 @@ describe('CopilotService', () => {
     });
 
     it('should shutdown cleanly', async () => {
-      await copilotService.createCopilotSession('shutdown-session', 'devops', 'gpt-4.1');
+      await copilotService.createCopilotSession('shutdown-session', 'devops', 'gpt-5-mini');
 
       // Should not throw
       await copilotService.shutdown();
@@ -270,7 +270,7 @@ describe('CopilotService', () => {
       const types = ['devops', 'writing', 'development', 'general'] as const;
 
       for (const type of types) {
-        await copilotService.createCopilotSession(`session-${type}`, type, 'gpt-4.1');
+        await copilotService.createCopilotSession(`session-${type}`, type, 'gpt-5-mini');
 
         const response = await copilotService.sendMessage(`session-${type}`, 'Test message');
 

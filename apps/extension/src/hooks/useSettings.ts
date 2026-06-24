@@ -4,6 +4,7 @@ import type { TextReplacementBehavior } from '@devmentorai/shared';
  * Handles theme changes, language, and other preferences
  */
 import { useCallback, useEffect, useState } from 'react';
+import { DEFAULT_QUICK_ACTION_MODEL, normalizeQuickActionModel } from '../constants/models';
 import { storageGet, storageSet } from '../lib/browser-utils';
 
 export interface Settings {
@@ -43,7 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   screenshotBehavior: 'ask', // Default: user must explicitly enable
   imageAttachmentsEnabled: true, // Default: enabled
   textReplacementBehavior: 'ask', // Default: ask before replacing
-  quickActionModel: 'gpt-4.1', // Default: fast model for quick actions
+  quickActionModel: DEFAULT_QUICK_ACTION_MODEL, // Fast model for quick actions without reasoning
   assistantTone: 'balanced', // Default: balanced tone
   explainTradeoffs: false, // Default: don't automatically explain tradeoffs
 };
@@ -101,8 +102,19 @@ export function useSettings() {
     const loadSettings = async () => {
       try {
         const result = await storageGet<Partial<Settings>>(Object.keys(DEFAULT_SETTINGS));
-        const loadedSettings = { ...DEFAULT_SETTINGS, ...result };
+        const loadedSettings = {
+          ...DEFAULT_SETTINGS,
+          ...result,
+          quickActionModel: normalizeQuickActionModel(result.quickActionModel),
+        };
         setSettings(loadedSettings);
+
+        if (
+          result.quickActionModel &&
+          result.quickActionModel !== loadedSettings.quickActionModel
+        ) {
+          await storageSet({ quickActionModel: loadedSettings.quickActionModel });
+        }
 
         // Apply theme immediately
         applyTheme(loadedSettings.theme);
@@ -160,8 +172,10 @@ export function useSettings() {
 
   const updateSetting = useCallback(
     async <K extends keyof Settings>(key: K, value: Settings[K]) => {
-      setSettings((prev) => ({ ...prev, [key]: value }));
-      await storageSet({ [key]: value });
+      const normalizedValue =
+        key === 'quickActionModel' ? normalizeQuickActionModel(value as string) : value;
+      setSettings((prev) => ({ ...prev, [key]: normalizedValue }));
+      await storageSet({ [key]: normalizedValue });
     },
     []
   );

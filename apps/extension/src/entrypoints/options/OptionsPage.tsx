@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { QUICK_ACTION_MODEL_OPTIONS } from '../../constants/models';
 import {
   AVAILABLE_LANGUAGES,
   DEFAULT_SETTINGS,
@@ -595,11 +596,11 @@ export function OptionsPage() {
                 onChange={(e) => updateLocalSetting('quickActionModel', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
-                <option value="gpt-4.1">GPT-4.1 (Fast)</option>
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="claude-3-5-sonnet">Claude 3.5 Sonnet</option>
-                <option value="claude-3-5-haiku">Claude 3.5 Haiku (Fast)</option>
+                {QUICK_ACTION_MODEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Model used for quick actions like grammar fix, rewrite, translate

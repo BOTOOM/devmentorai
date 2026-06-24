@@ -96,6 +96,32 @@ async function streamQuickActionOnce(
   }
 }
 
+async function ensureWritingAssistantModel(
+  apiClient: ApiClient,
+  session: Session,
+  model?: string
+): Promise<Session> {
+  if (!model || session.model === model) {
+    return session;
+  }
+
+  console.log('[WritingAssistant] Switching existing session model:', {
+    sessionId: session.id,
+    from: session.model,
+    to: model,
+  });
+
+  const response = await apiClient.switchSessionModel(session.id, model);
+
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.message || 'Failed to switch Writing Assistant model');
+  }
+
+  cachedSession = response.data;
+  lastFetchTime = Date.now();
+  return response.data;
+}
+
 /**
  * Get or create the Writing Assistant session
  * This session is used for all quick actions to provide fast AI responses
@@ -106,7 +132,7 @@ export async function getOrCreateWritingAssistantSession(model?: string): Promis
   // Check cache
   const now = Date.now();
   if (cachedSession && now - lastFetchTime < CACHE_TTL_MS) {
-    return cachedSession;
+    return ensureWritingAssistantModel(apiClient, cachedSession, model);
   }
 
   try {
@@ -126,10 +152,11 @@ export async function getOrCreateWritingAssistantSession(model?: string): Promis
     );
 
     if (existingSession) {
-      cachedSession = existingSession;
+      const session = await ensureWritingAssistantModel(apiClient, existingSession, model);
+      cachedSession = session;
       lastFetchTime = now;
-      console.log('[WritingAssistant] Found existing session:', existingSession.id);
-      return existingSession;
+      console.log('[WritingAssistant] Found existing session:', session.id);
+      return session;
     }
 
     // Create new Writing Assistant session

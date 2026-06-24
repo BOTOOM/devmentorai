@@ -15,6 +15,8 @@ import {
 } from '@github/copilot-sdk';
 import { devopsTools, getToolByName } from '../tools/devops-tools.js';
 import { SessionService } from './session.service.js';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 interface CopilotSession {
   sessionId: string;
@@ -31,7 +33,7 @@ const MCP_SERVERS: Record<string, { type: 'http'; url: string; tools: string[] }
   },
 };
 
-const RECOMMENDED_DEFAULT_MODEL = 'gpt-4.1';
+const RECOMMENDED_DEFAULT_MODEL = 'gpt-5-mini';
 
 interface RawSdkModel {
   id?: unknown;
@@ -55,7 +57,22 @@ export class CopilotService {
 
   async initialize(): Promise<void> {
     try {
-      this.client = new CopilotClient();
+      let cliPath: string | undefined;
+      try {
+        const sdkUrl = import.meta.resolve('@github/copilot/sdk');
+        const sdkPath = fileURLToPath(sdkUrl);
+        cliPath = sdkPath.endsWith('.js')
+          ? join(dirname(dirname(sdkPath)), 'index.js')
+          : join(dirname(sdkPath), 'index.js');
+        console.log(`[CopilotService] Dynamically resolved Copilot CLI Path: ${cliPath}`);
+      } catch (err) {
+        console.warn('[CopilotService] Failed to resolve custom CLI path, falling back to default:', err);
+      }
+
+      this.client = new CopilotClient({
+        gitHubToken: process.env.GITHUB_TOKEN || process.env.COPILOT_TOKEN || undefined,
+        cliPath,
+      });
       await this.client.start();
       this.initialized = true;
       console.log('[CopilotService] Initialized successfully');

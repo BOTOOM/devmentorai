@@ -12,10 +12,12 @@ export default defineConfig({
     'build:done': (_wxt, output) => {
       const publicDir = resolve('src/public');
       const resolvedOutput = output as { dir?: string; outDir?: string };
-      const configuredOutDir = resolvedOutput.dir ?? resolvedOutput.outDir;
+      const configuredOutDir = _wxt.config.outDir || resolvedOutput.dir || resolvedOutput.outDir;
       const knownOutputDirs = [
         resolve('.output/chrome-mv3'),
         resolve('.output/chrome-mv3-dev'),
+        resolve('.output/firefox-mv2'),
+        resolve('.output/firefox-mv2-dev'),
       ].filter((dir) => existsSync(dir));
       const outDirs = Array.from(
         new Set(
@@ -57,10 +59,6 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: 'devmentorai@devmentorai.com',
-        // @ts-ignore - data_collection_permissions is required by Firefox but not yet in WXT types
-        data_collection_permissions: {
-          required: ['none'],
-        },
       },
     },
     permissions: ['storage', 'activeTab', 'contextMenus', 'scripting', 'tabs', 'alarms'],

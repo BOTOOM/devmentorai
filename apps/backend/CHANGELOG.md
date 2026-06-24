@@ -1,3 +1,14 @@
+## [1.7.2](https://github.com/BOTOOM/devmentorai/compare/backend-v1.7.1...backend-v1.7.2) (2026-06-24)
+
+### Bug Fixes
+
+* **backend:** resolve copilot cli path robustly using platform-specific packages in pnpm monorepo ([854792b](https://github.com/BOTOOM/devmentorai/commit/854792b685f61b48224619f860237fe27873ea1c))
+* **deps:** change global ajv override to targeted eslint>ajv to prevent downgrading fastify ajv v8 ([c5912ca](https://github.com/BOTOOM/devmentorai/commit/c5912caee3c328fa1da94032bbac100b5c62de40))
+
+### Maintenance
+
+* **release:** extension v1.7.1 [skip ci] ([30b76dc](https://github.com/BOTOOM/devmentorai/commit/30b76dcffe3978a5f5466ca20420f808ce4bcd0d))
+
 ## [1.7.1](https://github.com/BOTOOM/devmentorai/compare/backend-v1.7.0...backend-v1.7.1) (2026-06-24)
 
 ### Maintenance

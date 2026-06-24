@@ -65,7 +65,7 @@ docker compose logs -f backend
 Use the `copilot` binary:
 
 ```bash
-docker compose exec backend copilot auth login
+docker compose exec backend copilot login
 ```
 
 Verify authentication status:

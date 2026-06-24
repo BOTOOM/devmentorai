@@ -31,7 +31,7 @@ const MCP_SERVERS: Record<string, { type: 'http'; url: string; tools: string[] }
   },
 };
 
-const RECOMMENDED_DEFAULT_MODEL = 'gpt-4.1';
+const RECOMMENDED_DEFAULT_MODEL = 'gpt-5-mini';
 
 interface RawSdkModel {
   id?: unknown;

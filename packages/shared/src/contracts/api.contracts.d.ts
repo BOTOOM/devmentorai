@@ -2,7 +2,7 @@
  * API contract definitions for DevMentorAI
  * These define the endpoints and their request/response types
  */
-import type { Session, CreateSessionRequest, UpdateSessionRequest, Message, SendMessageRequest, ApiResponse, PaginatedResponse, HealthResponse, ModelInfo, CopilotAuthStatus, CopilotQuotaStatus } from '../types/index.js';
+import type { ApiResponse, CopilotAuthStatus, CopilotQuotaStatus, CreateSessionRequest, HealthResponse, Message, ModelInfo, PaginatedResponse, SendMessageRequest, Session, UpdateSessionRequest } from '../types/index.js';
 /**
  * Backend API endpoints contract
  */
@@ -123,7 +123,7 @@ export interface ApiEndpoints {
  * Default configuration values
  */
 export declare const DEFAULT_CONFIG: {
-    readonly DEFAULT_MODEL: "gpt-4.1";
+    readonly DEFAULT_MODEL: "gpt-5-mini";
     readonly DEFAULT_PORT: 3847;
     readonly DEFAULT_HOST: "localhost";
     readonly REQUEST_TIMEOUT_MS: 60000;

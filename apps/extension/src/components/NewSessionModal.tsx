@@ -39,7 +39,7 @@ interface NewSessionModalProps {
 export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalProps>) {
   const [name, setName] = useState('');
   const [type, setType] = useState<SessionType>('devops');
-  const [model, setModel] = useState<string>('gpt-4.1');
+  const [model, setModel] = useState<string>('gpt-5-mini');
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>('medium');
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [showModelPicker, setShowModelPicker] = useState(false);

@@ -26,7 +26,7 @@ export function initDatabase(): Database.Database {
       name TEXT NOT NULL,
       type TEXT NOT NULL CHECK (type IN ('devops', 'writing', 'development', 'general')),
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'closed')),
-      model TEXT NOT NULL DEFAULT 'gpt-4.1',
+      model TEXT NOT NULL DEFAULT 'gpt-5-mini',
       system_prompt TEXT,
       custom_agent TEXT,
       message_count INTEGER NOT NULL DEFAULT 0,

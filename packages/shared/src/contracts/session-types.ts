@@ -24,7 +24,7 @@ export const SESSION_TYPE_CONFIGS: Record<SessionType, SessionTypeConfig> = {
     name: 'DevOps Mentor',
     description: 'Expert in DevOps, cloud infrastructure, and best practices',
     icon: '🛠️',
-    defaultModel: 'gpt-4.1',
+    defaultModel: 'gpt-5-mini',
     agent: {
       name: 'devops-mentor',
       displayName: 'DevOps Mentor',
@@ -56,7 +56,7 @@ Provide a high-quality, detailed, and explanatory response that helps the user c
     name: 'Writing Assistant',
     description: 'Helps with writing, rewriting, and translation',
     icon: '✍️',
-    defaultModel: 'gpt-4.1',
+    defaultModel: 'gpt-5-mini',
     agent: {
       name: 'writing-assistant',
       displayName: 'Writing Assistant',
@@ -86,7 +86,7 @@ When the user provides text to modify, respond with ONLY the modified text unles
     name: 'Development Helper',
     description: 'Assists with code review, debugging, and best practices',
     icon: '💻',
-    defaultModel: 'gpt-4.1',
+    defaultModel: 'gpt-5-mini',
     agent: {
       name: 'dev-helper',
       displayName: 'Development Helper',
@@ -123,7 +123,7 @@ When reviewing code, focus on:
     name: 'General Assistant',
     description: 'General-purpose AI assistant',
     icon: '💬',
-    defaultModel: 'gpt-4.1',
+    defaultModel: 'gpt-5-mini',
     agent: null, // Uses default Copilot behavior
   },
 };
@@ -139,5 +139,5 @@ export function getAgentConfig(type: SessionType): AgentConfig | null {
  * Get the default model for a session type
  */
 export function getDefaultModel(type: SessionType): string {
-  return SESSION_TYPE_CONFIGS[type]?.defaultModel ?? 'gpt-4.1';
+  return SESSION_TYPE_CONFIGS[type]?.defaultModel ?? 'gpt-5-mini';
 }

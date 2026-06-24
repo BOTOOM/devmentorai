@@ -44,5 +44,27 @@
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
   },
-  "packageManager": "pnpm@9.15.4"
+  "packageManager": "pnpm@9.15.4",
+  "pnpm": {
+    "overrides": {
+      "ajv": "^6.14.0",
+      "brace-expansion": "^2.0.3",
+      "defu": "^6.1.4",
+      "fast-uri": "^3.1.2",
+      "flatted": "^3.4.1",
+      "handlebars": "^4.7.9",
+      "js-yaml": "^4.1.1",
+      "lodash": "^4.17.21",
+      "lodash-es": "^4.17.21",
+      "minimatch": "^9.0.7",
+      "node-forge": "^1.4.0",
+      "picomatch": "^4.0.4",
+      "postcss": "^8.5.10",
+      "shell-quote": "^1.8.4",
+      "tmp": "^0.2.6",
+      "jsdom>undici": "^7.28.0",
+      "undici": "^6.27.0",
+      "uuid": "^11.1.1"
+    }
+  }
 }

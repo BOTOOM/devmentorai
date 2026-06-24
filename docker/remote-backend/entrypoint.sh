@@ -15,7 +15,7 @@ if [[ -n "${COPILOT_CMD}" ]]; then
     echo "[DevMentorAI Docker] Copilot CLI already authenticated."
   else
     echo "[DevMentorAI Docker] Copilot CLI is not authenticated yet."
-    echo "[DevMentorAI Docker] Run: docker compose exec backend ${COPILOT_CMD} auth login"
+    echo "[DevMentorAI Docker] Run: docker compose exec backend ${COPILOT_CMD} login"
   fi
 else
   echo "[DevMentorAI Docker] Copilot CLI binary not found in container PATH."

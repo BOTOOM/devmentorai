@@ -45,8 +45,7 @@ async function showAuthNotice(port: number): Promise<void> {
     }
 
     console.log('  ⚠ Copilot login required for real responses.');
-    console.log('    Run: github-copilot auth login');
-    console.log('    Or:  copilot auth login\n');
+    console.log('    Run: copilot login\n');
   } catch {
     // Do not block startup when auth check is unavailable.
   }

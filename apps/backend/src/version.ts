@@ -2,4 +2,4 @@
  * Backend version - Single source of truth
  * This file is auto-updated by semantic-release
  */
-export const BACKEND_VERSION = '1.7.0';
+export const BACKEND_VERSION = '1.7.1';

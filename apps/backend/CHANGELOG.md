@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/BOTOOM/devmentorai/compare/backend-v1.7.0...backend-v1.7.1) (2026-06-24)
+
+### Maintenance
+
+* **deps:** update dependencies and security overrides to mitigate 99 vulnerabilities ([ec3bc93](https://github.com/BOTOOM/devmentorai/commit/ec3bc93b43012d84fb06d7501a19cddc2325db02))
+* **release:** extension v1.7.0 [skip ci] ([7a4b5a0](https://github.com/BOTOOM/devmentorai/commit/7a4b5a07d268de5608ef69daaab49e42a2bbd498))
+
 ## [1.7.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.6.0...backend-v1.7.0) (2026-06-24)
 
 ### Features

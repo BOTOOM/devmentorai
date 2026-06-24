@@ -174,11 +174,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
     }
 
     // Fall back to simple prompt
-    const simpleContext = body.context as {
-      pageUrl?: string;
-      pageTitle?: string;
-      selectedText?: string;
-    } | undefined;
+    const simpleContext = body.context as
+      | {
+          pageUrl?: string;
+          pageTitle?: string;
+          selectedText?: string;
+        }
+      | undefined;
     const { userPrompt } = buildSimplePrompt(
       body.prompt,
       simpleContext?.pageUrl,

@@ -9,20 +9,8 @@
   "bin": {
     "devmentorai-server": "./dist/cli.js"
   },
-  "files": [
-    "dist/",
-    "README.md",
-    "LICENSE"
-  ],
-  "keywords": [
-    "devmentorai",
-    "copilot",
-    "github-copilot",
-    "devops",
-    "ai",
-    "cli",
-    "mentoring"
-  ],
+  "files": ["dist/", "README.md", "LICENSE"],
+  "keywords": ["devmentorai", "copilot", "github-copilot", "devops", "ai", "cli", "mentoring"],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/BOTOOM/devmentorai.git",

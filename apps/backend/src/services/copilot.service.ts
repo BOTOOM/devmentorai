@@ -1,3 +1,5 @@
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { SESSION_TYPE_CONFIGS, getAgentConfig } from '@devmentorai/shared';
 import type {
   CopilotAuthStatus,
@@ -15,8 +17,6 @@ import {
 } from '@github/copilot-sdk';
 import { devopsTools, getToolByName } from '../tools/devops-tools.js';
 import { SessionService } from './session.service.js';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 
 interface CopilotSession {
   sessionId: string;
@@ -66,7 +66,10 @@ export class CopilotService {
           : join(dirname(sdkPath), 'index.js');
         console.log(`[CopilotService] Dynamically resolved Copilot CLI Path: ${cliPath}`);
       } catch (err) {
-        console.warn('[CopilotService] Failed to resolve custom CLI path, falling back to default:', err);
+        console.warn(
+          '[CopilotService] Failed to resolve custom CLI path, falling back to default:',
+          err
+        );
       }
 
       this.client = new CopilotClient({

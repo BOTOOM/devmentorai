@@ -1,0 +1,72 @@
+const localTest = process.env.LOCAL_RELEASE_TEST === 'true' || !process.env.NPM_TOKEN;
+
+module.exports = {
+  branches: ['master'],
+  tagFormat: 'backend-v${version}',
+  plugins: [
+    [
+      '@semantic-release/commit-analyzer',
+      {
+        preset: 'conventionalcommits',
+        releaseRules: [
+          { type: 'feat', release: 'minor' },
+          { type: 'fix', release: 'patch' },
+          { type: 'perf', release: 'patch' },
+          { type: 'refactor', release: 'patch' },
+          { type: 'chore', scope: 'deps', release: 'patch' },
+          { breaking: true, release: 'major' },
+        ],
+      },
+    ],
+    [
+      '@semantic-release/release-notes-generator',
+      {
+        preset: 'conventionalcommits',
+        presetConfig: {
+          types: [
+            { type: 'feat', section: 'Features' },
+            { type: 'fix', section: 'Bug Fixes' },
+            { type: 'perf', section: 'Performance' },
+            { type: 'refactor', section: 'Refactoring' },
+            { type: 'docs', section: 'Documentation' },
+            { type: 'chore', section: 'Maintenance' },
+          ],
+        },
+      },
+    ],
+    [
+      '@semantic-release/changelog',
+      {
+        changelogFile: 'CHANGELOG.md',
+      },
+    ],
+    [
+      '@semantic-release/exec',
+      {
+        prepareCmd: 'node ../../scripts/sync-backend-version.mjs ${nextRelease.version}',
+      },
+    ],
+    [
+      '@semantic-release/npm',
+      {
+        npmPublish: !localTest,
+      },
+    ],
+    [
+      '@semantic-release/github',
+      {
+        successComment: false,
+        failComment: false,
+        releasedLabels: false,
+      },
+    ],
+    [
+      '@semantic-release/git',
+      {
+        assets: ['package.json', 'CHANGELOG.md', 'src/version.ts'],
+        message:
+          'chore(release): backend v${nextRelease.version} [skip ci]\n\n${nextRelease.notes}',
+      },
+    ],
+  ],
+};

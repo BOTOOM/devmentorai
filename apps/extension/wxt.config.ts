@@ -12,10 +12,12 @@ export default defineConfig({
     'build:done': (_wxt, output) => {
       const publicDir = resolve('src/public');
       const resolvedOutput = output as { dir?: string; outDir?: string };
-      const configuredOutDir = resolvedOutput.dir ?? resolvedOutput.outDir;
+      const configuredOutDir = _wxt.config.outDir || resolvedOutput.dir || resolvedOutput.outDir;
       const knownOutputDirs = [
         resolve('.output/chrome-mv3'),
         resolve('.output/chrome-mv3-dev'),
+        resolve('.output/firefox-mv2'),
+        resolve('.output/firefox-mv2-dev'),
       ].filter((dir) => existsSync(dir));
       const outDirs = Array.from(
         new Set(

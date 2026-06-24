@@ -55,7 +55,9 @@ export class CopilotService {
 
   async initialize(): Promise<void> {
     try {
-      this.client = new CopilotClient();
+      this.client = new CopilotClient({
+        gitHubToken: process.env.GITHUB_TOKEN || process.env.COPILOT_TOKEN || undefined,
+      });
       await this.client.start();
       this.initialized = true;
       console.log('[CopilotService] Initialized successfully');

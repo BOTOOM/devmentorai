@@ -1,3 +1,26 @@
+## [1.7.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.6.0...backend-v1.7.0) (2026-06-24)
+
+### Features
+
+* **backend:** support GITHUB_TOKEN or COPILOT_TOKEN environment variable for authentication ([df4d7c6](https://github.com/BOTOOM/devmentorai/commit/df4d7c65aa4af101eb5b9e3d5d5e7798a2ff8b04))
+* **extension:** add models constants and quick action defaults ([591319b](https://github.com/BOTOOM/devmentorai/commit/591319b36517555e862ebc2c270604bc38c473c5))
+* **shared:** migrate default model from deprecated gpt-4.1 to gpt-5-mini ([064ddc9](https://github.com/BOTOOM/devmentorai/commit/064ddc9765a0a27075627a2e0bee034851edb0c0))
+* **website:** update messaging to emphasize GitHub Copilot browser companion positioning ([9ec97f8](https://github.com/BOTOOM/devmentorai/commit/9ec97f8805622e2ad94846c1cf4a369efef24ca4))
+
+### Bug Fixes
+
+* **backend:** resolve pnpm/tsx path resolution mismatch for @github/copilot in sdk 0.3.0 ([0a4e91b](https://github.com/BOTOOM/devmentorai/commit/0a4e91b61a8d95197b688e6897c7466742fb4925))
+* **ci:** convert backend releaserc to dynamic cjs and resolve extension type mismatch ([406a535](https://github.com/BOTOOM/devmentorai/commit/406a535a9cc0b14be07253abae69ac613689e74e))
+* **ci:** elevate permissions ceiling in release orchestrator ([72ffc53](https://github.com/BOTOOM/devmentorai/commit/72ffc5387399d7f99da563f205f8399acc2f6531))
+* **extension:** ensure public directory files are copied to firefox build output ([1e98b3e](https://github.com/BOTOOM/devmentorai/commit/1e98b3eacf3ad2f6875ecda60cb1f856958b0665))
+* **extension:** remove invalid data_collection_permissions from gecko settings ([2fb4465](https://github.com/BOTOOM/devmentorai/commit/2fb44655312cb2f03a2ad0ddf834edf856e77da7))
+
+### Maintenance
+
+* **release:** extension v1.6.0 [skip ci] ([2a34d3e](https://github.com/BOTOOM/devmentorai/commit/2a34d3ed2bd7495e55b135cce793998e135906be))
+* **root:** add extension build and zip scripts for chrome and firefox ([06eba59](https://github.com/BOTOOM/devmentorai/commit/06eba596b543dadcd5a405e5fa9cfc2258a75bf4))
+* **root:** support firefox xpi packaging and clean backend zipping ([717c3cc](https://github.com/BOTOOM/devmentorai/commit/717c3cc79313f23f1e4362793592cd3c7c6575f8))
+
 ## [1.6.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.5.0...backend-v1.6.0) (2026-04-13)
 
 ### Features

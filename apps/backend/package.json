@@ -1,6 +1,6 @@
 {
   "name": "devmentorai-server",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": false,
   "type": "module",
   "description": "DevMentorAI backend server — AI-powered DevOps mentoring via GitHub Copilot. Run with: npx devmentorai-server",
@@ -9,8 +9,20 @@
   "bin": {
     "devmentorai-server": "./dist/cli.js"
   },
-  "files": ["dist/", "README.md", "LICENSE"],
-  "keywords": ["devmentorai", "copilot", "github-copilot", "devops", "ai", "cli", "mentoring"],
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "devmentorai",
+    "copilot",
+    "github-copilot",
+    "devops",
+    "ai",
+    "cli",
+    "mentoring"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/BOTOOM/devmentorai.git",

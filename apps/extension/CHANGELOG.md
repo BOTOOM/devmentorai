@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/BOTOOM/devmentorai/compare/ext-v1.7.0...ext-v1.7.1) (2026-06-24)
+
+### Maintenance
+
+* **deps:** update dependencies and security overrides to mitigate 99 vulnerabilities ([ec3bc93](https://github.com/BOTOOM/devmentorai/commit/ec3bc93b43012d84fb06d7501a19cddc2325db02))
+* **release:** backend v1.7.1 [skip ci] ([4ac587f](https://github.com/BOTOOM/devmentorai/commit/4ac587feb91a6a6f975830295ba92feaf5b88a78))
+
 ## [1.7.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.6.0...ext-v1.7.0) (2026-06-24)
 
 ### Features

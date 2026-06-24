@@ -57,10 +57,6 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: 'devmentorai@devmentorai.com',
-        // @ts-ignore - data_collection_permissions is required by Firefox but not yet in WXT types
-        data_collection_permissions: {
-          required: ['none'],
-        },
       },
     },
     permissions: ['storage', 'activeTab', 'contextMenus', 'scripting', 'tabs', 'alarms'],

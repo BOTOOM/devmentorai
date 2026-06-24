@@ -59,11 +59,43 @@ export class CopilotService {
     try {
       let cliPath: string | undefined;
       try {
-        const sdkUrl = import.meta.resolve('@github/copilot/sdk');
-        const sdkPath = fileURLToPath(sdkUrl);
-        cliPath = sdkPath.endsWith('.js')
-          ? join(dirname(dirname(sdkPath)), 'index.js')
-          : join(dirname(sdkPath), 'index.js');
+        const wrapperPkgUrl = import.meta.resolve('@github/copilot/package.json');
+        const { createRequire } = await import('node:module');
+        const req = createRequire(fileURLToPath(wrapperPkgUrl));
+
+        const platform = process.platform;
+        const arch = process.arch;
+        const candidates = [];
+
+        if (platform === 'linux') {
+          try {
+            const { isNonGlibcLinuxSync } = req('detect-libc');
+            if (isNonGlibcLinuxSync()) {
+              candidates.push(`@github/copilot-linuxmusl-${arch}`);
+            } else {
+              candidates.push(`@github/copilot-linux-${arch}`);
+            }
+          } catch {
+            candidates.push(`@github/copilot-linuxmusl-${arch}`);
+            candidates.push(`@github/copilot-linux-${arch}`);
+          }
+        } else {
+          candidates.push(`@github/copilot-${platform}-${arch}`);
+        }
+
+        for (const pkg of candidates) {
+          try {
+            const entry = req.resolve(pkg);
+            cliPath = join(dirname(entry), 'index.js');
+            break;
+          } catch {}
+        }
+
+        if (!cliPath) {
+          const baseEntry = req.resolve('@github/copilot');
+          cliPath = join(dirname(baseEntry), 'index.js');
+        }
+
         console.log(`[CopilotService] Dynamically resolved Copilot CLI Path: ${cliPath}`);
       } catch (err) {
         console.warn(

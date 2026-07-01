@@ -230,7 +230,12 @@ export default function DocsSettingsPage() {
           <ul className="mt-4 space-y-2 text-sm text-[var(--muted)] sm:text-base">
             <li>
               Select default quick action model for actions like grammar fix, rewrite, and
-              translate.
+              translate. The selector prefers fast text-editing models and validates availability
+              against your active Copilot account when the backend is connected.
+            </li>
+            <li>
+              Model metadata refreshes from a remote JSON catalog at most once per day; if offline,
+              DevMentorAI uses the last cached catalog or built-in defaults.
             </li>
             <li>Choose text replacement behavior: ask, auto, or copy only.</li>
             <li>Use update checker to verify extension/backend update availability.</li>

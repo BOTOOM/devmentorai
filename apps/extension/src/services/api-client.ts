@@ -91,8 +91,9 @@ export class ApiClient {
   }
 
   // Models
-  async getModels(): Promise<ApiResponse<ModelsResponse>> {
-    return this.request<ModelsResponse>(API_ENDPOINTS.MODELS);
+  async getModels(options: { forceRefresh?: boolean } = {}): Promise<ApiResponse<ModelsResponse>> {
+    const query = options.forceRefresh ? '?refresh=true' : '';
+    return this.request<ModelsResponse>(`${API_ENDPOINTS.MODELS}${query}`);
   }
 
   async getAccountAuth(): Promise<ApiResponse<CopilotAuthStatus>> {

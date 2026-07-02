@@ -24,7 +24,7 @@
       "isRecommendedForQuickActions": true,
       "pricingTier": "cheap",
       "description": "Fast GPT-5.4 mini variant for lightweight editing tasks.",
-      "supportedReasoningEfforts": ["low", "medium", "high"]
+      "supportedReasoningEfforts": ["none", "low", "medium", "high"]
     },
     {
       "id": "claude-haiku-4.5",

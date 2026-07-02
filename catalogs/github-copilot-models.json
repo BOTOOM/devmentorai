@@ -2,11 +2,53 @@
   "version": 1,
   "provider": "github-copilot",
   "defaultQuickActionModel": "gpt-5-mini",
-  "quickActionModelOrder": ["gpt-5-mini","gpt-5.4-mini","claude-haiku-4.5"],
+  "quickActionModelOrder": ["gpt-5-mini", "gpt-5.4-mini", "claude-haiku-4.5", "mmai-code1-flash"],
   "models": [
-    {"id":"gpt-5-mini","name":"GPT-5 Mini","provider":"openai","accessProvider":"github-copilot","available":true,"isRecommendedForQuickActions":true},
-    {"id":"gpt-5.4-mini","name":"GPT-5.4 Mini","provider":"openai","accessProvider":"github-copilot","available":true,"isRecommendedForQuickActions":true},
-    {"id":"claude-haiku-4.5","name":"Claude Haiku 4.5","provider":"anthropic","accessProvider":"github-copilot","available":true,"isRecommendedForQuickActions":true}
+    {
+      "id": "gpt-5-mini",
+      "name": "GPT-5 Mini",
+      "provider": "openai",
+      "accessProvider": "github-copilot",
+      "available": true,
+      "isRecommendedForQuickActions": true,
+      "pricingTier": "free",
+      "description": "Fast default model for quick text edits, translations, and rewrites.",
+      "supportedReasoningEfforts": []
+    },
+    {
+      "id": "gpt-5.4-mini",
+      "name": "GPT-5.4 Mini",
+      "provider": "openai",
+      "accessProvider": "github-copilot",
+      "available": true,
+      "isRecommendedForQuickActions": true,
+      "pricingTier": "cheap",
+      "description": "Fast GPT-5.4 mini variant for lightweight editing tasks.",
+      "supportedReasoningEfforts": ["low", "medium", "high"]
+    },
+    {
+      "id": "claude-haiku-4.5",
+      "name": "Claude Haiku 4.5",
+      "provider": "anthropic",
+      "accessProvider": "github-copilot",
+      "available": true,
+      "isRecommendedForQuickActions": true,
+      "pricingTier": "cheap",
+      "description": "Fast Claude model suited to simple writing transformations.",
+      "aliases": ["claude-3-5-haiku"],
+      "supportedReasoningEfforts": ["low", "medium"]
+    },
+    {
+      "id": "mmai-code1-flash",
+      "name": "MMAI-Code1 Flash",
+      "provider": "mmai",
+      "accessProvider": "github-copilot",
+      "available": true,
+      "isRecommendedForQuickActions": true,
+      "pricingTier": "cheap",
+      "description": "MMAI model optimized for low-latency code and text edits. Supports a lightweight reasoning mode.",
+      "supportedReasoningEfforts": ["low"]
+    }
   ],
-  "updatedAt":"2026-07-02T17:46:52Z"
+  "updatedAt": "2026-07-02T17:46:52Z"
 }

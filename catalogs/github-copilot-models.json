@@ -2,7 +2,7 @@
   "version": 1,
   "provider": "github-copilot",
   "defaultQuickActionModel": "gpt-5-mini",
-  "quickActionModelOrder": ["gpt-5-mini", "gpt-5.4-mini", "claude-haiku-4.5", "mmai-code1-flash"],
+  "quickActionModelOrder": ["gpt-5-mini", "gpt-5.4-mini", "claude-haiku-4.5", "mai-code-1-flash"],
   "models": [
     {
       "id": "gpt-5-mini",
@@ -39,15 +39,16 @@
       "supportedReasoningEfforts": ["low", "medium"]
     },
     {
-      "id": "mmai-code1-flash",
-      "name": "MMAI-Code1 Flash",
-      "provider": "mmai",
+      "id": "mai-code-1-flash",
+      "name": "MAI-Code-1-Flash",
+      "provider": "microsoft",
       "accessProvider": "github-copilot",
       "available": true,
       "isRecommendedForQuickActions": true,
       "pricingTier": "cheap",
-      "description": "MMAI model optimized for low-latency code and text edits. Supports a lightweight reasoning mode.",
-      "supportedReasoningEfforts": ["low"]
+      "description": "MAI model optimized for low-latency code and text edits. Supports low/medium/high reasoning modes.",
+      "supportedReasoningEfforts": ["low", "medium", "high"],
+      "aliases": ["mai-code-1-flash", "MAI-Code-1-Flash"]
     }
   ],
   "updatedAt": "2026-07-02T17:46:52Z"

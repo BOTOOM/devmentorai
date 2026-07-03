@@ -57,6 +57,7 @@
       "lodash": "^4.17.21",
       "lodash-es": "^4.17.21",
       "minimatch": "^9.0.7",
+      "multimatch>minimatch": "^3.1.2",
       "node-forge": "^1.4.0",
       "picomatch": "^4.0.4",
       "postcss": "^8.5.10",

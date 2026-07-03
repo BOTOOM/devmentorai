@@ -15,6 +15,7 @@ overrides:
   lodash: ^4.17.21
   lodash-es: ^4.17.21
   minimatch: ^9.0.7
+  multimatch>minimatch: ^3.1.2
   node-forge: ^1.4.0
   picomatch: ^4.0.4
   postcss: ^8.5.10
@@ -4089,6 +4090,9 @@ packages:
   mimic-response@3.1.0:
     resolution: {integrity: sha512-z0yWI+4FDrrweS8Zmt4Ej5HdJmky15+L2e6Wgn3+iK5fWzb6T3fhNFq2+MeTRb064c6Wr4N/wv0DzQTjNzHNGQ==}
     engines: {node: '>=10'}
+
+  minimatch@3.1.5:
+    resolution: {integrity: sha512-VgjWUsnnT6n+NUk6eZq77zeFdpW2LWDzP6zFGrCbHXiYNul5Dzqk2HHQ5uFH2DNW5Xbp8+jVzaeNt94ssEEl4w==}
 
   minimatch@9.0.9:
     resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
@@ -9518,6 +9522,10 @@ snapshots:
 
   mimic-response@3.1.0: {}
 
+  minimatch@3.1.5:
+    dependencies:
+      brace-expansion: 2.1.1
+
   minimatch@9.0.9:
     dependencies:
       brace-expansion: 2.1.1
@@ -9544,7 +9552,7 @@ snapshots:
       '@types/minimatch': 3.0.5
       array-differ: 4.0.0
       array-union: 3.0.1
-      minimatch: 9.0.9
+      minimatch: 3.1.5
 
   mz@2.7.0:
     dependencies:

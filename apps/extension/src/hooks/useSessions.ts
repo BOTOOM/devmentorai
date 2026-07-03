@@ -1,4 +1,9 @@
-import type { CreateSessionRequest, Session, SessionType } from '@devmentorai/shared';
+import type {
+  CreateSessionRequest,
+  ReasoningEffort,
+  Session,
+  SessionType,
+} from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiClient } from '../services/api-client';
 
@@ -74,12 +79,7 @@ export function useSessions(options?: UseSessionsOptions) {
   }, [activeSessionId]);
 
   const createSession = useCallback(
-    async (
-      name: string,
-      type: SessionType,
-      model?: string,
-      reasoningEffort?: 'low' | 'medium' | 'high'
-    ) => {
+    async (name: string, type: SessionType, model?: string, reasoningEffort?: ReasoningEffort) => {
       try {
         const request: CreateSessionRequest = { name, type, model, reasoningEffort };
         const response = await apiClient.createSession(request);
@@ -149,7 +149,7 @@ export function useSessions(options?: UseSessionsOptions) {
   );
 
   const updateSessionModel = useCallback(
-    async (sessionId: string, model: string, reasoningEffort?: 'low' | 'medium' | 'high') => {
+    async (sessionId: string, model: string, reasoningEffort?: ReasoningEffort) => {
       // Use switchSessionModel which calls SDK v0.2.x setModel() for seamless switching
       const response = await apiClient.switchSessionModel(sessionId, model, reasoningEffort);
 

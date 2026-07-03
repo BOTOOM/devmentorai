@@ -17,6 +17,7 @@ export const QUICK_ACTION_FAST_MODEL_ORDER = [
   'claude-haiku-4.5',
   'gemini-3.5-flash',
   'mai-code-1-flash',
+  'mai-code-1-flash',
 ] as const;
 
 export const QUICK_ACTION_MODEL_OPTIONS = [
@@ -48,6 +49,7 @@ export const FALLBACK_MODEL_CATALOG = [
     isRecommendedForQuickActions: true,
     pricingTier: 'cheap',
     description: 'Fast GPT-5.4 mini variant for lightweight editing tasks.',
+    supportedReasoningEfforts: ['none', 'low', 'medium', 'high'],
   },
   {
     id: 'claude-haiku-4.5',
@@ -79,6 +81,7 @@ export const FALLBACK_MODEL_CATALOG = [
     isRecommendedForQuickActions: true,
     pricingTier: 'cheap',
     description: 'Fast MAI model for lightweight coding and text assistance.',
+    supportedReasoningEfforts: ['low', 'medium', 'high'],
   },
   {
     id: 'gpt-5.5',
@@ -183,6 +186,7 @@ export const FALLBACK_MODEL_CATALOG = [
   pricingTier: 'free' | 'cheap' | 'standard' | 'premium';
   description: string;
   aliases?: string[];
+  supportedReasoningEfforts?: string[];
 }>;
 
 export function normalizeQuickActionModel(model?: string | null): string {

@@ -8,7 +8,7 @@ export type SessionStatus = 'active' | 'paused' | 'closed';
 
 export type AssistantTone = 'concise' | 'friendly' | 'professional' | 'technical' | 'balanced';
 
-export type ReasoningEffort = 'low' | 'medium' | 'high';
+export type ReasoningEffort = 'none' | 'low' | 'medium' | 'high';
 
 export interface Session {
   id: string;

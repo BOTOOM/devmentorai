@@ -1,6 +1,6 @@
 import { cn } from '../lib/utils';
 
-export type ReasoningEffortLevel = 'low' | 'medium' | 'high';
+export type ReasoningEffortLevel = 'none' | 'low' | 'medium' | 'high';
 
 interface ReasoningEffortSelectorProps {
   value: ReasoningEffortLevel;

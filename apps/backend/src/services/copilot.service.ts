@@ -346,7 +346,7 @@ export class CopilotService {
     type: SessionType,
     model: string,
     systemPrompt?: string,
-    reasoningEffort?: 'low' | 'medium' | 'high'
+    reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
   ): Promise<void> {
     const existing = this.sessions.get(sessionId);
     const persistedSession = this.sessionService.getSession(sessionId);
@@ -360,7 +360,10 @@ export class CopilotService {
 
         if (session.setModel) {
           console.log(`[CopilotService] Switching model for session ${sessionId} to ${model}`);
-          await session.setModel(model, reasoningEffort ? { reasoningEffort } : undefined);
+          await session.setModel(
+            model,
+            reasoningEffort && reasoningEffort !== 'none' ? { reasoningEffort } : undefined
+          );
 
           // Update stored session info
           this.sessions.set(sessionId, { ...existing, type });
@@ -529,7 +532,7 @@ export class CopilotService {
     enableMcp = false,
     tone?: string,
     explainTradeoffs?: boolean,
-    reasoningEffort?: 'low' | 'medium' | 'high'
+    reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
   ): Promise<void> {
     if (this.mockMode || !this.client) {
       // Create mock session
@@ -569,8 +572,8 @@ export class CopilotService {
       tools,
       mcpServers,
       onPermissionRequest: approveAll,
-      // Add reasoning effort if provided and supported by SDK
-      ...(reasoningEffort ? { reasoningEffort } : {}),
+      // Add reasoning effort if provided, supported by SDK, and not explicitly 'none'
+      ...(reasoningEffort && reasoningEffort !== 'none' ? { reasoningEffort } : {}),
     };
 
     const session = await this.client.createSession(

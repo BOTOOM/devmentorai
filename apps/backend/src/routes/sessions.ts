@@ -17,7 +17,7 @@ const createSessionSchema = z.object({
   systemPrompt: z.string().optional(),
   tone: z.enum(['concise', 'friendly', 'professional', 'technical', 'balanced']).optional(),
   explainTradeoffs: z.boolean().optional(),
-  reasoningEffort: z.enum(['low', 'medium', 'high']).optional(),
+  reasoningEffort: z.union([z.enum(['low', 'medium', 'high']), z.literal('none')]).optional(),
 });
 
 const updateSessionSchema = z.object({
@@ -26,12 +26,18 @@ const updateSessionSchema = z.object({
   model: z.string().min(1).optional(),
   tone: z.enum(['concise', 'friendly', 'professional', 'technical', 'balanced']).optional(),
   explainTradeoffs: z.boolean().optional(),
-  reasoningEffort: z.enum(['low', 'medium', 'high']).nullable().optional(),
+  reasoningEffort: z
+    .union([z.enum(['low', 'medium', 'high']), z.literal('none')])
+    .nullable()
+    .optional(),
 });
 
 const switchModelSchema = z.object({
   model: z.string().min(1),
-  reasoningEffort: z.enum(['low', 'medium', 'high']).nullable().optional(),
+  reasoningEffort: z
+    .union([z.enum(['low', 'medium', 'high']), z.literal('none')])
+    .nullable()
+    .optional(),
 });
 
 async function validateRequestedModel(
@@ -96,7 +102,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       // Create in database
       const session = fastify.sessionService.createSession(body);
 
-      // Create Copilot session
+      // Create Copilot session ('none' is normalized to "no reasoning" inside CopilotService)
       await fastify.copilotService.createCopilotSession(
         session.id,
         session.type,
@@ -328,7 +334,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
   // Switch model for existing session (SDK v0.2.x+ setModel support)
   fastify.post<{
     Params: { id: string };
-    Body: { model: string; reasoningEffort?: 'low' | 'medium' | 'high' | null };
+    Body: { model: string; reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | null };
     Reply: ApiResponse<Session>;
   }>('/sessions/:id/switch-model', async (request, reply) => {
     const sessionId = request.params.id;

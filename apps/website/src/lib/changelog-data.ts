@@ -16,6 +16,53 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
   extension: [
     {
       track: 'extension',
+      version: '1.8.0',
+      tag: 'ext-v1.8.0',
+      releasedAt: '2026-07-06',
+      headline: 'Quick actions now pick the fastest available model automatically',
+      summary:
+        'This release overhauls how quick actions choose a model: it caches which models are actually available to you, adds a new fast model, and avoids sending requests with a model you can no longer use.',
+      highlights: [
+        'Quick actions (like translating or tweaking text) now resolve the fastest available model dynamically instead of relying on a fixed list, so lightweight tasks stay fast.',
+        'The extension now caches your available models locally and refreshes them about once a day, falling back gracefully to the last known list (or a built-in one) if you are offline.',
+        "Added the new MAI-Code-1-Flash model, along with support for turning reasoning off entirely ('none') on models like GPT-5.4 Mini.",
+      ],
+      fixes: ['Fixed a dependency conflict that could prevent the local dev server from starting.'],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/ext-v1.8.0',
+    },
+    {
+      track: 'extension',
+      version: '1.7.1',
+      tag: 'ext-v1.7.1',
+      releasedAt: '2026-06-24',
+      headline: 'Routine dependency and security maintenance',
+      summary:
+        'This release focused on keeping dependencies current and patching known vulnerabilities rather than adding new features.',
+      highlights: [
+        'Dependencies and security overrides were updated to mitigate a large batch of known vulnerabilities.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/ext-v1.7.1',
+    },
+    {
+      track: 'extension',
+      version: '1.7.0',
+      tag: 'ext-v1.7.0',
+      releasedAt: '2026-06-24',
+      headline: 'Groundwork for smarter quick actions, smoother Firefox installs',
+      summary:
+        'This release laid the groundwork for the improved quick-action model selection that followed, and fixed a couple of Firefox packaging issues.',
+      highlights: [
+        'Added baseline model constants and default quick action models, paving the way for the dynamic model selection introduced in a later release.',
+        'The default model for new sessions was migrated from the deprecated GPT-4.1 to GPT-5 Mini.',
+      ],
+      fixes: [
+        'Fixed the Firefox build so public files like icons are copied correctly into the packaged extension.',
+        'Removed an invalid Firefox manifest setting that could block installation.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/ext-v1.7.0',
+    },
+    {
+      track: 'extension',
       version: '1.6.0',
       tag: 'ext-v1.6.0',
       releasedAt: '2026-04-13',
@@ -108,6 +155,65 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
     },
   ],
   backend: [
+    {
+      track: 'backend',
+      version: '1.8.0',
+      tag: 'backend-v1.8.0',
+      releasedAt: '2026-07-06',
+      headline: "Smarter model validation and full support for 'no reasoning' mode",
+      summary:
+        'This release makes the backend check which Copilot models are actually available to you before starting a session, and adds full support for explicitly turning reasoning off on models that allow it.',
+      highlights: [
+        'The backend now validates that a requested model is actually available to your Copilot account before creating or switching a session, instead of failing later with an unclear error.',
+        "Sessions and model switches now accept an explicit 'none' reasoning effort, so models like GPT-5.4 Mini that support disabling reasoning can do so.",
+      ],
+      fixes: ['Resolved a dependency conflict that could interfere with local development setups.'],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/backend-v1.8.0',
+    },
+    {
+      track: 'backend',
+      version: '1.7.2',
+      tag: 'backend-v1.7.2',
+      releasedAt: '2026-06-24',
+      headline: 'More reliable Copilot CLI startup',
+      summary:
+        'This patch improved how the backend locates and launches the Copilot CLI, fixing startup issues some users hit in certain setups.',
+      highlights: [
+        'The backend now resolves the Copilot CLI path more robustly using platform-specific packages, fixing startup failures in some pnpm-based setups.',
+        'Adjusted a dependency override so a required security library no longer gets silently downgraded.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/backend-v1.7.2',
+    },
+    {
+      track: 'backend',
+      version: '1.7.1',
+      tag: 'backend-v1.7.1',
+      releasedAt: '2026-06-24',
+      headline: 'Routine dependency and security maintenance',
+      summary:
+        'This release focused on keeping dependencies current and patching known vulnerabilities rather than adding new features.',
+      highlights: [
+        'Dependencies and security overrides were updated to mitigate a large batch of known vulnerabilities.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/backend-v1.7.1',
+    },
+    {
+      track: 'backend',
+      version: '1.7.0',
+      tag: 'backend-v1.7.0',
+      releasedAt: '2026-06-24',
+      headline: 'Sign in with a GitHub or Copilot token, and a refreshed default model',
+      summary:
+        'This release made it easier to run the backend without an interactive login and moved new sessions off a deprecated model.',
+      highlights: [
+        'The backend can now authenticate using a GITHUB_TOKEN or COPILOT_TOKEN environment variable, useful for headless or server setups.',
+        'The default model for new sessions was migrated from the deprecated GPT-4.1 to GPT-5 Mini.',
+      ],
+      fixes: [
+        'Fixed a path resolution issue that could prevent the Copilot CLI from being found when running under pnpm and tsx.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/backend-v1.7.0',
+    },
     {
       track: 'backend',
       version: '1.6.0',

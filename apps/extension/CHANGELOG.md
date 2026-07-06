@@ -1,3 +1,30 @@
+## [1.8.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.7.1...ext-v1.8.0) (2026-07-06)
+
+### Features
+
+* **backend:** accept 'none' reasoning effort and normalize for Copilot SDK ([9e96a0a](https://github.com/BOTOOM/devmentorai/commit/9e96a0a09b5ca722261b9c042dc307658b52b040))
+* **backend:** validate Copilot model availability ([72bf2be](https://github.com/BOTOOM/devmentorai/commit/72bf2be4a6e4da41dce9ebb9ae49e5dbc721186e))
+* **extension:** add MAI-Code-1-Flash model and reasoning-effort metadata ([2ea71ff](https://github.com/BOTOOM/devmentorai/commit/2ea71ffb653f3322d68edac1fea1a054f5d535ec))
+* **extension:** add quick action model catalog cache ([46855bc](https://github.com/BOTOOM/devmentorai/commit/46855bc6e9ee845840cbf4898eaa4975ee1f99e9))
+* **extension:** resolve quick action models dynamically ([eb3ac12](https://github.com/BOTOOM/devmentorai/commit/eb3ac12590b6cfe8c7baa50f2912d4a00c8be4a0))
+* **shared:** add 'none' reasoning effort level ([f7cd206](https://github.com/BOTOOM/devmentorai/commit/f7cd206910998a74b8b130b112c402259d9cca87))
+
+### Bug Fixes
+
+* **backend:** resolve copilot cli path robustly using platform-specific packages in pnpm monorepo ([854792b](https://github.com/BOTOOM/devmentorai/commit/854792b685f61b48224619f860237fe27873ea1c))
+* **deps:** change global ajv override to targeted eslint>ajv to prevent downgrading fastify ajv v8 ([c5912ca](https://github.com/BOTOOM/devmentorai/commit/c5912caee3c328fa1da94032bbac100b5c62de40))
+* **deps:** scope minimatch security override to exclude multimatch ([58750f4](https://github.com/BOTOOM/devmentorai/commit/58750f465e0f37133369a2cfa426f87f8e8243bb))
+
+### Documentation
+
+* document quick action model cache ([9c3cb41](https://github.com/BOTOOM/devmentorai/commit/9c3cb41da31768c7c3171989b2b7725c0ac92699))
+
+### Maintenance
+
+* **release:** backend v1.7.2 [skip ci] ([ddd5333](https://github.com/BOTOOM/devmentorai/commit/ddd5333dfb95c471db9b0e4d84398ea7988dc784))
+* **release:** backend v1.8.0 [skip ci] ([926024b](https://github.com/BOTOOM/devmentorai/commit/926024bd86515906ecad7f84a74602022e74d90f))
+* **shared:** add model provider metadata ([fd5eb94](https://github.com/BOTOOM/devmentorai/commit/fd5eb94de79d15fc9a0958feb85541f2d2d8f44d))
+
 ## [1.7.1](https://github.com/BOTOOM/devmentorai/compare/ext-v1.7.0...ext-v1.7.1) (2026-06-24)
 
 ### Maintenance

@@ -2,4 +2,4 @@
  * Extension version - Single source of truth
  * This file is auto-updated by semantic-release
  */
-export const EXTENSION_VERSION = '1.7.1';
+export const EXTENSION_VERSION = '1.8.0';

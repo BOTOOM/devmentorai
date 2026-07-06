@@ -34,6 +34,21 @@ const MCP_SERVERS: Record<string, { type: 'http'; url: string; tools: string[] }
 };
 
 const RECOMMENDED_DEFAULT_MODEL = 'gpt-5-mini';
+const GITHUB_COPILOT_ACCESS_PROVIDER = 'github-copilot';
+const MODEL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+interface ModelAvailabilityCacheEntry {
+  models: ModelInfo[];
+  default: string;
+  expiresAt: number;
+}
+
+export interface ModelAvailabilityValidation {
+  available: boolean;
+  canValidate: boolean;
+  model?: ModelInfo;
+  defaultModel: string;
+}
 
 interface RawSdkModel {
   id?: unknown;
@@ -50,6 +65,7 @@ interface RawSdkModel {
 export class CopilotService {
   private client: CopilotClient | null = null;
   private readonly sessions: Map<string, CopilotSession> = new Map();
+  private readonly modelAvailabilityCache: Map<string, ModelAvailabilityCacheEntry> = new Map();
   private initialized = false;
   private mockMode = false;
 
@@ -163,7 +179,21 @@ export class CopilotService {
     }
   }
 
-  async listModels(): Promise<{ models: ModelInfo[]; default: string }> {
+  async listModels(options: { forceRefresh?: boolean } = {}): Promise<{
+    models: ModelInfo[];
+    default: string;
+  }> {
+    const provider = GITHUB_COPILOT_ACCESS_PROVIDER;
+    const cached = this.modelAvailabilityCache.get(provider);
+    const now = Date.now();
+
+    if (!options.forceRefresh && cached && cached.expiresAt > now) {
+      return {
+        models: cached.models,
+        default: cached.default,
+      };
+    }
+
     if (this.mockMode || !this.client) {
       return { models: [], default: RECOMMENDED_DEFAULT_MODEL };
     }
@@ -201,11 +231,66 @@ export class CopilotService {
         isDefault: model.id === defaultModel,
       }));
 
-      return { models: modelsWithDefaultFlag, default: defaultModel };
+      const payload = { models: modelsWithDefaultFlag, default: defaultModel };
+      this.modelAvailabilityCache.set(provider, {
+        ...payload,
+        expiresAt: now + MODEL_CACHE_TTL_MS,
+      });
+
+      return payload;
     } catch (error) {
       console.error('[CopilotService] Failed to list models:', error);
+
+      if (cached) {
+        return {
+          models: cached.models,
+          default: cached.default,
+        };
+      }
+
       return { models: [], default: RECOMMENDED_DEFAULT_MODEL };
     }
+  }
+
+  async validateModelAvailability(
+    modelId: string,
+    options: { forceRefresh?: boolean } = {}
+  ): Promise<ModelAvailabilityValidation> {
+    const normalizedModelId = modelId.trim();
+
+    if (!normalizedModelId) {
+      return {
+        available: false,
+        canValidate: true,
+        defaultModel: RECOMMENDED_DEFAULT_MODEL,
+      };
+    }
+
+    const payload = await this.listModels(options);
+    const model = payload.models.find((candidate) => candidate.id === normalizedModelId);
+
+    if (model?.available) {
+      return {
+        available: true,
+        canValidate: true,
+        model,
+        defaultModel: payload.default,
+      };
+    }
+
+    if (payload.models.length === 0) {
+      return {
+        available: true,
+        canValidate: false,
+        defaultModel: payload.default,
+      };
+    }
+
+    return {
+      available: false,
+      canValidate: true,
+      defaultModel: payload.default,
+    };
   }
 
   async getQuota(): Promise<CopilotQuotaStatus> {
@@ -261,7 +346,7 @@ export class CopilotService {
     type: SessionType,
     model: string,
     systemPrompt?: string,
-    reasoningEffort?: 'low' | 'medium' | 'high'
+    reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
   ): Promise<void> {
     const existing = this.sessions.get(sessionId);
     const persistedSession = this.sessionService.getSession(sessionId);
@@ -275,7 +360,10 @@ export class CopilotService {
 
         if (session.setModel) {
           console.log(`[CopilotService] Switching model for session ${sessionId} to ${model}`);
-          await session.setModel(model, reasoningEffort ? { reasoningEffort } : undefined);
+          await session.setModel(
+            model,
+            reasoningEffort && reasoningEffort !== 'none' ? { reasoningEffort } : undefined
+          );
 
           // Update stored session info
           this.sessions.set(sessionId, { ...existing, type });
@@ -352,6 +440,8 @@ export class CopilotService {
       name,
       description,
       provider,
+      modelProvider: provider,
+      accessProvider: GITHUB_COPILOT_ACCESS_PROVIDER,
       available: true,
       isDefault: Boolean(raw.isDefault),
       pricingMultiplier: multiplier,
@@ -442,7 +532,7 @@ export class CopilotService {
     enableMcp = false,
     tone?: string,
     explainTradeoffs?: boolean,
-    reasoningEffort?: 'low' | 'medium' | 'high'
+    reasoningEffort?: 'none' | 'low' | 'medium' | 'high'
   ): Promise<void> {
     if (this.mockMode || !this.client) {
       // Create mock session
@@ -482,8 +572,8 @@ export class CopilotService {
       tools,
       mcpServers,
       onPermissionRequest: approveAll,
-      // Add reasoning effort if provided and supported by SDK
-      ...(reasoningEffort ? { reasoningEffort } : {}),
+      // Add reasoning effort if provided, supported by SDK, and not explicitly 'none'
+      ...(reasoningEffort && reasoningEffort !== 'none' ? { reasoningEffort } : {}),
     };
 
     const session = await this.client.createSession(

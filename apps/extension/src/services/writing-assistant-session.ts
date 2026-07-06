@@ -5,6 +5,7 @@
 
 import type { Session } from '@devmentorai/shared';
 import { ApiClient } from './api-client';
+import { getEffectiveQuickActionModel, invalidateModelAvailabilityCache } from './model-catalog';
 
 const WRITING_ASSISTANT_SESSION_NAME = 'Writing Assistant';
 const WRITING_ASSISTANT_SESSION_TYPE = 'writing';
@@ -30,6 +31,11 @@ function isLikelySessionRecoveryError(message: string): boolean {
 function isRecoverableSessionError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return isLikelySessionRecoveryError(message);
+}
+
+function isModelUnavailableError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('MODEL_UNAVAILABLE') || message.toLowerCase().includes('not available');
 }
 
 async function streamQuickActionOnce(
@@ -114,7 +120,10 @@ async function ensureWritingAssistantModel(
   const response = await apiClient.switchSessionModel(session.id, model);
 
   if (!response.success || !response.data) {
-    throw new Error(response.error?.message || 'Failed to switch Writing Assistant model');
+    const codePrefix = response.error?.code ? `${response.error.code}: ` : '';
+    throw new Error(
+      `${codePrefix}${response.error?.message || 'Failed to switch Writing Assistant model'}`
+    );
   }
 
   cachedSession = response.data;
@@ -217,7 +226,8 @@ export async function streamQuickAction(
   onEvent: (event: { type: string; content?: string; error?: string }) => void,
   signal?: AbortSignal
 ): Promise<void> {
-  let session = await getOrCreateWritingAssistantSession(model);
+  let effectiveModel = model;
+  let session = await getOrCreateWritingAssistantSession(effectiveModel);
 
   if (!session) {
     onEvent({ type: 'error', error: 'Failed to get Writing Assistant session' });
@@ -250,7 +260,7 @@ export async function streamQuickAction(
 
       if (!resumeSucceeded) {
         clearWritingAssistantCache();
-        const recoveredSession = await getOrCreateWritingAssistantSession(model);
+        const recoveredSession = await getOrCreateWritingAssistantSession(effectiveModel);
         if (!recoveredSession) {
           throw error;
         }
@@ -260,6 +270,32 @@ export async function streamQuickAction(
       await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
     }
   } catch (error) {
+    if (isModelUnavailableError(error)) {
+      await invalidateModelAvailabilityCache();
+      const fallbackModel = await getEffectiveQuickActionModel(effectiveModel, {
+        forceRefresh: true,
+        excludeModelIds: [effectiveModel],
+      });
+
+      if (fallbackModel.modelId !== effectiveModel) {
+        effectiveModel = fallbackModel.modelId;
+        clearWritingAssistantCache();
+        session = await getOrCreateWritingAssistantSession(effectiveModel);
+        if (session) {
+          try {
+            await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
+            return;
+          } catch (retryError) {
+            onEvent({
+              type: 'error',
+              error: retryError instanceof Error ? retryError.message : 'Unknown error',
+            });
+            return;
+          }
+        }
+      }
+    }
+
     if (error instanceof Error && error.name === 'AbortError') {
       onEvent({ type: 'error', error: 'Request cancelled' });
     } else {

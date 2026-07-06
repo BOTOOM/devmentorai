@@ -6,7 +6,7 @@ import type {
   Session,
   UpdateSessionRequest,
 } from '@devmentorai/shared';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { deleteSessionImages } from '../services/thumbnail-service.js';
 
@@ -17,7 +17,7 @@ const createSessionSchema = z.object({
   systemPrompt: z.string().optional(),
   tone: z.enum(['concise', 'friendly', 'professional', 'technical', 'balanced']).optional(),
   explainTradeoffs: z.boolean().optional(),
-  reasoningEffort: z.enum(['low', 'medium', 'high']).optional(),
+  reasoningEffort: z.union([z.enum(['low', 'medium', 'high']), z.literal('none')]).optional(),
 });
 
 const updateSessionSchema = z.object({
@@ -26,13 +26,48 @@ const updateSessionSchema = z.object({
   model: z.string().min(1).optional(),
   tone: z.enum(['concise', 'friendly', 'professional', 'technical', 'balanced']).optional(),
   explainTradeoffs: z.boolean().optional(),
-  reasoningEffort: z.enum(['low', 'medium', 'high']).nullable().optional(),
+  reasoningEffort: z
+    .union([z.enum(['low', 'medium', 'high']), z.literal('none')])
+    .nullable()
+    .optional(),
 });
 
 const switchModelSchema = z.object({
   model: z.string().min(1),
-  reasoningEffort: z.enum(['low', 'medium', 'high']).nullable().optional(),
+  reasoningEffort: z
+    .union([z.enum(['low', 'medium', 'high']), z.literal('none')])
+    .nullable()
+    .optional(),
 });
+
+async function validateRequestedModel(
+  fastify: FastifyInstance,
+  model: string | undefined,
+  reply: FastifyReply
+): Promise<boolean> {
+  if (!model) {
+    return true;
+  }
+
+  const validation = await fastify.copilotService.validateModelAvailability(model);
+
+  if (validation.available) {
+    return true;
+  }
+
+  reply.code(400).send({
+    success: false,
+    error: {
+      code: 'MODEL_UNAVAILABLE',
+      message: `Model '${model}' is not available for the active GitHub Copilot account`,
+      details: {
+        defaultModel: validation.defaultModel,
+        canValidate: validation.canValidate,
+      },
+    },
+  });
+  return false;
+}
 
 export async function sessionRoutes(fastify: FastifyInstance) {
   // List sessions
@@ -60,10 +95,14 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       const body = createSessionSchema.parse(request.body);
       console.log('[sessionRoutes] Creating session with body:', body);
 
+      if (!(await validateRequestedModel(fastify, body.model, reply))) {
+        return;
+      }
+
       // Create in database
       const session = fastify.sessionService.createSession(body);
 
-      // Create Copilot session
+      // Create Copilot session ('none' is normalized to "no reasoning" inside CopilotService)
       await fastify.copilotService.createCopilotSession(
         session.id,
         session.type,
@@ -141,6 +180,10 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       const nextModel = body.model ?? currentSession.model;
 
       if (shouldReconfigureModel) {
+        if (!(await validateRequestedModel(fastify, nextModel, reply))) {
+          return;
+        }
+
         await fastify.copilotService.switchSessionModel(
           currentSession.id,
           currentSession.type,
@@ -291,7 +334,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
   // Switch model for existing session (SDK v0.2.x+ setModel support)
   fastify.post<{
     Params: { id: string };
-    Body: { model: string; reasoningEffort?: 'low' | 'medium' | 'high' | null };
+    Body: { model: string; reasoningEffort?: 'none' | 'low' | 'medium' | 'high' | null };
     Reply: ApiResponse<Session>;
   }>('/sessions/:id/switch-model', async (request, reply) => {
     const sessionId = request.params.id;
@@ -306,6 +349,10 @@ export async function sessionRoutes(fastify: FastifyInstance) {
           message: 'Session not found',
         },
       });
+    }
+
+    if (!(await validateRequestedModel(fastify, body.model, reply))) {
+      return;
     }
 
     // Switch model in Copilot session using SDK v0.2.x setModel()

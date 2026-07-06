@@ -5,6 +5,7 @@ import type {
   MessageContext,
   ModelInfo,
   QuickAction,
+  ReasoningEffort,
   Session,
 } from '@devmentorai/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -317,7 +318,7 @@ export function SidePanel() {
       name: string,
       type: Session['type'],
       model?: string,
-      reasoningEffort?: 'low' | 'medium' | 'high'
+      reasoningEffort?: ReasoningEffort
     ) => {
       await createSession(name, type, model, reasoningEffort);
       setShowNewSessionModal(false);

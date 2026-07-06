@@ -3,6 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CopilotService } from '../../src/services/copilot.service';
 import { SessionService } from '../../src/services/session.service';
 
+type TestStreamEvent = {
+  type: string;
+  data?: {
+    content?: string;
+  };
+};
+
 // Mock the Copilot SDK
 vi.mock('@github/copilot-sdk', () => ({
   CopilotClient: vi.fn().mockImplementation(() => ({
@@ -71,6 +78,45 @@ describe('CopilotService', () => {
       await copilotService.initialize();
 
       expect(copilotService.isReady()).toBe(true);
+    });
+  });
+
+  describe('model availability validation', () => {
+    it('allows models when SDK availability cannot be validated', async () => {
+      await copilotService.initialize();
+
+      const validation = await copilotService.validateModelAvailability('gpt-5-mini');
+
+      expect(validation.available).toBe(true);
+      expect(validation.canValidate).toBe(false);
+      expect(validation.defaultModel).toBe('gpt-5-mini');
+    });
+
+    it('rejects models that are absent from a populated availability list', async () => {
+      const serviceWithInternals = copilotService as unknown as {
+        mockMode: boolean;
+        client: {
+          listModels: ReturnType<typeof vi.fn>;
+        };
+      };
+
+      serviceWithInternals.mockMode = false;
+      serviceWithInternals.client = {
+        listModels: vi.fn().mockResolvedValue([
+          {
+            id: 'gpt-5-mini',
+            name: 'GPT-5 Mini',
+            provider: 'openai',
+            isDefault: true,
+          },
+        ]),
+      };
+
+      const validation = await copilotService.validateModelAvailability('claude-3-5-haiku');
+
+      expect(validation.available).toBe(false);
+      expect(validation.canValidate).toBe(true);
+      expect(validation.defaultModel).toBe('gpt-5-mini');
     });
   });
 
@@ -185,10 +231,10 @@ describe('CopilotService', () => {
     });
 
     it('should stream mock response with events', async () => {
-      const events: any[] = [];
+      const events: TestStreamEvent[] = [];
 
       await copilotService.streamMessage('stream-session', 'Hello', undefined, (event) =>
-        events.push(event)
+        events.push({ type: event.type, data: event.data as TestStreamEvent['data'] })
       );
 
       // Should receive delta events and final message
@@ -204,13 +250,13 @@ describe('CopilotService', () => {
     });
 
     it('should include selected text context in streaming', async () => {
-      const events: any[] = [];
+      const events: TestStreamEvent[] = [];
 
       await copilotService.streamMessage(
         'stream-session',
         'Explain',
         { action: 'explain', selectedText: 'test code' },
-        (event) => events.push(event)
+        (event) => events.push({ type: event.type, data: event.data as TestStreamEvent['data'] })
       );
 
       const messageEvent = events.find((e) => e.type === 'assistant.message');
@@ -220,9 +266,20 @@ describe('CopilotService', () => {
     it('should reject when SDK stream send fails (no silent unhandled rejection)', async () => {
       const send = vi.fn().mockRejectedValue(new Error('Mock send failure'));
       const on = vi.fn();
+      const serviceWithStreamingInternals = copilotService as unknown as {
+        mockMode: boolean;
+        sessions: Map<
+          string,
+          {
+            sessionId: string;
+            session: { send: typeof send; on: typeof on };
+            type: 'general';
+          }
+        >;
+      };
 
-      (copilotService as any).mockMode = false;
-      (copilotService as any).sessions.set('real-stream-session', {
+      serviceWithStreamingInternals.mockMode = false;
+      serviceWithStreamingInternals.sessions.set('real-stream-session', {
         sessionId: 'real-stream-session',
         session: { send, on },
         type: 'general',

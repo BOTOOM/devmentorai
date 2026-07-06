@@ -5,6 +5,7 @@
 import type { SelectionContext, TextReplacementBehavior } from '@devmentorai/shared';
 import { normalizeQuickActionModel } from '../constants/models';
 import { getBestActiveTab, storageGet, storageRemove, storageSet } from '../lib/browser-utils';
+import { getEffectiveQuickActionModel } from '../services/model-catalog';
 import {
   dismissUpdateBadge,
   forceUpdateCheck,
@@ -486,7 +487,17 @@ async function handleStreamingQuickAction(
     'translationLanguage', // Native language (for reading)
     'targetTranslationLanguage', // Target language (for writing)
   ]);
-  const model = normalizeQuickActionModel(settings.quickActionModel);
+  const requestedModel = normalizeQuickActionModel(settings.quickActionModel);
+  const effectiveModel = await getEffectiveQuickActionModel(requestedModel);
+  const model = effectiveModel.modelId;
+
+  if (effectiveModel.wasFallback) {
+    console.warn('[DevMentorAI] Quick action model unavailable, using fallback:', {
+      requestedModel,
+      model,
+      reason: effectiveModel.reason,
+    });
+  }
 
   // Smart translation: use target language for editable fields, native for reading
   let targetLanguage: string | undefined;

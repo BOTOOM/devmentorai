@@ -8,8 +8,11 @@ const FALLBACK_MODEL: ModelInfo = {
   name: 'GPT-5 Mini',
   description: 'Recommended baseline model for DevMentorAI sessions',
   provider: 'openai',
+  modelProvider: 'openai',
+  accessProvider: 'github-copilot',
   available: true,
   isDefault: true,
+  isRecommendedForQuickActions: true,
   pricingTier: 'free',
   pricingMultiplier: 0,
 };
@@ -26,9 +29,10 @@ function sortModelsByTierAndName(models: ModelInfo[]): ModelInfo[] {
 }
 
 async function getModelsPayload(
-  fastify: FastifyInstance
+  fastify: FastifyInstance,
+  options: { forceRefresh?: boolean } = {}
 ): Promise<{ models: ModelInfo[]; default: string }> {
-  const response = await fastify.copilotService.listModels();
+  const response = await fastify.copilotService.listModels(options);
 
   if (!response.models || response.models.length === 0) {
     return {
@@ -55,15 +59,21 @@ async function getModelsPayload(
 export async function modelsRoutes(fastify: FastifyInstance): Promise<void> {
   // List all available models
   fastify.get<{
+    Querystring: { refresh?: string };
     Reply: ApiResponse<{ models: ModelInfo[]; default: string }>;
-  }>('/models', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const payload = await getModelsPayload(fastify);
+  }>(
+    '/models',
+    async (request: FastifyRequest<{ Querystring: { refresh?: string } }>, reply: FastifyReply) => {
+      const payload = await getModelsPayload(fastify, {
+        forceRefresh: request.query.refresh === 'true',
+      });
 
-    return reply.send({
-      success: true,
-      data: payload,
-    });
-  });
+      return reply.send({
+        success: true,
+        data: payload,
+      });
+    }
+  );
 
   // Get specific model info
   fastify.get<{

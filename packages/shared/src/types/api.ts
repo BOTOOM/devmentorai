@@ -36,13 +36,24 @@ export interface HealthResponse {
 
 export type ModelPricingTier = 'free' | 'cheap' | 'standard' | 'premium';
 
+export type ModelAccessProvider = 'github-copilot' | 'devin' | 'gemini' | string;
+
 export interface ModelInfo {
   id: string;
   name: string;
+  /** Model vendor/family provider, e.g. openai, anthropic, google. */
   provider: string;
+  /** Access provider used to reach the model, e.g. github-copilot. */
+  accessProvider?: ModelAccessProvider;
+  /** Explicit model vendor when provider is reserved for backwards compatibility. */
+  modelProvider?: string;
   available: boolean;
   description?: string;
   isDefault?: boolean;
+  isRecommendedForQuickActions?: boolean;
+  deprecated?: boolean;
+  replacementModelId?: string;
+  aliases?: string[];
   pricingTier?: ModelPricingTier;
   pricingMultiplier?: number;
   supportedReasoningEfforts?: string[];

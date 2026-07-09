@@ -11,7 +11,7 @@
       "accessProvider": "github-copilot",
       "available": true,
       "isRecommendedForQuickActions": true,
-      "pricingTier": "free",
+      "pricingTier": "cheap",
       "description": "Fast default model for quick text edits, translations, and rewrites.",
       "supportedReasoningEfforts": []
     },
@@ -39,7 +39,7 @@
       "supportedReasoningEfforts": ["low", "medium"]
     },
     {
-      "id": "mai-code-1-flash",
+      "id": "mai-code-1-flash-picker",
       "name": "MAI-Code-1-Flash",
       "provider": "microsoft",
       "accessProvider": "github-copilot",
@@ -48,8 +48,8 @@
       "pricingTier": "cheap",
       "description": "MAI model optimized for low-latency code and text edits. Supports low/medium/high reasoning modes.",
       "supportedReasoningEfforts": ["low", "medium", "high"],
-      "aliases": ["mai-code-1-flash", "MAI-Code-1-Flash"]
+      "aliases": ["mai-code-1-flash-picker", "MAI-Code-1-Flash"]
     }
   ],
-  "updatedAt": "2026-07-02T17:46:52Z"
+  "updatedAt": "2026-07-09T17:46:52Z"
 }

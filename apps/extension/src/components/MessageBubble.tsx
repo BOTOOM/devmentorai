@@ -91,7 +91,9 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
         </div>
 
         {/* Message content */}
-        <div className={cn('flex flex-col max-w-[85%]', isUser ? 'items-end' : 'items-start')}>
+        <div
+          className={cn('flex flex-col min-w-0 max-w-[85%]', isUser ? 'items-end' : 'items-start')}
+        >
           {/* Context indicator */}
           {message.metadata?.action && (
             <div className="flex items-center gap-1 mb-1 text-xs text-gray-500 dark:text-gray-400">
@@ -101,7 +103,7 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
           )}
 
           {/* Bubble */}
-          <div className={cn('px-4 py-2.5 rounded-2xl', bubbleClassName)}>
+          <div className={cn('px-4 py-2.5 rounded-2xl min-w-0 max-w-full', bubbleClassName)}>
             {/* Image attachments */}
             {hasImages && (
               <div

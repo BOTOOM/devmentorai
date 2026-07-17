@@ -98,7 +98,7 @@ export function MarkdownContent({ content, variant }: Readonly<MarkdownContentPr
       );
     },
     pre: ({ children }) => (
-      <pre className="my-2 p-3 bg-gray-900 dark:bg-gray-950 text-gray-100 rounded-lg overflow-x-auto">
+      <pre className="my-2 p-3 bg-gray-900 dark:bg-gray-950 text-gray-100 rounded-lg overflow-x-auto max-w-full">
         {children}
       </pre>
     ),
@@ -139,7 +139,7 @@ export function MarkdownContent({ content, variant }: Readonly<MarkdownContentPr
   };
 
   return (
-    <div className="text-sm break-words">
+    <div className="text-sm min-w-0 max-w-full break-words">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
         {content}
       </ReactMarkdown>

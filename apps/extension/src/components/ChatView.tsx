@@ -19,6 +19,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAutoResizeTextarea } from '../hooks/useAutoResizeTextarea';
 import { useImageAttachments } from '../hooks/useImageAttachments';
 import { cn } from '../lib/utils';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
@@ -95,6 +96,9 @@ export function ChatView({
     lastError,
     clearError,
   } = useImageAttachments();
+
+  // Auto-grow the input up to a max height, then scroll internally.
+  useAutoResizeTextarea(inputRef, { minHeight: 48, maxHeight: 128 });
 
   const lastMessage = messages.at(-1);
 
@@ -613,7 +617,6 @@ export function ChatView({
                 images.length > 0 && 'ring-1 ring-primary-300 dark:ring-primary-700'
               )}
               style={{
-                height: '48px',
                 minHeight: '48px',
                 maxHeight: '128px',
                 paddingTop: '12px',

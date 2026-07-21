@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { cn } from '../lib/utils';
 import { ImageLightbox } from './ImageLightbox';
 import { ImageThumbnail } from './ImageThumbnail';
+import { MarkdownContent } from './MarkdownContent';
 
 interface MessageBubbleProps {
   message: Message;
@@ -90,7 +91,9 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
         </div>
 
         {/* Message content */}
-        <div className={cn('flex flex-col max-w-[85%]', isUser ? 'items-end' : 'items-start')}>
+        <div
+          className={cn('flex flex-col min-w-0 max-w-[85%]', isUser ? 'items-end' : 'items-start')}
+        >
           {/* Context indicator */}
           {message.metadata?.action && (
             <div className="flex items-center gap-1 mb-1 text-xs text-gray-500 dark:text-gray-400">
@@ -100,7 +103,7 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
           )}
 
           {/* Bubble */}
-          <div className={cn('px-4 py-2.5 rounded-2xl', bubbleClassName)}>
+          <div className={cn('px-4 py-2.5 rounded-2xl min-w-0 max-w-full', bubbleClassName)}>
             {/* Image attachments */}
             {hasImages && (
               <div
@@ -125,9 +128,10 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
 
             {/* Text content */}
             {message.content && (
-              <div className="text-sm whitespace-pre-wrap break-words">
-                {formatContent(message.content)}
-              </div>
+              <MarkdownContent
+                content={message.content}
+                variant={isUser ? 'user' : isSystem ? 'system' : 'assistant'}
+              />
             )}
 
             {/* Error display */}
@@ -231,52 +235,6 @@ function formatAction(action: string): string {
     diagnose_error: 'Diagnosing error',
   };
   return actions[action] || action;
-}
-
-function formatContent(content: string): React.ReactNode {
-  // Basic code block detection
-  const parts = content.split(/(```[\s\S]*?```)/g);
-
-  return parts.map((part) => {
-    if (part.startsWith('```') && part.endsWith('```')) {
-      const code = part.slice(3, -3);
-      const firstNewline = code.indexOf('\n');
-      const language = firstNewline > 0 ? code.slice(0, firstNewline) : '';
-      const codeContent = firstNewline > 0 ? code.slice(firstNewline + 1) : code;
-
-      return (
-        <pre
-          key={`block-${language}-${codeContent}`}
-          className="my-2 p-3 bg-gray-900 dark:bg-gray-950 text-gray-100 rounded-lg overflow-x-auto text-xs font-mono"
-        >
-          {language && <div className="text-gray-500 text-xs mb-2">{language}</div>}
-          <code>{codeContent}</code>
-        </pre>
-      );
-    }
-
-    // Handle inline code
-    const inlineParts = part.split(/(`[^`]+`)/g);
-    const inlineOccurrences = new Map<string, number>();
-
-    return inlineParts.map((inlinePart) => {
-      if (inlinePart.startsWith('`') && inlinePart.endsWith('`')) {
-        const keyBase = `${part}-${inlinePart}`;
-        const occurrence = inlineOccurrences.get(keyBase) ?? 0;
-        inlineOccurrences.set(keyBase, occurrence + 1);
-
-        return (
-          <code
-            key={`inline-${keyBase}-${occurrence}`}
-            className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-sm font-mono"
-          >
-            {inlinePart.slice(1, -1)}
-          </code>
-        );
-      }
-      return inlinePart;
-    });
-  });
 }
 
 function formatTime(timestamp: string): string {

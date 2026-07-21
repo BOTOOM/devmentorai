@@ -1,3 +1,17 @@
+## [1.9.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.8.0...ext-v1.9.0) (2026-07-21)
+
+### Features
+
+* **extension:** auto-resizing chat input and Markdown message rendering ([ed9f54c](https://github.com/BOTOOM/devmentorai/commit/ed9f54c13a59c9eb769bd10a4146900cfbcbab9f))
+
+### Bug Fixes
+
+* **extension:** contain long code lines within chat bubble ([24e4a7c](https://github.com/BOTOOM/devmentorai/commit/24e4a7c32367c60faf80051190c23bcf591130ea))
+
+### Documentation
+
+* **website:** document ext/backend v1.7.0-v1.8.0 releases in changelog ([fbb4c39](https://github.com/BOTOOM/devmentorai/commit/fbb4c39e5bafc1163f32b89b2b7f392d7028430d))
+
 ## [1.8.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.7.1...ext-v1.8.0) (2026-07-06)
 
 ### Features

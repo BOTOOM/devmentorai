@@ -51,4 +51,66 @@ describe('ACP chat reducer', () => {
     const state = reduceAcpEvent(initialAcpChatState, toolCall, 'session-1');
     expect(state.events).toEqual([toolCall]);
   });
+
+  it('replaces advertised commands and merges tool calls field-wise', () => {
+    const commands = reduceAcpEvent(
+      initialAcpChatState,
+      { type: 'commands', commands: [{ name: 'usage', description: 'Show usage' }] },
+      'session-1'
+    );
+    const replaced = reduceAcpEvent(
+      commands,
+      { type: 'commands', commands: [{ name: 'plan', description: 'Show plan' }] },
+      'session-1'
+    );
+    const pending = reduceAcpEvent(
+      replaced,
+      {
+        type: 'tool_call',
+        toolCallId: 'tool-1',
+        title: 'Edit file',
+        kind: 'edit',
+        status: 'pending',
+        content: [{ type: 'diff', content: { type: 'text', text: 'before' } }],
+        mode: 'replace',
+      },
+      'session-1'
+    );
+    const completed = reduceAcpEvent(
+      pending,
+      {
+        type: 'tool_call',
+        toolCallId: 'tool-1',
+        status: 'completed',
+        mode: 'replace',
+      },
+      'session-1'
+    );
+    expect(replaced.commands.map((command) => command.name)).toEqual(['plan']);
+    expect(completed.toolCalls).toHaveLength(1);
+    expect(completed.toolCalls[0]?.title).toBe('Edit file');
+    expect(completed.toolCalls[0]?.content).toHaveLength(1);
+    expect(completed.toolCalls[0]?.status).toBe('completed');
+  });
+
+  it('updates plans, usage and session info without discarding absent fields', () => {
+    const first = reduceAcpEvent(
+      initialAcpChatState,
+      { type: 'plan', entries: [{ content: 'Run tests', priority: 'high', status: 'pending' }] },
+      'session-1'
+    );
+    const second = reduceAcpEvent(
+      first,
+      { type: 'plan', entries: [{ content: 'Run tests', priority: 'high', status: 'completed' }] },
+      'session-1'
+    );
+    const info = reduceAcpEvent(
+      second,
+      { type: 'session_info', title: 'Updated title' },
+      'session-1'
+    );
+    expect(info.plan[0]?.status).toBe('completed');
+    expect(info.sessionInfo?.title).toBe('Updated title');
+    expect(info.sessionInfo?.updatedAt).toBeUndefined();
+  });
 });

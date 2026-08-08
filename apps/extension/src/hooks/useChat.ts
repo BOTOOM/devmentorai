@@ -1,5 +1,7 @@
 import { formatDate, generateMessageId } from '@devmentorai/shared';
 import type {
+  AcpConfigOption,
+  AcpContentBlock,
   ContextPayload,
   ImagePayload,
   Message,
@@ -7,6 +9,7 @@ import type {
   StreamEvent,
 } from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { storageGet, storageSet } from '../lib/browser-utils';
 import type { AcpPermissionDecision, AcpPermissionRequest } from '../services/acp-client';
 import { AcpClient, acpEnabled } from '../services/acp-client';
 import { initialAcpChatState, reduceAcpEvent } from '../services/acp-reducer';
@@ -36,7 +39,7 @@ function isRecoverableSessionError(error: unknown): boolean {
   return isLikelySessionRecoveryError(message);
 }
 
-export function useChat(sessionId: string | undefined) {
+export function useChat(sessionId: string | undefined, acpCapabilities?: Record<string, unknown>) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -60,11 +63,24 @@ export function useChat(sessionId: string | undefined) {
     () =>
       new AcpClient({
         url: 'ws://localhost:3847/acp',
-        permissionHandler: async (request) =>
-          new Promise((resolve) => {
+        permissionHandler: async (request) => {
+          const key = permissionKey(request);
+          const remembered = await storageGet<RememberedPermissionsStorage>(
+            'acpRememberedPermissions'
+          );
+          if (remembered.acpRememberedPermissions?.[key]) {
+            return {
+              outcome: {
+                outcome: 'selected',
+                optionId: remembered.acpRememberedPermissions[key] as string,
+              },
+            };
+          }
+          return new Promise((resolve) => {
             setPermissionRequest(request);
             permissionResolverRef.current = resolve;
-          }),
+          });
+        },
       }),
     []
   );
@@ -80,17 +96,56 @@ export function useChat(sessionId: string | undefined) {
     return unsubscribe;
   }, [acpClient, sessionId]);
 
-  const respondToPermission = useCallback((optionId: string) => {
-    permissionResolverRef.current?.({ outcome: { outcome: 'selected', optionId } });
-    permissionResolverRef.current = null;
-    setPermissionRequest(null);
-  }, []);
+  const respondToPermission = useCallback(
+    (optionId: string) => {
+      const option = permissionRequest?.options.find(
+        (candidate) => candidate.optionId === optionId
+      );
+      if (option?.kind === 'allow_always' && permissionRequest) {
+        const key = permissionKey(permissionRequest);
+        void storageGet<RememberedPermissionsStorage>('acpRememberedPermissions').then((current) =>
+          storageSet({
+            acpRememberedPermissions: {
+              ...current.acpRememberedPermissions,
+              [key]: optionId,
+            },
+          })
+        );
+      }
+      permissionResolverRef.current?.({ outcome: { outcome: 'selected', optionId } });
+      permissionResolverRef.current = null;
+      setPermissionRequest(null);
+    },
+    [permissionRequest]
+  );
+
+  const revokePermission = useCallback(() => {
+    if (!permissionRequest) return;
+    const key = permissionKey(permissionRequest);
+    void storageGet<RememberedPermissionsStorage>('acpRememberedPermissions').then((current) => {
+      const next = { ...current.acpRememberedPermissions };
+      delete next[key];
+      return storageSet({ acpRememberedPermissions: next });
+    });
+  }, [permissionRequest]);
 
   const dismissPermission = useCallback(() => {
     permissionResolverRef.current?.({ outcome: { outcome: 'cancelled' } });
     permissionResolverRef.current = null;
     setPermissionRequest(null);
   }, []);
+
+  const setAcpConfigOption = useCallback(
+    async (option: AcpConfigOption, value: string | boolean) => {
+      if (!sessionId) return;
+      const options = await acpClient.setConfigOption(sessionId, option.id, value);
+      dispatchAcpEvent({
+        sessionId,
+        event: { type: 'config', options: options as AcpConfigOption[] },
+      });
+    },
+    [acpClient, sessionId]
+  );
 
   const loadMessages = useCallback(
     async (sid: string) => {
@@ -140,11 +195,60 @@ export function useChat(sessionId: string | undefined) {
         return;
       }
 
+      const isSendMessageOptions =
+        options &&
+        ('useContextAwareMode' in options || 'fullContext' in options || 'images' in options);
+      const sendOptions: SendMessageOptions = isSendMessageOptions
+        ? (options as SendMessageOptions)
+        : { context: options as MessageContext };
+
       if (acpEnabled()) {
         setError(null);
         setIsSending(true);
         try {
-          await acpClient.prompt(sessionId, content);
+          const promptCapabilities = (
+            acpCapabilities?.agentCapabilities as Record<string, unknown> | undefined
+          )?.promptCapabilities as Record<string, unknown> | undefined;
+          const blocks: AcpContentBlock[] = [{ type: 'text', text: content }];
+          if (sendOptions.images && promptCapabilities?.image === true) {
+            for (const image of sendOptions.images) {
+              const separator = image.dataUrl.indexOf(',');
+              blocks.push({
+                type: 'image',
+                mimeType: image.mimeType,
+                data: separator >= 0 ? image.dataUrl.slice(separator + 1) : image.dataUrl,
+              });
+            }
+          }
+          if (sendOptions.fullContext) {
+            const context = sendOptions.fullContext;
+            if (promptCapabilities?.embeddedContext === true) {
+              blocks.push({
+                type: 'resource',
+                resource: {
+                  uri: `devmentorai://context/${sessionId}`,
+                  mimeType: 'text/plain',
+                  text: JSON.stringify(context),
+                },
+              });
+            } else {
+              blocks[0] = {
+                type: 'text',
+                text: `${content}\n\n\`\`\`context\n${JSON.stringify(context, null, 2)}\n\`\`\``,
+              };
+            }
+          }
+          dispatchAcpEvent({
+            sessionId,
+            event: {
+              type: 'message',
+              role: 'user',
+              messageId: `user-${Date.now()}`,
+              content: [{ type: 'text', text: content }],
+              mode: 'replace',
+            },
+          });
+          await acpClient.prompt(sessionId, blocks);
         } catch (sendError) {
           setError(sendError instanceof Error ? sendError.message : 'ACP prompt failed');
         } finally {
@@ -156,13 +260,6 @@ export function useChat(sessionId: string | undefined) {
       // Handle both old (MessageContext) and new (SendMessageOptions) API
       // SendMessageOptions has: useContextAwareMode, fullContext, or images at top level
       // MessageContext is the legacy format with pageUrl, selectedText, action
-      const isSendMessageOptions =
-        options &&
-        ('useContextAwareMode' in options || 'fullContext' in options || 'images' in options);
-      const sendOptions: SendMessageOptions = isSendMessageOptions
-        ? (options as SendMessageOptions)
-        : { context: options as MessageContext };
-
       console.log('[useChat] Parsed options:', {
         isSendMessageOptions,
         hasImages: !!sendOptions.images?.length,
@@ -512,7 +609,7 @@ export function useChat(sessionId: string | undefined) {
         abortControllerRef.current = null;
       }
     },
-    [acpClient, apiClient, isSending, isStreaming, sessionId]
+    [acpCapabilities, acpClient, apiClient, isSending, isStreaming, sessionId]
   );
 
   const abortMessage = useCallback(async () => {
@@ -551,5 +648,24 @@ export function useChat(sessionId: string | undefined) {
     permissionRequest,
     respondToPermission,
     dismissPermission,
+    revokePermission,
+    acpState: acpEnabled() ? acpState : undefined,
+    setAcpConfigOption,
   };
 }
+
+function permissionKey(request: AcpPermissionRequest): string {
+  const toolCall =
+    request.toolCall && typeof request.toolCall === 'object'
+      ? (request.toolCall as Record<string, unknown>)
+      : undefined;
+  const toolCallId =
+    toolCall && typeof toolCall === 'object' && typeof toolCall.toolCallId === 'string'
+      ? toolCall.toolCallId
+      : 'unknown-tool';
+  return `${request.sessionId}:${toolCallId}`;
+}
+
+type RememberedPermissionsStorage = {
+  acpRememberedPermissions?: Record<string, string>;
+};

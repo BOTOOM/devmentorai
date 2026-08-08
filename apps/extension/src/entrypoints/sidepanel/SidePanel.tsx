@@ -23,6 +23,7 @@ import { useContextExtraction } from '../../hooks/useContextExtraction';
 import { useSessions } from '../../hooks/useSessions';
 import { useSettings } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
+import { acpEnabled } from '../../services/acp-client';
 import { ApiClient } from '../../services/api-client';
 
 // Extend QuickAction to include tone variations
@@ -78,7 +79,10 @@ export function SidePanel() {
     permissionRequest,
     respondToPermission,
     dismissPermission,
-  } = useChat(activeSession?.id);
+    revokePermission,
+    acpState,
+    setAcpConfigOption,
+  } = useChat(activeSession?.id, activeSession?.capabilities);
 
   // Context extraction hook
   const {
@@ -90,6 +94,11 @@ export function SidePanel() {
     errorCount,
     captureVisibleTabScreenshot,
   } = useContextExtraction();
+
+  const promptCapabilities = (
+    activeSession?.capabilities?.agentCapabilities as Record<string, unknown> | undefined
+  )?.promptCapabilities as Record<string, unknown> | undefined;
+  const acpImageSupported = !acpEnabled() || promptCapabilities?.image !== false;
 
   useEffect(() => {
     if (connectionStatus !== 'connected') {
@@ -443,7 +452,7 @@ export function SidePanel() {
         platform={platform}
         errorCount={errorCount}
         // Image attachment props
-        imageAttachmentsEnabled={settings.imageAttachmentsEnabled}
+        imageAttachmentsEnabled={settings.imageAttachmentsEnabled && acpImageSupported}
         screenshotBehavior={settings.screenshotBehavior}
         onCaptureScreenshot={handleCaptureScreenshot}
         onRegisterAddImage={(fn) => {
@@ -452,6 +461,9 @@ export function SidePanel() {
         permissionRequest={permissionRequest}
         onPermissionRespond={respondToPermission}
         onPermissionDismiss={dismissPermission}
+        onPermissionRevoke={revokePermission}
+        acpState={acpState}
+        onAcpConfigChange={setAcpConfigOption}
       />
 
       {showNewSessionModal && (

@@ -1,4 +1,9 @@
-import type { AcpContentBlock, AcpEvent, AcpSessionRecord } from '@devmentorai/shared';
+import type {
+  AcpConfigOption,
+  AcpContentBlock,
+  AcpEvent,
+  AcpSessionRecord,
+} from '@devmentorai/shared';
 
 type JsonRpcId = string | number;
 type JsonRpcMessage = {
@@ -103,8 +108,11 @@ export class AcpClient {
     this.socket = undefined;
   }
 
-  async createSession(profileId: string, cwd: string): Promise<AcpSessionRecord> {
-    return this.request<AcpSessionRecord>('ui/session.create', { profileId, cwd });
+  async createSession(profileId: string | undefined, cwd: string): Promise<AcpSessionRecord> {
+    return this.request<AcpSessionRecord>('ui/session.create', {
+      ...(profileId ? { profileId } : {}),
+      cwd,
+    });
   }
 
   async prompt(sessionId: string, prompt: string | AcpContentBlock[]): Promise<void> {
@@ -113,6 +121,18 @@ export class AcpClient {
 
   async cancel(sessionId: string): Promise<void> {
     await this.request('ui/session.cancel', { sessionId });
+  }
+
+  async setConfigOption(
+    sessionId: string,
+    configId: string,
+    value: string | boolean
+  ): Promise<AcpConfigOption[]> {
+    return this.request<AcpConfigOption[]>('ui/session.set_config_option', {
+      sessionId,
+      configId,
+      value,
+    });
   }
 
   async replay(

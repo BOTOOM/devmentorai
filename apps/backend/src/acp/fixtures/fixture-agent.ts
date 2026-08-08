@@ -66,21 +66,38 @@ const fixture = {
     sessions.set(sessionId, {});
     return {
       sessionId,
-      configOptions: [
-        {
-          id: 'fixture.mode',
-          name: 'Fixture mode',
-          category: 'mode',
-          type: 'select',
-          currentValue: 'all',
-          options: [{ value: 'all', name: 'All updates' }],
-        },
-      ],
+      configOptions:
+        process.env.ACP_FIXTURE_NO_CONFIG === '1'
+          ? []
+          : [
+              {
+                id: 'fixture.mode',
+                name: 'Fixture mode',
+                category: 'mode',
+                type: 'select',
+                currentValue: 'all',
+                options: [{ value: 'all', name: 'All updates' }],
+              },
+            ],
     };
   },
 
   async setConfigOption(): Promise<{ configOptions: SessionConfigOption[] }> {
-    return { configOptions: [] };
+    return {
+      configOptions:
+        process.env.ACP_FIXTURE_NO_CONFIG === '1'
+          ? []
+          : [
+              {
+                id: 'fixture.mode',
+                name: 'Fixture mode',
+                category: 'mode',
+                type: 'select',
+                currentValue: 'selected',
+                options: [{ value: 'selected', name: 'Selected' }],
+              },
+            ],
+    };
   },
 
   async prompt(

@@ -22,6 +22,8 @@ export type AgentServiceOptions = {
   installer?: AgentInstaller;
 };
 
+const DEFAULT_PROFILE_ID = 'github-copilot-cli-default';
+
 export class AcpAgentService {
   private readonly db: Database;
   private readonly catalog: AgentCatalog;
@@ -110,6 +112,22 @@ export class AcpAgentService {
       defaultCwd: input.defaultCwd,
     };
     return this.profiles.save(profile);
+  }
+
+  ensureDefaultProfile(): AgentProfile {
+    const firstProfile = this.profiles.list()[0];
+    if (firstProfile) return firstProfile;
+    const existing = this.profiles.get(DEFAULT_PROFILE_ID);
+    if (existing) return existing;
+    return this.profiles.save({
+      id: DEFAULT_PROFILE_ID,
+      name: 'GitHub Copilot CLI',
+      agentId: 'github-copilot-cli',
+      args: [],
+      env: {},
+      defaultCwd: this.workspace.defaultCwd,
+      transport: 'stdio',
+    });
   }
 
   updateProfile(id: string, patch: Partial<ProfileInput>): AgentProfile {

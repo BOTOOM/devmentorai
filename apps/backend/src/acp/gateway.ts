@@ -48,6 +48,11 @@ type GatewayClient = {
   nextId: number;
 };
 
+type PendingPermission = {
+  request: RequestPermissionRequest;
+  resolve: (decision: PermissionDecision) => void;
+};
+
 const DEFAULT_IDLE_TIMEOUT_MS = 60_000;
 const DEFAULT_BUFFER_LIMIT = 1_000;
 
@@ -109,6 +114,7 @@ export class AcpGateway {
   private readonly clientsByAcpSession = new Map<string, GatewayClient>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly timeoutRejects = new Map<string, (error: AcpError) => void>();
+  private readonly pendingPermissions = new Map<string, PendingPermission>();
   private readonly manager: AcpSessionManager;
 
   constructor(options: GatewayOptions) {
@@ -129,6 +135,7 @@ export class AcpGateway {
     this.manager = new AcpSessionManager({
       onEvent: (sessionId, event) => this.handleEvent(sessionId, event),
     });
+    this.agentService.ensureDefaultProfile();
   }
 
   isOriginAllowed(origin: string | undefined): boolean {
@@ -274,6 +281,13 @@ export class AcpGateway {
           params.value as string | boolean
         );
       case 'ui/session.replay':
+        if (sessionId) {
+          const session = this.sessions.get(sessionId);
+          if (session) {
+            this.clientsByAcpSession.set(session.acpSessionId, client);
+            this.sendPendingPermission(session.acpSessionId);
+          }
+        }
         return this.replay(sessionId ?? asString(params.sessionId, 'sessionId'), params.lastSeq);
       case 'ui/session.list':
         return this.listSessions();
@@ -321,7 +335,10 @@ export class AcpGateway {
     client: GatewayClient,
     params: Record<string, unknown>
   ): Promise<AcpSessionRecord> {
-    const profileId = asString(params.profileId, 'profileId');
+    const profileId =
+      typeof params.profileId === 'string' && params.profileId.length > 0
+        ? params.profileId
+        : this.agentService.ensureDefaultProfile().id;
     const resolution = await this.agentService.resolveLaunch(profileId);
     let connection = this.connections.get(profileId);
     if (!connection) {
@@ -462,18 +479,39 @@ export class AcpGateway {
     client: GatewayClient,
     request: RequestPermissionRequest
   ): Promise<PermissionDecision> {
-    const target = this.clientsByAcpSession.get(acpSessionId) ?? client;
-    this.clientsByAcpSession.set(acpSessionId, target);
-    return this.request(target, 'ui/permission.request', request).then((result) => {
-      if (!isRecord(result) || !isRecord(result.outcome)) {
-        return { outcome: { outcome: 'cancelled' } };
-      }
-      const outcome = result.outcome;
-      if (outcome.outcome === 'selected' && typeof outcome.optionId === 'string') {
-        return { outcome: { outcome: 'selected', optionId: outcome.optionId } };
-      }
-      return { outcome: { outcome: 'cancelled' } };
+    this.clientsByAcpSession.set(
+      acpSessionId,
+      this.clientsByAcpSession.get(acpSessionId) ?? client
+    );
+    return new Promise((resolve) => {
+      this.pendingPermissions.set(acpSessionId, { request, resolve });
+      this.sendPendingPermission(acpSessionId);
     });
+  }
+
+  private sendPendingPermission(acpSessionId: string): void {
+    const pending = this.pendingPermissions.get(acpSessionId);
+    const client = this.clientsByAcpSession.get(acpSessionId);
+    if (!pending || !client) return;
+    this.request(client, 'ui/permission.request', pending.request)
+      .then((result) => {
+        this.pendingPermissions.delete(acpSessionId);
+        if (!isRecord(result) || !isRecord(result.outcome)) {
+          pending.resolve({ outcome: { outcome: 'cancelled' } });
+          return;
+        }
+        const outcome = result.outcome;
+        if (outcome.outcome === 'selected' && typeof outcome.optionId === 'string') {
+          pending.resolve({ outcome: { outcome: 'selected', optionId: outcome.optionId } });
+          return;
+        }
+        pending.resolve({ outcome: { outcome: 'cancelled' } });
+      })
+      .catch(() => {
+        if (this.clientsByAcpSession.get(acpSessionId) === client) {
+          this.clientsByAcpSession.delete(acpSessionId);
+        }
+      });
   }
 
   private persistAcpSession(session: AcpSessionRecord, resolution: LaunchResolution): void {

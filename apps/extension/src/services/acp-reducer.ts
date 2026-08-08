@@ -4,12 +4,14 @@ export type AcpChatState = {
   messages: Message[];
   isStreaming: boolean;
   error: string | null;
+  events: AcpEvent[];
 };
 
 export const initialAcpChatState: AcpChatState = {
   messages: [],
   isStreaming: false,
   error: null,
+  events: [],
 };
 
 export function reduceAcpEvent(
@@ -23,7 +25,7 @@ export function reduceAcpEvent(
   if (event.type === 'error') {
     return { ...state, error: event.error.message, isStreaming: false };
   }
-  if (event.type !== 'message') return state;
+  if (event.type !== 'message') return { ...state, events: [...state.events, event] };
   const content = event.content
     .filter((block): block is Extract<typeof block, { type: 'text' }> => block.type === 'text')
     .map((block) => block.text)

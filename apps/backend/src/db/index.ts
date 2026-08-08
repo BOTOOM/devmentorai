@@ -6,15 +6,19 @@ import Database from 'better-sqlite3';
 const DB_DIR = path.join(os.homedir(), '.devmentorai');
 const DB_PATH = path.join(DB_DIR, 'devmentorai.db');
 
-console.log(`Database path: ${DB_PATH}`);
+export type DatabaseOptions = {
+  path?: string;
+};
 
-export function initDatabase(): Database.Database {
+export function initDatabase(options: DatabaseOptions = {}): Database.Database {
+  const databasePath = options.path ?? DB_PATH;
+  const databaseDirectory = path.dirname(databasePath);
   // Ensure directory exists
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
+  if (databasePath !== ':memory:' && !fs.existsSync(databaseDirectory)) {
+    fs.mkdirSync(databaseDirectory, { recursive: true });
   }
 
-  const db = new Database(DB_PATH);
+  const db = new Database(databasePath);
 
   // Enable WAL mode for better performance
   db.pragma('journal_mode = WAL');

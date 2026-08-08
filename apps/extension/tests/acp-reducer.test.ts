@@ -40,4 +40,15 @@ describe('ACP chat reducer', () => {
     expect(failed.isStreaming).toBe(false);
     expect(failed.error).toBe('timed out');
   });
+
+  it('retains unsupported display events for later UI surfaces', () => {
+    const toolCall: AcpEvent = {
+      type: 'tool_call',
+      toolCallId: 'tool-1',
+      status: 'running',
+      mode: 'replace',
+    };
+    const state = reduceAcpEvent(initialAcpChatState, toolCall, 'session-1');
+    expect(state.events).toEqual([toolCall]);
+  });
 });

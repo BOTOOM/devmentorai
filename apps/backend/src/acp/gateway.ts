@@ -9,7 +9,7 @@ import type { LaunchResolution } from './catalog/types.js';
 import { WorkspaceService } from './catalog/workspace.js';
 import { AgentConnection, type PermissionDecision } from './connection.js';
 import { AcpError, isAcpError } from './errors.js';
-import { reconcileSessions } from './history-reconciliation.js';
+import { reconcileSessionsByAgent } from './history-reconciliation.js';
 import { AcpPermissionStore } from './permission-store.js';
 import { AcpSessionManager } from './session-manager.js';
 
@@ -703,6 +703,7 @@ export class AcpGateway {
     const local = this.listSessions();
     const profiles = this.agentService.listProfiles();
     const remotes: Array<{ id: string; agentId: string }> = [];
+    const successfulAgents = new Set<string>();
     for (const profile of profiles) {
       const agentId = profile.agentId ?? profile.id;
       try {
@@ -715,29 +716,26 @@ export class AcpGateway {
           });
         this.connections.set(agentId, connection);
         this.manager.registerAgent({ agentId, launchSpec: resolution.launchSpec, connection });
+        const result = await this.manager.listAgentSessions(agentId);
+        if (!isRecord(result) || result.supported !== true) continue;
+        successfulAgents.add(agentId);
+        const value = result.sessions;
+        const sessions = isRecord(value) && Array.isArray(value.sessions) ? value.sessions : [];
+        const remote = sessions.flatMap((item) =>
+          isRecord(item) && typeof item.sessionId === 'string'
+            ? [{ id: item.sessionId, agentId }]
+            : []
+        );
+        remotes.push(...remote);
       } catch {
-        continue;
-      }
-      const result = await this.manager.listAgentSessions(agentId);
-      if (!isRecord(result) || result.supported !== true) continue;
-      const value = result.sessions;
-      const sessions = isRecord(value) && Array.isArray(value.sessions) ? value.sessions : [];
-      for (const item of sessions) {
-        if (!isRecord(item) || typeof item.sessionId !== 'string') continue;
-        remotes.push({ id: item.sessionId, agentId: profile.agentId ?? profile.id });
+        // Unreachable agents are excluded from reconciliation.
       }
     }
-    const merged = reconcileSessions(
-      local.map((session) => ({
-        id: session.id,
-        ...(session.agentId ? { agentId: session.agentId } : {}),
-      })),
-      remotes
-    );
+    const merged = reconcileSessionsByAgent(local, remotes, successfulAgents);
     for (const session of merged) {
       this.db
         .prepare('UPDATE sessions SET history_state = ? WHERE id = ?')
-        .run(session.stale ? 'stale' : 'current', session.id);
+        .run('stale' in session && session.stale ? 'stale' : 'current', session.id);
     }
     return merged.map((session) => {
       const existing = local.find((candidate) => candidate.id === session.id);
@@ -752,7 +750,7 @@ export class AcpGateway {
           createdAt: new Date(0).toISOString(),
           updatedAt: new Date(0).toISOString(),
           agentId: session.agentId,
-          ...(session.stale ? { historyState: 'stale' as const } : {}),
+          ...('stale' in session && session.stale ? { historyState: 'stale' as const } : {}),
         }
       );
     });

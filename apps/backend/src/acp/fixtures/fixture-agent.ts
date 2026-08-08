@@ -252,6 +252,18 @@ const fixture = {
     await client.notify(acp.methods.client.session.update, {
       sessionId: params.sessionId,
       update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'replay-tool',
+        title: 'Replayed tool',
+        kind: 'execute',
+        status: 'completed',
+        rawInput: { command: 'replayed' },
+        rawOutput: { result: 'ok' },
+      },
+    });
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
         sessionUpdate: 'agent_message_chunk',
         messageId: 'replay-assistant',
         content: { type: 'text', text: 'replayed answer' },

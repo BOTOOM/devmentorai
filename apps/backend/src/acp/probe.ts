@@ -9,6 +9,10 @@ export type AcpProbeReport = {
   capabilities?: unknown;
   authMethods: unknown[];
   advertisedCommands: unknown[];
+  capabilityMeasurements: {
+    image: 'supported' | 'unsupported' | 'unmeasured';
+    loadSession: 'supported' | 'unsupported' | 'unmeasured';
+  };
   sessionId?: string;
   checks: {
     prompt: AcpProbeRequestResult;
@@ -43,6 +47,10 @@ export async function runConformanceProbe(
     profileId: resolution.profile.id,
     authMethods: [],
     advertisedCommands: [],
+    capabilityMeasurements: {
+      image: 'unmeasured',
+      loadSession: 'unmeasured',
+    },
     checks: {
       prompt: { supported: false, error: { message: 'not run' } },
       slashCommand: { supported: false, error: { message: 'not run' } },
@@ -67,6 +75,20 @@ export async function runConformanceProbe(
     report.protocolVersion = capabilities.protocolVersion;
     report.capabilities = capabilities.agentCapabilities;
     report.authMethods = capabilities.authMethods;
+    report.capabilityMeasurements = {
+      image:
+        typeof capabilities.agentCapabilities.promptCapabilities?.image === 'boolean'
+          ? capabilities.agentCapabilities.promptCapabilities.image
+            ? 'supported'
+            : 'unsupported'
+          : 'unmeasured',
+      loadSession:
+        typeof capabilities.agentCapabilities.loadSession === 'boolean'
+          ? capabilities.agentCapabilities.loadSession
+            ? 'supported'
+            : 'unsupported'
+          : 'unmeasured',
+    };
     const session = await connection.newSession(cwd);
     report.sessionId = session.sessionId;
     report.checks.prompt = await requestPrompt(connection, session.sessionId, 'probe');
@@ -117,11 +139,11 @@ async function requestPrompt(
 export function renderSupportTable(reports: AcpProbeReport[]): string {
   const rows = reports.map(
     (report) =>
-      `| ${report.agentId} | ${report.protocolVersion ?? 'unknown'} | ${report.checks.history.supported ? 'yes' : 'no'} | ${report.advertisedCommands.length > 0 ? 'yes' : 'no'} | ${report.checks.image.supported ? 'yes' : 'no'} | ${report.authMethods.length} |`
+      `| ${report.agentId} | ${report.protocolVersion ?? 'unmeasured'} | ${report.capabilityMeasurements.loadSession} | ${report.advertisedCommands.length > 0 ? 'supported' : 'unmeasured'} | ${report.capabilityMeasurements.image} | ${report.authMethods.length} |`
   );
   return [
     '<!-- GENERATED ACP SUPPORT TABLE: do not edit manually -->',
-    '| Agent | Protocol | History load | Advertised commands | Images | Auth methods |',
+    '| Agent | Protocol | History load capability | Advertised commands | Image capability | Auth methods |',
     '| --- | ---: | --- | --- | --- | --- |',
     ...rows,
     '<!-- END GENERATED ACP SUPPORT TABLE -->',

@@ -4,40 +4,51 @@
     "profileId": "acp-sdk-example",
     "authMethods": [],
     "advertisedCommands": [],
+    "capabilityMeasurements": {
+      "image": "unmeasured",
+      "loadSession": "unsupported"
+    },
     "checks": {
       "prompt": {
-        "supported": false,
-        "error": {
-          "message": "ACP connection closed"
+        "supported": true,
+        "value": {
+          "stopReason": "end_turn"
         }
       },
       "slashCommand": {
-        "supported": false,
-        "error": {
-          "message": "not run"
+        "supported": true,
+        "value": {
+          "stopReason": "end_turn"
         }
       },
       "image": {
         "supported": false,
         "error": {
-          "message": "not run"
+          "message": "image capability not advertised"
         }
       },
-      "permission": "not_applicable",
+      "permission": "available",
       "history": {
         "supported": false,
         "error": {
-          "message": "not run"
+          "code": -32601,
+          "message": "\"Method not found\": session/load"
         }
       },
       "cancel": {
         "supported": false,
         "error": {
-          "message": "not run"
+          "code": -32601,
+          "message": "\"Method not found\": session/cancel"
         }
       }
     },
-    "verifiedAt": "2026-08-08T23:04:58.897Z"
+    "verifiedAt": "2026-08-08T23:08:48.587Z",
+    "protocolVersion": 1,
+    "capabilities": {
+      "loadSession": false
+    },
+    "sessionId": "11fca0e38d8785d92857c2495455d4fd"
   },
   {
     "agentId": "github-copilot-cli",
@@ -59,6 +70,10 @@
       }
     ],
     "advertisedCommands": [],
+    "capabilityMeasurements": {
+      "image": "supported",
+      "loadSession": "supported"
+    },
     "checks": {
       "prompt": {
         "supported": false,
@@ -92,7 +107,7 @@
         }
       }
     },
-    "verifiedAt": "2026-08-08T23:05:01.163Z",
+    "verifiedAt": "2026-08-08T23:08:58.763Z",
     "protocolVersion": 1,
     "capabilities": {
       "loadSession": true,
@@ -349,6 +364,10 @@
         "input": null
       }
     ],
+    "capabilityMeasurements": {
+      "image": "supported",
+      "loadSession": "supported"
+    },
     "checks": {
       "prompt": {
         "supported": false,
@@ -391,7 +410,7 @@
         }
       }
     },
-    "verifiedAt": "2026-08-08T23:05:09.812Z",
+    "verifiedAt": "2026-08-08T23:09:01.929Z",
     "protocolVersion": 1,
     "capabilities": {
       "_meta": {
@@ -421,7 +440,7 @@
         "resume": {}
       }
     },
-    "sessionId": "e0fddcd0-2805-49a8-befd-63d0691fe533"
+    "sessionId": "4fdc02a4-2724-499c-bcef-eb57bf664fe1"
   },
   {
     "agentId": "codex-acp",
@@ -444,6 +463,10 @@
       }
     ],
     "advertisedCommands": [],
+    "capabilityMeasurements": {
+      "image": "supported",
+      "loadSession": "supported"
+    },
     "checks": {
       "prompt": {
         "supported": false,
@@ -477,7 +500,7 @@
         }
       }
     },
-    "verifiedAt": "2026-08-08T23:05:16.549Z",
+    "verifiedAt": "2026-08-08T23:09:04.466Z",
     "protocolVersion": 1,
     "capabilities": {
       "auth": {
@@ -540,6 +563,10 @@
       }
     ],
     "advertisedCommands": [],
+    "capabilityMeasurements": {
+      "image": "supported",
+      "loadSession": "supported"
+    },
     "checks": {
       "prompt": {
         "supported": false,
@@ -573,7 +600,7 @@
         }
       }
     },
-    "verifiedAt": "2026-08-08T23:05:23.161Z",
+    "verifiedAt": "2026-08-08T23:09:06.911Z",
     "protocolVersion": 1,
     "capabilities": {
       "loadSession": true,
@@ -605,6 +632,10 @@
       }
     ],
     "advertisedCommands": [],
+    "capabilityMeasurements": {
+      "image": "supported",
+      "loadSession": "supported"
+    },
     "checks": {
       "prompt": {
         "supported": false,
@@ -638,7 +669,7 @@
         }
       }
     },
-    "verifiedAt": "2026-08-08T23:05:29.917Z",
+    "verifiedAt": "2026-08-08T23:09:09.966Z",
     "protocolVersion": 1,
     "capabilities": {
       "loadSession": true,

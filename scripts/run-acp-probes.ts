@@ -4,17 +4,25 @@ import { type AcpProbeReport, runConformanceProbe } from '../apps/backend/src/ac
 
 type Candidate = {
   agentId: string;
-  package: string;
+  cmd: string;
   args: string[];
 };
 
 const candidates: Candidate[] = [
-  { agentId: 'acp-sdk-example', package: '@agentclientprotocol/sdk-example-agent', args: [] },
-  { agentId: 'github-copilot-cli', package: '@github/copilot', args: ['--acp', '--stdio'] },
-  { agentId: 'claude-acp', package: '@agentclientprotocol/claude-agent-acp', args: [] },
-  { agentId: 'codex-acp', package: '@agentclientprotocol/codex-acp', args: [] },
-  { agentId: 'gemini-cli', package: '@google/gemini-cli', args: ['--acp'] },
-  { agentId: 'qwen-code', package: '@qwen-code/qwen-code', args: ['--acp'] },
+  {
+    agentId: 'acp-sdk-example',
+    cmd: 'node',
+    args: ['/home/ubuntu/acp-spike/node_modules/@agentclientprotocol/sdk/dist/examples/agent.js'],
+  },
+  {
+    agentId: 'github-copilot-cli',
+    cmd: 'npx',
+    args: ['--yes', '@github/copilot', '--acp', '--stdio'],
+  },
+  { agentId: 'claude-acp', cmd: 'npx', args: ['--yes', '@agentclientprotocol/claude-agent-acp'] },
+  { agentId: 'codex-acp', cmd: 'npx', args: ['--yes', '@agentclientprotocol/codex-acp'] },
+  { agentId: 'gemini-cli', cmd: 'npx', args: ['--yes', '@google/gemini-cli', '--acp'] },
+  { agentId: 'qwen-code', cmd: 'npx', args: ['--yes', '@qwen-code/qwen-code', '--acp'] },
 ];
 
 const cwd = process.cwd();
@@ -34,8 +42,8 @@ for (const candidate of candidates) {
           transport: 'stdio',
         },
         launchSpec: {
-          cmd: 'npx',
-          args: ['--yes', candidate.package, ...candidate.args],
+          cmd: candidate.cmd,
+          args: candidate.args,
           cwd,
         },
       },
@@ -55,6 +63,10 @@ for (const candidate of candidates) {
       profileId: candidate.agentId,
       authMethods: [],
       advertisedCommands: [],
+      capabilityMeasurements: {
+        image: 'unmeasured',
+        loadSession: 'unmeasured',
+      },
       checks: {
         prompt: { supported: false, error: { message: 'agent did not initialize' } },
         slashCommand: { supported: false, error: { message: 'agent did not initialize' } },

@@ -53,13 +53,6 @@ const BUILT_IN_AGENTS: Array<Record<string, unknown>> = [
     description: 'GitHub Copilot CLI ACP',
     distribution: { npx: { package: '@github/copilot@1.0.78', args: ['--acp'] } },
   },
-  {
-    id: 'opencode',
-    name: 'OpenCode',
-    version: '1.18.15',
-    description: 'OpenCode ACP',
-    distribution: { npx: { package: 'opencode-ai@1.18.15', args: ['acp'] } },
-  },
 ];
 
 function defaultCachePath(): string {

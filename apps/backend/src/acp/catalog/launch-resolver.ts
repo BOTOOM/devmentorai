@@ -43,7 +43,7 @@ export class AgentLaunchResolver {
     return {
       profile,
       catalogEntry: entry,
-      launchSpec: { ...launch, env: { ...environment, ...launch.env }, cwd: profile.defaultCwd },
+      launchSpec: { ...launch, env: { ...launch.env, ...environment }, cwd: profile.defaultCwd },
     };
   }
 

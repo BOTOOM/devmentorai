@@ -1,6 +1,9 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
 import { type Server, createServer } from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 import { Readable, Writable } from 'node:stream';
 import * as acp from '@agentclientprotocol/sdk';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -67,7 +70,12 @@ async function fakeServer(response: FakeResponse): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function connectAgent(baseUrl: string, supportsImage = false, allowTools = true) {
+async function connectAgent(
+  baseUrl: string,
+  supportsImage = false,
+  allowTools = true,
+  cwd = process.cwd()
+) {
   const child = spawn('node', ['dist/main.js'], {
     cwd: process.cwd(),
     env: {
@@ -104,7 +112,7 @@ async function connectAgent(baseUrl: string, supportsImage = false, allowTools =
     clientCapabilities: {},
   });
   const session = await connection.agent.request('session/new', {
-    cwd: process.cwd(),
+    cwd,
     mcpServers: [],
   });
   return { child, connection, initialize, session, updates };
@@ -222,6 +230,178 @@ describe('OpenAI-compatible ACP agent', () => {
         expect.objectContaining({ sessionUpdate: 'tool_call_update', status: 'failed' }),
       ])
     );
+  });
+
+  it('executes approved file tools inside cwd and returns the result to the model', async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), 'acp-openai-agent-'));
+    const requests: string[] = [];
+    const baseUrl = await fakeServer({
+      chunks: [],
+      requests,
+      completionSequences: [
+        [
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'write-1',
+                      function: {
+                        name: 'write_file',
+                        arguments: '{"path":"answer.txt","content":"tool answer"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+        [
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'read-1',
+                      function: {
+                        name: 'read_file',
+                        arguments: '{"path":"answer.txt"}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+        [{ choices: [{ delta: { content: 'tool answer' } }] }],
+      ],
+    });
+    try {
+      const result = await connectAgent(baseUrl, false, true, cwd);
+      await expect(
+        result.connection.agent.request('session/prompt', {
+          sessionId: result.session.sessionId,
+          prompt: [{ type: 'text', text: 'create and read the answer' }],
+        })
+      ).resolves.toMatchObject({ stopReason: 'end_turn' });
+      await expect(readFile(path.join(cwd, 'answer.txt'), 'utf8')).resolves.toBe('tool answer');
+      const finalRequest = JSON.parse(requests[2] ?? '{}') as {
+        messages?: Array<{ role?: string; content?: string }>;
+      };
+      expect(finalRequest.messages).toEqual(
+        expect.arrayContaining([expect.objectContaining({ role: 'tool', content: 'tool answer' })])
+      );
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['parent traversal', '../escape.txt'],
+    ['absolute path', '/tmp/acp-openai-agent-escape.txt'],
+    ['symlink traversal', 'link/escape.txt'],
+  ])('rejects %s outside cwd', async (_label, requestedPath) => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), 'acp-openai-agent-'));
+    const outside = await mkdtemp(path.join(os.tmpdir(), 'acp-openai-agent-outside-'));
+    const outsideFile = path.join(outside, 'escape.txt');
+    try {
+      await symlink(outside, path.join(cwd, 'link'));
+      const baseUrl = await fakeServer({
+        chunks: [],
+        completionSequences: [
+          [
+            {
+              choices: [
+                {
+                  delta: {
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: 'escape-1',
+                        function: {
+                          name: 'write_file',
+                          arguments: JSON.stringify({
+                            path: requestedPath,
+                            content: 'must not write',
+                          }),
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        ],
+      });
+      const result = await connectAgent(baseUrl, false, true, cwd);
+      await result.connection.agent.request('session/prompt', {
+        sessionId: result.session.sessionId,
+        prompt: [{ type: 'text', text: 'escape' }],
+      });
+      expect(result.updates).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sessionUpdate: 'tool_call_update', status: 'failed' }),
+        ])
+      );
+      await expect(readFile(outsideFile, 'utf8')).rejects.toThrow();
+      await expect(readFile(path.join(cwd, 'escape.txt'), 'utf8')).rejects.toThrow();
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it('cancels shell execution during the tool loop without starting another round', async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), 'acp-openai-agent-'));
+    const requests: string[] = [];
+    try {
+      const baseUrl = await fakeServer({
+        chunks: [],
+        requests,
+        completionSequences: [
+          [
+            {
+              choices: [
+                {
+                  delta: {
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: 'shell-1',
+                        function: {
+                          name: 'run_shell',
+                          arguments: '{"command":"sleep 5"}',
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+        ],
+      });
+      const result = await connectAgent(baseUrl, false, true, cwd);
+      const prompt = result.connection.agent.request('session/prompt', {
+        sessionId: result.session.sessionId,
+        prompt: [{ type: 'text', text: 'run slowly' }],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await result.connection.agent.notify('session/cancel', {
+        sessionId: result.session.sessionId,
+      });
+      await expect(prompt).resolves.toMatchObject({ stopReason: 'cancelled' });
+      expect(requests).toHaveLength(1);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
   });
 
   it('preserves resource context and discovers models with a fallback', async () => {

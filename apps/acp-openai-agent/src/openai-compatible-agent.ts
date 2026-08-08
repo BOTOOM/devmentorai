@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import * as acp from '@agentclientprotocol/sdk';
@@ -365,10 +365,10 @@ export class OpenAICompatibleAgent {
     const input: unknown = JSON.parse(call.arguments);
     if (!isRecord(input)) throw new Error('Tool arguments must be an object');
     if (call.name === 'read_file') {
-      return readFile(this.safePath(session.cwd, stringValue(input.path)), 'utf8');
+      return readFile(await this.safePath(session.cwd, stringValue(input.path)), 'utf8');
     }
     if (call.name === 'write_file') {
-      const target = this.safePath(session.cwd, stringValue(input.path));
+      const target = await this.safePath(session.cwd, stringValue(input.path));
       await mkdir(path.dirname(target), { recursive: true });
       await writeFile(target, stringValue(input.content), 'utf8');
       return 'File written.';
@@ -384,10 +384,36 @@ export class OpenAICompatibleAgent {
     throw new Error(`Unsupported tool: ${call.name}`);
   }
 
-  private safePath(cwd: string, requested: string): string {
+  private async safePath(cwd: string, requested: string): Promise<string> {
     const root = path.resolve(cwd);
     const target = path.resolve(root, requested);
     if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
+      throw new Error('Tool path is outside the session workspace');
+    }
+    const resolvedRoot = await realpath(root);
+    let resolvedTarget: string | undefined;
+    try {
+      resolvedTarget = await realpath(target);
+    } catch {
+      let existing = path.dirname(target);
+      const suffix: string[] = [path.basename(target)];
+      while (existing !== path.dirname(existing)) {
+        try {
+          const resolvedExisting = await realpath(existing);
+          resolvedTarget = path.join(resolvedExisting, ...suffix);
+          break;
+        } catch {
+          suffix.unshift(path.basename(existing));
+          existing = path.dirname(existing);
+        }
+      }
+      if (resolvedTarget === undefined) throw new Error('Tool path cannot be resolved');
+    }
+    if (resolvedTarget === undefined) throw new Error('Tool path cannot be resolved');
+    if (
+      resolvedTarget !== resolvedRoot &&
+      !resolvedTarget.startsWith(`${resolvedRoot}${path.sep}`)
+    ) {
       throw new Error('Tool path is outside the session workspace');
     }
     return target;

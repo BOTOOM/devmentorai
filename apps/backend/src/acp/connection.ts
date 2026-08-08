@@ -82,7 +82,7 @@ export class AgentConnection {
   readonly agentId: string;
   readonly launchSpec: LaunchSpec;
   private readonly launcher: AgentLauncher;
-  private readonly permissionPolicy: PermissionPolicy;
+  private permissionPolicy: PermissionPolicy;
   private onSessionUpdate?: AgentConnectionOptions['onSessionUpdate'];
   private onAgentCrash?: AgentConnectionOptions['onAgentCrash'];
   private process: AgentProcess | undefined;
@@ -122,6 +122,10 @@ export class AgentConnection {
 
   setSessionUpdateHandler(handler: AgentConnectionOptions['onSessionUpdate']): void {
     this.onSessionUpdate = handler;
+  }
+
+  setPermissionPolicy(policy: PermissionPolicy): void {
+    this.permissionPolicy = policy;
   }
 
   setAgentCrashHandler(handler: AgentConnectionOptions['onAgentCrash']): void {

@@ -112,6 +112,28 @@ export function initDatabase(): Database.Database {
     // Column already exists
   }
 
+  const acpSessionColumns = [
+    'agent_id TEXT',
+    'acp_session_id TEXT',
+    'cwd TEXT',
+    'protocol_version INTEGER',
+    'capabilities_json TEXT',
+    'config_options_json TEXT',
+    "title_source TEXT CHECK (title_source IN ('agent', 'local'))",
+    'replay_supported INTEGER',
+    'imported_from TEXT',
+  ];
+  for (const column of acpSessionColumns) {
+    try {
+      db.exec(`ALTER TABLE sessions ADD COLUMN ${column}`);
+    } catch {
+      // Column already exists.
+    }
+  }
+  db.exec(
+    "UPDATE sessions SET imported_from = 'copilot-sdk' WHERE imported_from IS NULL AND agent_id IS NULL"
+  );
+
   return db;
 }
 

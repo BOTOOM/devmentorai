@@ -1,0 +1,43 @@
+import type { AcpEvent } from '@devmentorai/shared';
+import { describe, expect, it } from 'vitest';
+import { initialAcpChatState, reduceAcpEvent } from '../src/services/acp-reducer';
+
+describe('ACP chat reducer', () => {
+  it('upserts and appends streamed message chunks by message id', () => {
+    const first: AcpEvent = {
+      type: 'message',
+      role: 'assistant',
+      messageId: 'assistant-1',
+      content: [{ type: 'text', text: 'hel' }],
+      mode: 'replace',
+    };
+    const second: AcpEvent = {
+      ...first,
+      content: [{ type: 'text', text: 'lo' }],
+      mode: 'append',
+    };
+    const afterFirst = reduceAcpEvent(initialAcpChatState, first, 'session-1');
+    const afterSecond = reduceAcpEvent(afterFirst, second, 'session-1');
+    expect(afterSecond.messages).toHaveLength(1);
+    expect(afterSecond.messages[0]?.content).toBe('hello');
+  });
+
+  it('tracks state and recoverable errors', () => {
+    const running = reduceAcpEvent(
+      initialAcpChatState,
+      { type: 'state', state: 'running' },
+      'session-1'
+    );
+    const failed = reduceAcpEvent(
+      running,
+      {
+        type: 'error',
+        error: { code: 'agent_error', message: 'timed out', recoverable: true },
+      },
+      'session-1'
+    );
+    expect(running.isStreaming).toBe(true);
+    expect(failed.isStreaming).toBe(false);
+    expect(failed.error).toBe('timed out');
+  });
+});

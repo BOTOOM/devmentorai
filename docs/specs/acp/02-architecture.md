@@ -83,6 +83,12 @@ from the backend's in-memory turn buffer, so a panel close/reopen mid-turn does 
 content. REST endpoints are kept only for non-streaming utilities (health, images,
 catalog) — see [ADR-0003](./adr/0003-websocket-jsonrpc-ui-transport.md).
 
+The Phase 3 buffer is bounded per session and retains the newest events up to its
+configured limit. Each event has a monotonic sequence number. A replay request returns
+events strictly newer than the client's last sequence; if that sequence predates the
+oldest retained event, the response sets `gap: true` so the UI can report a late
+reconnect rather than silently presenting an incomplete turn.
+
 ## 4. Internal event model (`packages/shared`)
 
 One union, version-agnostic, upsert-shaped — the UI reduces it into a session view model:

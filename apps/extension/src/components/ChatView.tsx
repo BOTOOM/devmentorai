@@ -22,8 +22,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAutoResizeTextarea } from '../hooks/useAutoResizeTextarea';
 import { useImageAttachments } from '../hooks/useImageAttachments';
 import { cn } from '../lib/utils';
+import type { AcpPermissionRequest } from '../services/acp-client';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
 import { MessageBubble } from './MessageBubble';
+import { PermissionCard } from './PermissionCard';
 
 interface ChatViewProps {
   session: Session | null;
@@ -48,6 +50,9 @@ interface ChatViewProps {
   screenshotBehavior?: 'disabled' | 'ask' | 'auto';
   /** Callback to register the addImage function for external use */
   onRegisterAddImage?: (addImage: (dataUrl: string, source: 'screenshot') => Promise<void>) => void;
+  permissionRequest?: AcpPermissionRequest | null;
+  onPermissionRespond?: (optionId: string) => void;
+  onPermissionDismiss?: () => void;
 }
 
 export function ChatView({
@@ -72,6 +77,9 @@ export function ChatView({
   onCaptureScreenshot,
   screenshotBehavior = 'disabled',
   onRegisterAddImage,
+  permissionRequest,
+  onPermissionRespond,
+  onPermissionDismiss,
 }: Readonly<ChatViewProps>) {
   const [input, setInput] = useState('');
   const [showContextPreview, setShowContextPreview] = useState(false);
@@ -333,6 +341,13 @@ export function ChatView({
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
+      {permissionRequest && onPermissionRespond && onPermissionDismiss ? (
+        <PermissionCard
+          onDismiss={onPermissionDismiss}
+          onRespond={onPermissionRespond}
+          request={permissionRequest}
+        />
+      ) : null}
       {/* Session info bar - C.1: clickeable model selector */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 text-sm">

@@ -1,6 +1,7 @@
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
+import { acpEnabled, registerAcpGateway } from './acp/gateway.js';
 import { initDatabase } from './db/index.js';
 import { accountRoutes } from './routes/account.js';
 import { chatRoutes } from './routes/chat.js';
@@ -14,7 +15,7 @@ import { CopilotService } from './services/copilot.service.js';
 import { SessionService } from './services/session.service.js';
 
 const PORT = Number.parseInt(process.env.DEVMENTORAI_PORT || '', 10) || DEFAULT_CONFIG.DEFAULT_PORT;
-const HOST = '0.0.0.0';
+const HOST = acpEnabled() ? process.env.ACP_HOST || '127.0.0.1' : '0.0.0.0';
 
 // Observability mode - enable with DEVMENTORAI_DEBUG=true
 const DEBUG_MODE = true;
@@ -106,6 +107,19 @@ export async function createServer() {
   // Initialize services
   const sessionService = new SessionService(db);
   const copilotService = new CopilotService(sessionService);
+  const acpGateway = await registerAcpGateway(fastify, {
+    db,
+    workspaceRoot: process.env.ACP_WORKSPACE_ROOT,
+    extensionOrigin: process.env.ACP_EXTENSION_ORIGIN,
+    allowedOrigins: (process.env.ACP_ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    idleTimeoutMs: Number(process.env.ACP_IDLE_TIMEOUT_MS) || undefined,
+  });
+  if (acpGateway) {
+    fastify.decorate('acpGateway', acpGateway);
+  }
 
   try {
     await copilotService.initialize();
@@ -158,6 +172,7 @@ async function main() {
     let exitCode = 0;
     try {
       await fastify.copilotService.shutdown();
+      await fastify.acpGateway?.shutdown();
       await fastify.close();
     } catch (err) {
       exitCode = 1;
@@ -207,5 +222,6 @@ declare module 'fastify' {
   interface FastifyInstance {
     sessionService: SessionService;
     copilotService: CopilotService;
+    acpGateway?: Awaited<ReturnType<typeof registerAcpGateway>>;
   }
 }

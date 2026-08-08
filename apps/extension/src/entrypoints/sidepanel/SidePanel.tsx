@@ -69,9 +69,16 @@ export function SidePanel() {
     refreshSessions,
   } = useSessions({ connectionStatus });
 
-  const { messages, isStreaming, isSending, sendMessage, abortMessage } = useChat(
-    activeSession?.id
-  );
+  const {
+    messages,
+    isStreaming,
+    isSending,
+    sendMessage,
+    abortMessage,
+    permissionRequest,
+    respondToPermission,
+    dismissPermission,
+  } = useChat(activeSession?.id);
 
   // Context extraction hook
   const {
@@ -442,6 +449,9 @@ export function SidePanel() {
         onRegisterAddImage={(fn) => {
           addImageToChatRef.current = fn;
         }}
+        permissionRequest={permissionRequest}
+        onPermissionRespond={respondToPermission}
+        onPermissionDismiss={dismissPermission}
       />
 
       {showNewSessionModal && (

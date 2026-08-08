@@ -9,6 +9,7 @@ import type { LaunchResolution } from './catalog/types.js';
 import { WorkspaceService } from './catalog/workspace.js';
 import { AgentConnection, type PermissionDecision } from './connection.js';
 import { AcpError, isAcpError } from './errors.js';
+import { AcpPermissionStore } from './permission-store.js';
 import { AcpSessionManager } from './session-manager.js';
 
 type JsonRpcId = string | number;
@@ -51,6 +52,8 @@ type GatewayClient = {
 type PendingPermission = {
   request: RequestPermissionRequest;
   resolve: (decision: PermissionDecision) => void;
+  agentId: string;
+  tool: string;
 };
 
 const DEFAULT_IDLE_TIMEOUT_MS = 60_000;
@@ -98,6 +101,10 @@ function asBlocks(value: unknown): AcpContentBlock[] {
   return value as AcpContentBlock[];
 }
 
+function permissionTool(request: RequestPermissionRequest): string {
+  return request.toolCall.title ?? request.toolCall.kind ?? 'unknown-tool';
+}
+
 export class AcpGateway {
   private readonly db: Database;
   private readonly agentService: AcpAgentService;
@@ -115,7 +122,9 @@ export class AcpGateway {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly timeoutRejects = new Map<string, (error: AcpError) => void>();
   private readonly pendingPermissions = new Map<string, PendingPermission>();
+  private readonly sessionAgentIds = new Map<string, string>();
   private readonly manager: AcpSessionManager;
+  private readonly permissions: AcpPermissionStore;
 
   constructor(options: GatewayOptions) {
     this.db = options.db;
@@ -135,6 +144,7 @@ export class AcpGateway {
     this.manager = new AcpSessionManager({
       onEvent: (sessionId, event) => this.handleEvent(sessionId, event),
     });
+    this.permissions = new AcpPermissionStore(this.db);
     this.agentService.ensureDefaultProfile();
   }
 
@@ -293,6 +303,20 @@ export class AcpGateway {
         return this.listSessions();
       case 'ui/permission.respond':
         return { accepted: true };
+      case 'ui/permissions.list':
+        return this.permissions.list(
+          typeof params.agentId === 'string' ? params.agentId : undefined
+        );
+      case 'ui/permissions.revoke':
+        this.permissions.revoke(
+          typeof params.agentId === 'string'
+            ? params.agentId
+            : (this.sessionAgentIds.get(
+                this.resolveSessionId(asString(params.sessionId, 'sessionId'))
+              ) ?? asString(params.agentId, 'agentId')),
+          asString(params.tool, 'tool')
+        );
+        return { revoked: true };
       case 'ui/agents.list':
         return this.agentService.list();
       case 'ui/agents.install':
@@ -345,7 +369,13 @@ export class AcpGateway {
       connection = new AgentConnection({
         agentId: profileId,
         launchSpec: resolution.launchSpec,
-        permissionPolicy: (request) => this.permissionRequest(request.sessionId, client, request),
+        permissionPolicy: (request) =>
+          this.permissionRequest(
+            request.sessionId,
+            client,
+            request,
+            resolution.profile.agentId ?? profileId
+          ),
       });
       this.connections.set(profileId, connection);
       this.manager.registerAgent({
@@ -355,7 +385,12 @@ export class AcpGateway {
       });
     } else {
       connection.setPermissionPolicy((request) =>
-        this.permissionRequest(request.sessionId, client, request)
+        this.permissionRequest(
+          request.sessionId,
+          client,
+          request,
+          resolution.profile.agentId ?? profileId
+        )
       );
     }
     const cwd = await this.workspace.resolve(
@@ -363,6 +398,7 @@ export class AcpGateway {
     );
     const session = await this.manager.createSession({ agentId: profileId, cwd });
     this.sessions.set(session.id, session);
+    this.sessionAgentIds.set(session.id, resolution.profile.agentId ?? profileId);
     this.clientsByAcpSession.set(session.acpSessionId, client);
     this.persistAcpSession(session, resolution);
     return session;
@@ -477,14 +513,22 @@ export class AcpGateway {
   private permissionRequest(
     acpSessionId: string,
     client: GatewayClient,
-    request: RequestPermissionRequest
+    request: RequestPermissionRequest,
+    agentId: string
   ): Promise<PermissionDecision> {
+    const tool = permissionTool(request);
+    const remembered = this.permissions.get(agentId, tool);
+    if (remembered && request.options.some((option) => option.optionId === remembered.optionId)) {
+      return Promise.resolve({
+        outcome: { outcome: 'selected', optionId: remembered.optionId },
+      });
+    }
     this.clientsByAcpSession.set(
       acpSessionId,
       this.clientsByAcpSession.get(acpSessionId) ?? client
     );
     return new Promise((resolve) => {
-      this.pendingPermissions.set(acpSessionId, { request, resolve });
+      this.pendingPermissions.set(acpSessionId, { request, resolve, agentId, tool });
       this.sendPendingPermission(acpSessionId);
     });
   }
@@ -502,6 +546,12 @@ export class AcpGateway {
         }
         const outcome = result.outcome;
         if (outcome.outcome === 'selected' && typeof outcome.optionId === 'string') {
+          const selected = pending.request.options.find(
+            (option) => option.optionId === outcome.optionId
+          );
+          if (selected?.kind === 'allow_always') {
+            this.permissions.save(pending.agentId, pending.tool, outcome.optionId);
+          }
           pending.resolve({ outcome: { outcome: 'selected', optionId: outcome.optionId } });
           return;
         }

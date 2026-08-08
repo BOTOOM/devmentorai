@@ -135,6 +135,10 @@ export class AcpClient {
     });
   }
 
+  async revokePermission(sessionId: string, tool: string): Promise<void> {
+    await this.request('ui/permissions.revoke', { sessionId, tool });
+  }
+
   async replay(
     sessionId: string,
     lastSeq: number

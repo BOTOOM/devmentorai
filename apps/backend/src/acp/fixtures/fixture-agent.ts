@@ -165,6 +165,7 @@ const fixture = {
         },
         options: [
           { kind: 'allow_once', name: 'Allow once', optionId: 'allow' },
+          { kind: 'allow_always', name: 'Always allow', optionId: 'always' },
           { kind: 'reject_once', name: 'Reject once', optionId: 'reject' },
         ],
       });

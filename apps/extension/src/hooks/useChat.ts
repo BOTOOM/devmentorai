@@ -9,7 +9,6 @@ import type {
   StreamEvent,
 } from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { storageGet, storageSet } from '../lib/browser-utils';
 import type { AcpPermissionDecision, AcpPermissionRequest } from '../services/acp-client';
 import { AcpClient, acpEnabled } from '../services/acp-client';
 import { initialAcpChatState, reduceAcpEvent } from '../services/acp-reducer';
@@ -63,24 +62,11 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
     () =>
       new AcpClient({
         url: 'ws://localhost:3847/acp',
-        permissionHandler: async (request) => {
-          const key = permissionKey(request);
-          const remembered = await storageGet<RememberedPermissionsStorage>(
-            'acpRememberedPermissions'
-          );
-          if (remembered.acpRememberedPermissions?.[key]) {
-            return {
-              outcome: {
-                outcome: 'selected',
-                optionId: remembered.acpRememberedPermissions[key] as string,
-              },
-            };
-          }
-          return new Promise((resolve) => {
+        permissionHandler: async (request) =>
+          new Promise((resolve) => {
             setPermissionRequest(request);
             permissionResolverRef.current = resolve;
-          });
-        },
+          }),
       }),
     []
   );
@@ -96,38 +82,20 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
     return unsubscribe;
   }, [acpClient, sessionId]);
 
-  const respondToPermission = useCallback(
-    (optionId: string) => {
-      const option = permissionRequest?.options.find(
-        (candidate) => candidate.optionId === optionId
-      );
-      if (option?.kind === 'allow_always' && permissionRequest) {
-        const key = permissionKey(permissionRequest);
-        void storageGet<RememberedPermissionsStorage>('acpRememberedPermissions').then((current) =>
-          storageSet({
-            acpRememberedPermissions: {
-              ...current.acpRememberedPermissions,
-              [key]: optionId,
-            },
-          })
-        );
-      }
-      permissionResolverRef.current?.({ outcome: { outcome: 'selected', optionId } });
-      permissionResolverRef.current = null;
-      setPermissionRequest(null);
-    },
-    [permissionRequest]
-  );
+  const respondToPermission = useCallback((optionId: string) => {
+    permissionResolverRef.current?.({ outcome: { outcome: 'selected', optionId } });
+    permissionResolverRef.current = null;
+    setPermissionRequest(null);
+  }, []);
 
   const revokePermission = useCallback(() => {
     if (!permissionRequest) return;
-    const key = permissionKey(permissionRequest);
-    void storageGet<RememberedPermissionsStorage>('acpRememberedPermissions').then((current) => {
-      const next = { ...current.acpRememberedPermissions };
-      delete next[key];
-      return storageSet({ acpRememberedPermissions: next });
-    });
-  }, [permissionRequest]);
+    const toolCall = permissionRequest.toolCall as { title?: string; kind?: string };
+    void acpClient.revokePermission(
+      permissionRequest.sessionId,
+      toolCall.title ?? toolCall.kind ?? 'unknown-tool'
+    );
+  }, [acpClient, permissionRequest]);
 
   const dismissPermission = useCallback(() => {
     permissionResolverRef.current?.({ outcome: { outcome: 'cancelled' } });
@@ -653,19 +621,3 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
     setAcpConfigOption,
   };
 }
-
-function permissionKey(request: AcpPermissionRequest): string {
-  const toolCall =
-    request.toolCall && typeof request.toolCall === 'object'
-      ? (request.toolCall as Record<string, unknown>)
-      : undefined;
-  const toolCallId =
-    toolCall && typeof toolCall === 'object' && typeof toolCall.toolCallId === 'string'
-      ? toolCall.toolCallId
-      : 'unknown-tool';
-  return `${request.sessionId}:${toolCallId}`;
-}
-
-type RememberedPermissionsStorage = {
-  acpRememberedPermissions?: Record<string, string>;
-};

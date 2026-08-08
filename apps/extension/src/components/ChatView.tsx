@@ -25,6 +25,7 @@ import { useImageAttachments } from '../hooks/useImageAttachments';
 import { cn } from '../lib/utils';
 import type { AcpPermissionRequest } from '../services/acp-client';
 import type { AcpChatState } from '../services/acp-reducer';
+import { AcpCommandPalette } from './AcpCommandPalette';
 import { AcpSurfaces } from './AcpSurfaces';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
 import { MessageBubble } from './MessageBubble';
@@ -489,24 +490,12 @@ export function ChatView({
         )}
 
         {commandPalette.length > 0 ? (
-          <div className="absolute bottom-20 left-4 right-4 z-20 rounded border border-slate-300 bg-white p-2 shadow-lg dark:border-slate-600 dark:bg-slate-800">
-            {commandPalette.map((command, index) => (
-              <button
-                className={cn(
-                  'block w-full rounded px-2 py-1 text-left text-sm',
-                  index === commandIndex && 'bg-primary-100 dark:bg-primary-900/40'
-                )}
-                key={command.name}
-                onClick={() => setInput(`/${command.name} `)}
-                type="button"
-              >
-                <span className="font-medium">/{command.name}</span>
-                <span className="ml-2 text-xs text-slate-500">{command.description}</span>
-                {command.input?.hint ? (
-                  <span className="ml-2 text-xs text-slate-400">({command.input.hint})</span>
-                ) : null}
-              </button>
-            ))}
+          <div className="absolute bottom-20 left-4 right-4 z-20">
+            <AcpCommandPalette
+              commands={acpState?.commands ?? []}
+              onSelect={(command) => setInput(`/${command.name} `)}
+              query={commandQuery}
+            />
           </div>
         ) : null}
 

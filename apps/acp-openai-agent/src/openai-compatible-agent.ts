@@ -1,4 +1,10 @@
+import { execFile } from 'node:child_process';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { promisify } from 'node:util';
 import * as acp from '@agentclientprotocol/sdk';
+
+const execFileAsync = promisify(execFile);
 
 type AgentOptions = {
   baseUrl: string;
@@ -6,14 +12,14 @@ type AgentOptions = {
   apiKey: string | undefined;
   supportsImage: boolean;
 };
-
+type ChatContentPart = Record<string, unknown>;
 type ChatMessage = {
   role: 'user' | 'assistant' | 'tool';
-  content: string | Array<Record<string, unknown>> | null;
+  content: string | ChatContentPart[] | null;
   tool_calls?: Array<Record<string, unknown>>;
   tool_call_id?: string;
 };
-
+type ToolCall = { id: string; index: number; name: string; arguments: string };
 type SessionState = {
   cwd: string;
   baseUrl: string;
@@ -21,30 +27,82 @@ type SessionState = {
   controller: AbortController | undefined;
   messages: ChatMessage[];
 };
-
 type CompletionChoice = {
-  delta?: {
-    content?: string | null;
-    tool_calls?: Array<Record<string, unknown>>;
-  };
-  message?: {
-    content?: string | null;
-    tool_calls?: Array<Record<string, unknown>>;
-  };
-  finish_reason?: string | null;
+  delta?: { content?: string | null; tool_calls?: Array<Record<string, unknown>> };
 };
+type SessionToolResult = { call: ToolCall; result?: string; rejected?: boolean };
 
-type CompletionChunk = { choices?: CompletionChoice[] };
+const TOOL_DEFINITIONS = [
+  {
+    type: 'function',
+    function: {
+      name: 'read_file',
+      description: 'Read a UTF-8 text file inside the session workspace.',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string' } },
+        required: ['path'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'write_file',
+      description: 'Write UTF-8 text to a file inside the session workspace.',
+      parameters: {
+        type: 'object',
+        properties: { path: { type: 'string' }, content: { type: 'string' } },
+        required: ['path', 'content'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_shell',
+      description: 'Run a shell command inside the session workspace.',
+      parameters: {
+        type: 'object',
+        properties: { command: { type: 'string' } },
+        required: ['command'],
+        additionalProperties: false,
+      },
+    },
+  },
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
-
-function textContent(blocks: acp.ContentBlock[]): string {
-  return blocks
-    .filter((block): block is Extract<acp.ContentBlock, { type: 'text' }> => block.type === 'text')
-    .map((block) => block.text)
-    .join('');
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+function configOptions(
+  model: string,
+  baseUrl: string,
+  models: string[]
+): acp.SessionConfigOption[] {
+  return [
+    {
+      id: 'model',
+      name: 'Model',
+      category: 'model',
+      type: 'select',
+      currentValue: model,
+      options: [...new Set([model, ...models])].map((value) => ({ value, name: value })),
+    },
+    {
+      id: 'base-url',
+      name: 'Endpoint',
+      category: 'mode',
+      type: 'select',
+      currentValue: baseUrl,
+      options: [{ value: baseUrl, name: baseUrl }],
+    },
+  ];
 }
 
 export class OpenAICompatibleAgent {
@@ -53,6 +111,7 @@ export class OpenAICompatibleAgent {
   private readonly apiKey: string | undefined;
   private readonly supportsImage: boolean;
   private readonly sessions = new Map<string, SessionState>();
+  private readonly models = new Map<string, string[]>();
 
   constructor(options: AgentOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
@@ -70,9 +129,7 @@ export class OpenAICompatibleAgent {
           embeddedContext: true,
         },
       },
-      authMethods: this.apiKey
-        ? []
-        : [{ id: 'api-key', name: 'API key', description: 'Configure the endpoint API key' }],
+      authMethods: [],
       agentInfo: { name: 'DevMentorAI OpenAI-compatible ACP agent', version: '0.1.0' },
     };
   }
@@ -81,65 +138,38 @@ export class OpenAICompatibleAgent {
     return Promise.resolve();
   }
 
-  newSession(params: acp.NewSessionRequest): acp.NewSessionResponse {
+  async newSession(params: acp.NewSessionRequest): Promise<acp.NewSessionResponse> {
     const sessionId = crypto.randomUUID();
+    const baseUrl = this.baseUrl;
+    const models = await this.fetchModels(baseUrl);
+    this.models.set(sessionId, models);
     this.sessions.set(sessionId, {
-      cwd: params.cwd,
-      baseUrl: this.baseUrl,
+      cwd: path.resolve(params.cwd),
+      baseUrl,
       model: this.defaultModel,
       controller: undefined,
       messages: [],
     });
-    return {
-      sessionId,
-      configOptions: [
-        {
-          id: 'model',
-          name: 'Model',
-          category: 'model',
-          type: 'select',
-          currentValue: this.defaultModel,
-          options: [{ value: this.defaultModel, name: this.defaultModel }],
-        },
-        {
-          id: 'base-url',
-          name: 'Endpoint',
-          category: 'mode',
-          type: 'select',
-          currentValue: this.baseUrl,
-          options: [{ value: this.baseUrl, name: this.baseUrl }],
-        },
-      ],
-    };
+    return { sessionId, configOptions: configOptions(this.defaultModel, baseUrl, models) };
   }
 
-  setConfigOption(params: acp.SetSessionConfigOptionRequest): acp.SetSessionConfigOptionResponse {
+  async setConfigOption(
+    params: acp.SetSessionConfigOptionRequest
+  ): Promise<acp.SetSessionConfigOptionResponse> {
     const session = this.requireSession(params.sessionId);
     if (params.configId === 'model' && typeof params.value === 'string') {
       session.model = params.value;
     }
     if (params.configId === 'base-url' && typeof params.value === 'string') {
       session.baseUrl = params.value.replace(/\/+$/, '');
+      this.models.set(params.sessionId, await this.fetchModels(session.baseUrl));
     }
     return {
-      configOptions: [
-        {
-          id: 'model',
-          name: 'Model',
-          category: 'model',
-          type: 'select',
-          currentValue: session.model,
-          options: [{ value: session.model, name: session.model }],
-        },
-        {
-          id: 'base-url',
-          name: 'Endpoint',
-          category: 'mode',
-          type: 'select',
-          currentValue: session.baseUrl,
-          options: [{ value: session.baseUrl, name: session.baseUrl }],
-        },
-      ],
+      configOptions: configOptions(
+        session.model,
+        session.baseUrl,
+        this.models.get(params.sessionId) ?? []
+      ),
     };
   }
 
@@ -147,26 +177,41 @@ export class OpenAICompatibleAgent {
     const session = this.requireSession(params.sessionId);
     const controller = new AbortController();
     session.controller = controller;
-    const userMessage = this.toMessage(params.prompt);
-    session.messages.push(userMessage);
+    session.messages.push(this.toMessage(params.prompt));
     try {
-      const response = await fetch(`${session.baseUrl}/v1/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
-        },
-        body: JSON.stringify({ model: session.model, messages: session.messages, stream: true }),
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error(`OpenAI-compatible endpoint returned ${response.status}`);
-      const content = await this.consumeStream(response, params.sessionId, client);
-      session.messages.push({ role: 'assistant', content });
-      await client.notify(acp.methods.client.session.update, {
-        sessionId: params.sessionId,
-        update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '' } },
-      });
-      return { stopReason: controller.signal.aborted ? 'cancelled' : 'end_turn' };
+      for (let round = 0; round < 8; round += 1) {
+        const result = await this.complete(session, params.sessionId, client);
+        if (result.toolCalls.length === 0) {
+          if (result.content) session.messages.push({ role: 'assistant', content: result.content });
+          return { stopReason: controller.signal.aborted ? 'cancelled' : 'end_turn' };
+        }
+        session.messages.push({
+          role: 'assistant',
+          content: result.content || null,
+          tool_calls: result.toolCalls.map((call) => ({
+            id: call.id,
+            type: 'function',
+            function: { name: call.name, arguments: call.arguments },
+          })),
+        });
+        const results = await this.resolveToolCalls(
+          session,
+          params.sessionId,
+          result.toolCalls,
+          client
+        );
+        for (const toolResult of results) {
+          session.messages.push({
+            role: 'tool',
+            tool_call_id: toolResult.call.id,
+            content: toolResult.rejected
+              ? 'Tool execution rejected by the user.'
+              : (toolResult.result ?? ''),
+          });
+        }
+        if (controller.signal.aborted) return { stopReason: 'cancelled' };
+      }
+      throw new Error('Tool-call loop exceeded its maximum number of rounds');
     } catch (error) {
       if (controller.signal.aborted) return { stopReason: 'cancelled' };
       throw error;
@@ -179,16 +224,32 @@ export class OpenAICompatibleAgent {
     this.sessions.get(params.sessionId)?.controller?.abort();
   }
 
-  private async consumeStream(
-    response: Response,
+  private async complete(
+    session: SessionState,
     sessionId: string,
     client: acp.AgentContext
-  ): Promise<string> {
+  ): Promise<{ content: string; toolCalls: ToolCall[] }> {
+    const response = await fetch(`${session.baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: session.model,
+        messages: session.messages,
+        tools: TOOL_DEFINITIONS,
+        stream: true,
+      }),
+      ...(session.controller ? { signal: session.controller.signal } : {}),
+    });
+    if (!response.ok) throw new Error(`OpenAI-compatible endpoint returned ${response.status}`);
     const reader = response.body?.getReader();
     if (!reader) throw new Error('OpenAI-compatible endpoint returned no stream');
     const decoder = new TextDecoder();
     let buffer = '';
     let content = '';
+    const toolCalls = new Map<number, ToolCall>();
     for (;;) {
       const next = await reader.read();
       if (next.done) break;
@@ -213,68 +274,168 @@ export class OpenAICompatibleAgent {
             },
           });
         }
-        const toolCalls = choice?.delta?.tool_calls;
-        if (toolCalls) await this.emitToolCalls(sessionId, toolCalls, client);
+        for (const fragment of choice?.delta?.tool_calls ?? []) {
+          this.mergeToolCall(toolCalls, fragment);
+        }
       }
     }
-    return content;
+    return { content, toolCalls: [...toolCalls.values()] };
   }
 
-  private async emitToolCalls(
+  private mergeToolCall(calls: Map<number, ToolCall>, fragment: Record<string, unknown>): void {
+    const index = typeof fragment.index === 'number' ? fragment.index : 0;
+    const current = calls.get(index) ?? {
+      id: crypto.randomUUID(),
+      index,
+      name: '',
+      arguments: '',
+    };
+    if (typeof fragment.id === 'string') current.id = fragment.id;
+    const functionValue = isRecord(fragment.function) ? fragment.function : {};
+    if (typeof functionValue.name === 'string') current.name += functionValue.name;
+    if (typeof functionValue.arguments === 'string') current.arguments += functionValue.arguments;
+    calls.set(index, current);
+  }
+
+  private async resolveToolCalls(
+    session: SessionState,
     sessionId: string,
-    toolCalls: Array<Record<string, unknown>>,
+    calls: ToolCall[],
     client: acp.AgentContext
-  ): Promise<void> {
-    for (const toolCall of toolCalls) {
-      const id = typeof toolCall.id === 'string' ? toolCall.id : crypto.randomUUID();
+  ): Promise<SessionToolResult[]> {
+    const results: SessionToolResult[] = [];
+    for (const call of calls) {
       await client.notify(acp.methods.client.session.update, {
         sessionId,
         update: {
           sessionUpdate: 'tool_call',
-          toolCallId: id,
-          title: 'OpenAI tool call',
+          toolCallId: call.id,
+          title: call.name,
           kind: 'execute',
           status: 'pending',
-          rawInput: toolCall,
+          rawInput: call.arguments,
         },
       });
       const permission = await client.request(acp.methods.client.session.requestPermission, {
         sessionId,
-        toolCall: { toolCallId: id, title: 'OpenAI tool call', kind: 'execute', status: 'pending' },
+        toolCall: { toolCallId: call.id, title: call.name, kind: 'execute', status: 'pending' },
         options: [
           { optionId: 'allow', name: 'Allow once', kind: 'allow_once' },
           { optionId: 'reject', name: 'Reject', kind: 'reject_once' },
         ],
       });
-      await client.notify(acp.methods.client.session.update, {
-        sessionId,
-        update: {
-          sessionUpdate: 'tool_call_update',
-          toolCallId: id,
-          status: permission.outcome.outcome === 'selected' ? 'completed' : 'cancelled',
-          rawOutput: permission,
-        },
+      if (permission.outcome.outcome !== 'selected' || permission.outcome.optionId !== 'allow') {
+        await this.toolUpdate(client, sessionId, call.id, 'failed', 'rejected');
+        results.push({ call, rejected: true });
+        continue;
+      }
+      await this.toolUpdate(client, sessionId, call.id, 'in_progress');
+      try {
+        const result = await this.executeTool(session, call);
+        await this.toolUpdate(client, sessionId, call.id, 'completed', result);
+        results.push({ call, result });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Tool failed';
+        await this.toolUpdate(client, sessionId, call.id, 'failed', message);
+        results.push({ call, result: message });
+      }
+    }
+    return results;
+  }
+
+  private async toolUpdate(
+    client: acp.AgentContext,
+    sessionId: string,
+    toolCallId: string,
+    status: 'failed' | 'in_progress' | 'completed',
+    output?: string
+  ): Promise<void> {
+    await client.notify(acp.methods.client.session.update, {
+      sessionId,
+      update: {
+        sessionUpdate: 'tool_call_update',
+        toolCallId,
+        status,
+        ...(output ? { rawOutput: output } : {}),
+      },
+    });
+  }
+
+  private async executeTool(session: SessionState, call: ToolCall): Promise<string> {
+    const input: unknown = JSON.parse(call.arguments);
+    if (!isRecord(input)) throw new Error('Tool arguments must be an object');
+    if (call.name === 'read_file') {
+      return readFile(this.safePath(session.cwd, stringValue(input.path)), 'utf8');
+    }
+    if (call.name === 'write_file') {
+      const target = this.safePath(session.cwd, stringValue(input.path));
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, stringValue(input.content), 'utf8');
+      return 'File written.';
+    }
+    if (call.name === 'run_shell') {
+      const result = await execFileAsync('/bin/sh', ['-c', stringValue(input.command)], {
+        cwd: session.cwd,
+        maxBuffer: 1024 * 1024,
+        ...(session.controller ? { signal: session.controller.signal } : {}),
       });
+      return `${result.stdout}${result.stderr}`;
+    }
+    throw new Error(`Unsupported tool: ${call.name}`);
+  }
+
+  private safePath(cwd: string, requested: string): string {
+    const root = path.resolve(cwd);
+    const target = path.resolve(root, requested);
+    if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
+      throw new Error('Tool path is outside the session workspace');
+    }
+    return target;
+  }
+
+  private async fetchModels(baseUrl: string): Promise<string[]> {
+    try {
+      const response = await fetch(`${baseUrl}/v1/models`, {
+        headers: this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {},
+      });
+      if (!response.ok) return [this.defaultModel];
+      const payload: unknown = await response.json();
+      if (!isRecord(payload) || !Array.isArray(payload.data)) return [this.defaultModel];
+      const models = payload.data
+        .filter(isRecord)
+        .map((model) => model.id)
+        .filter((id): id is string => typeof id === 'string');
+      return models.length > 0 ? models : [this.defaultModel];
+    } catch {
+      return [this.defaultModel];
     }
   }
 
   private toMessage(blocks: acp.ContentBlock[]): ChatMessage {
-    const text = textContent(blocks);
-    const images = blocks.filter((block) => block.type === 'image');
-    if (images.length > 0 && !this.supportsImage) {
-      throw new Error('The configured endpoint does not support image content');
-    }
-    if (images.length === 0) return { role: 'user', content: text };
-    return {
-      role: 'user',
-      content: [
-        { type: 'text', text },
-        ...images.map((block) => ({
+    const parts: ChatContentPart[] = [];
+    for (const block of blocks) {
+      if (block.type === 'text') parts.push({ type: 'text', text: block.text });
+      else if (block.type === 'image') {
+        if (!this.supportsImage) throw new Error('The endpoint does not support image content');
+        parts.push({
           type: 'image_url',
           image_url: { url: `data:${block.mimeType};base64,${block.data}` },
-        })),
-      ],
-    };
+        });
+      } else if (block.type === 'resource') {
+        const resourceValue: unknown = block.resource;
+        const resource = isRecord(resourceValue) ? resourceValue : {};
+        parts.push({
+          type: 'text',
+          text: `[${stringValue(resource.mimeType) || 'resource'} ${stringValue(resource.uri)}]\n${stringValue(resource.text)}`,
+        });
+      } else if (block.type === 'resource_link') {
+        parts.push({ type: 'text', text: `[Resource ${block.name ?? block.uri}] ${block.uri}` });
+      }
+    }
+    if (parts.length === 1 && parts[0]?.type === 'text') {
+      return { role: 'user', content: stringValue(parts[0].text) };
+    }
+    return { role: 'user', content: parts };
   }
 
   private requireSession(sessionId: string): SessionState {

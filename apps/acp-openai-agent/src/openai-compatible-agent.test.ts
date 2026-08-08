@@ -8,6 +8,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 type FakeResponse = {
   chunks: string[];
   rawChunks?: unknown[];
+  completionSequences?: unknown[][];
+  models?: string[];
+  modelsError?: boolean;
+  requests?: string[];
   status?: number;
   delayMs?: number;
   hold?: boolean;
@@ -21,13 +25,35 @@ function sse(data: unknown): string {
 }
 
 async function fakeServer(response: FakeResponse): Promise<string> {
-  const server = createServer(async (_request, reply) => {
+  let completionCount = 0;
+  const server = createServer(async (request, reply) => {
+    if (request.url === '/v1/models') {
+      if (response.modelsError) {
+        reply.writeHead(503);
+        reply.end();
+        return;
+      }
+      reply.writeHead(200, { 'Content-Type': 'application/json' });
+      reply.end(
+        JSON.stringify({ data: (response.models ?? ['fake-model']).map((id) => ({ id })) })
+      );
+      return;
+    }
+    if (request.url !== '/v1/chat/completions') {
+      reply.writeHead(404);
+      reply.end();
+      return;
+    }
+    if (response.requests) {
+      let body = '';
+      for await (const chunk of request) body += String(chunk);
+      response.requests.push(body);
+    }
     reply.writeHead(response.status ?? 200, { 'Content-Type': 'text/event-stream' });
     const events =
+      response.completionSequences?.[completionCount++] ??
       response.rawChunks ??
-      response.chunks.map((chunk) => ({
-        choices: [{ delta: { content: chunk } }],
-      }));
+      response.chunks.map((chunk) => ({ choices: [{ delta: { content: chunk } }] }));
     for (const event of events) {
       reply.write(sse(event));
       if (response.delayMs) await new Promise((resolve) => setTimeout(resolve, response.delayMs));
@@ -41,7 +67,7 @@ async function fakeServer(response: FakeResponse): Promise<string> {
   return `http://127.0.0.1:${address.port}`;
 }
 
-async function connectAgent(baseUrl: string, supportsImage = false) {
+async function connectAgent(baseUrl: string, supportsImage = false, allowTools = true) {
   const child = spawn('node', ['dist/main.js'], {
     cwd: process.cwd(),
     env: {
@@ -59,12 +85,15 @@ async function connectAgent(baseUrl: string, supportsImage = false) {
     .onNotification('session/update', async (params) => {
       updates.push(params.params.update);
     })
-    .onRequest('session/request_permission', async (params) => ({
-      outcome: {
-        outcome: 'selected',
-        optionId: params.params.options[0]?.optionId ?? 'reject',
-      },
-    }));
+    .onRequest('session/request_permission', async (params) => {
+      if (!allowTools) return { outcome: { outcome: 'cancelled' } };
+      return {
+        outcome: {
+          outcome: 'selected',
+          optionId: params.params.options[0]?.optionId ?? 'reject',
+        },
+      };
+    });
   const stream = acp.ndJsonStream(
     Writable.toWeb(child.stdin) as WritableStream<Uint8Array>,
     Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>
@@ -104,7 +133,7 @@ describe('OpenAI-compatible ACP agent', () => {
     ).resolves.toMatchObject({ stopReason: 'end_turn' });
     expect(
       result.updates.filter((update) => update.sessionUpdate === 'agent_message_chunk')
-    ).toHaveLength(3);
+    ).toHaveLength(2);
   });
 
   it('does not advertise image support when the endpoint is configured without it', async () => {
@@ -114,9 +143,39 @@ describe('OpenAI-compatible ACP agent', () => {
   });
 
   it('requests permission before surfacing an OpenAI tool call', async () => {
+    const requests: string[] = [];
     const baseUrl = await fakeServer({
       chunks: [],
-      rawChunks: [{ choices: [{ delta: { tool_calls: [{ id: 'call-1', type: 'function' }] } }] }],
+      requests,
+      completionSequences: [
+        [
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'call-1',
+                      function: { name: 'read_file', arguments: '{"path":"' },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [{ index: 0, function: { arguments: 'missing.txt"}' } }],
+                },
+              },
+            ],
+          },
+        ],
+        [{ choices: [{ delta: { content: 'done' } }] }],
+      ],
     });
     const result = await connectAgent(baseUrl);
     await result.connection.agent.request('session/prompt', {
@@ -125,6 +184,76 @@ describe('OpenAI-compatible ACP agent', () => {
     });
     expect(result.updates.map((update) => update.sessionUpdate)).toContain('tool_call');
     expect(result.updates.map((update) => update.sessionUpdate)).toContain('tool_call_update');
+    expect(JSON.parse(requests[1] ?? '{}').messages).toEqual(
+      expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-1' })])
+    );
+  });
+
+  it('reports rejected permissions and continues with the tool result', async () => {
+    const baseUrl = await fakeServer({
+      chunks: [],
+      completionSequences: [
+        [
+          {
+            choices: [
+              {
+                delta: {
+                  tool_calls: [
+                    {
+                      index: 0,
+                      id: 'call-2',
+                      function: { name: 'read_file', arguments: '{"path":"x"}' },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      ],
+    });
+    const result = await connectAgent(baseUrl, false, false);
+    await result.connection.agent.request('session/prompt', {
+      sessionId: result.session.sessionId,
+      prompt: [{ type: 'text', text: 'deny' }],
+    });
+    expect(result.updates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sessionUpdate: 'tool_call_update', status: 'failed' }),
+      ])
+    );
+  });
+
+  it('preserves resource context and discovers models with a fallback', async () => {
+    const requests: string[] = [];
+    const baseUrl = await fakeServer({ chunks: ['ok'], models: ['alpha', 'beta'], requests });
+    const result = await connectAgent(baseUrl);
+    expect(result.session.configOptions?.[0]).toMatchObject({
+      options: [{ value: 'fake-model' }, { value: 'alpha' }, { value: 'beta' }],
+    });
+    await result.connection.agent.request('session/prompt', {
+      sessionId: result.session.sessionId,
+      prompt: [
+        { type: 'text', text: 'question' },
+        {
+          type: 'resource',
+          resource: { uri: 'page://1', mimeType: 'text/plain', text: 'page context' },
+        },
+      ],
+    });
+    expect(JSON.parse(requests[0] ?? '{}').messages[0].content).toEqual([
+      { type: 'text', text: 'question' },
+      { type: 'text', text: '[text/plain page://1]\npage context' },
+    ]);
+  });
+
+  it('falls back to the configured model when model discovery fails', async () => {
+    const baseUrl = await fakeServer({ chunks: ['ok'], modelsError: true });
+    const result = await connectAgent(baseUrl);
+    expect(result.session.configOptions?.[0]).toMatchObject({
+      currentValue: 'fake-model',
+      options: [{ value: 'fake-model' }],
+    });
   });
 
   it('propagates upstream HTTP errors through the ACP request', async () => {

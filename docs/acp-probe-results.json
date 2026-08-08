@@ -1,0 +1,25 @@
+[
+  {
+    "agentId": "fixture-impoverished",
+    "profileId": "fixture-probe",
+    "protocolVersion": 1,
+    "capabilities": {
+      "promptCapabilities": {
+        "image": false,
+        "embeddedContext": false
+      },
+      "loadSession": false
+    },
+    "authMethods": [],
+    "advertisedCommands": [],
+    "checks": {
+      "prompt": { "supported": true, "value": { "stopReason": "end_turn" } },
+      "slashCommand": { "supported": true, "value": { "stopReason": "end_turn" } },
+      "image": { "supported": false, "error": { "message": "image capability not advertised" } },
+      "permission": "available",
+      "history": { "supported": false, "error": { "code": -32601, "message": "Unsupported" } },
+      "cancel": { "supported": false, "error": { "code": -32601, "message": "Unsupported" } }
+    },
+    "verifiedAt": "2026-01-01T00:00:00.000Z"
+  }
+]

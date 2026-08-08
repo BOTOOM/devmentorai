@@ -4,6 +4,32 @@ import type {
   AcpEvent,
   AcpSessionRecord,
 } from '@devmentorai/shared';
+export type AcpCatalogEntry = {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  version?: string;
+  source: string;
+  installState: string;
+  authState: string;
+  authMethods: Array<{ id: string; description: string }>;
+  platformAvailability: { available: boolean; key: string; reason?: string };
+};
+
+export type AcpProfile = {
+  id: string;
+  name: string;
+  agentId?: string;
+  custom?: boolean;
+  cmd?: string;
+  args: string[];
+  env: Record<string, string>;
+  defaultCwd: string;
+  transport: 'stdio' | 'tcp';
+  host?: string;
+  port?: number;
+};
 
 type JsonRpcId = string | number;
 type JsonRpcMessage = {
@@ -137,6 +163,38 @@ export class AcpClient {
 
   async revokePermission(sessionId: string, tool: string): Promise<void> {
     await this.request('ui/permissions.revoke', { sessionId, tool });
+  }
+
+  async listAgents(): Promise<AcpCatalogEntry[]> {
+    return this.request<AcpCatalogEntry[]>('ui/agents.list', {});
+  }
+
+  async listProfiles(): Promise<AcpProfile[]> {
+    return this.request<AcpProfile[]>('ui/agents.profiles.list', {});
+  }
+
+  async createProfile(profile: Omit<AcpProfile, 'id'>): Promise<AcpProfile> {
+    return this.request<AcpProfile>('ui/agents.create_profile', profile);
+  }
+
+  async updateProfile(id: string, patch: Partial<AcpProfile>): Promise<AcpProfile> {
+    return this.request<AcpProfile>('ui/agents.update_profile', { id, ...patch });
+  }
+
+  async deleteProfile(id: string): Promise<void> {
+    await this.request('ui/agents.delete_profile', { id });
+  }
+
+  async installAgent(agentId: string): Promise<AcpCatalogEntry> {
+    return this.request<AcpCatalogEntry>('ui/agents.install', { agentId });
+  }
+
+  async uninstallAgent(agentId: string): Promise<void> {
+    await this.request('ui/agents.uninstall', { agentId });
+  }
+
+  async probeAgent(profileId: string): Promise<unknown> {
+    return this.request('ui/agents.probe', { profileId });
   }
 
   async replay(

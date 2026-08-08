@@ -319,6 +319,8 @@ export class AcpGateway {
         return { revoked: true };
       case 'ui/agents.list':
         return this.agentService.list();
+      case 'ui/agents.profiles.list':
+        return this.agentService.listProfiles();
       case 'ui/agents.install':
         return this.agentService.install(asString(params.agentId, 'agentId'));
       case 'ui/agents.uninstall':
@@ -342,6 +344,8 @@ export class AcpGateway {
         return { authenticated: true };
       case 'ui/agents.resolve_launch':
         return this.agentService.resolveLaunch(asString(params.profileId, 'profileId'));
+      case 'ui/agents.probe':
+        return this.agentService.probe(asString(params.profileId, 'profileId'));
       default:
         throw new AcpError('capability_unsupported', `Unknown UI method ${method}`);
     }

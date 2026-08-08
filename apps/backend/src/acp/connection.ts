@@ -49,6 +49,12 @@ export type AgentConnectionOptions = {
   clientVersion?: string;
 };
 
+export type AcpProbeRequestResult = {
+  supported: boolean;
+  value?: unknown;
+  error?: { code?: number; message: string };
+};
+
 function defaultPermissionPolicy(request: RequestPermissionRequest): PermissionDecision {
   const rejectOption = request.options.find(
     (option: PermissionOption) => option.kind === 'reject_once' || option.kind === 'reject_always'
@@ -229,6 +235,26 @@ export class AgentConnection {
       };
     } catch (error) {
       throw this.mapAgentError(error);
+    }
+  }
+
+  async probeRequest(method: string, params: unknown): Promise<AcpProbeRequestResult> {
+    try {
+      const value = await this.requireConnection().agent.request(method, params);
+      return { supported: true, value };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const code =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? Number((error as { code?: unknown }).code)
+          : undefined;
+      return {
+        supported: false,
+        error: {
+          ...(Number.isFinite(code) ? { code } : {}),
+          message,
+        },
+      };
     }
   }
 

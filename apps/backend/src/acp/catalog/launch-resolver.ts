@@ -23,12 +23,6 @@ export class AgentLaunchResolver {
     entry: AgentCatalogEntry | undefined,
     profile: AgentProfile
   ): Promise<LaunchResolution> {
-    if (profile.transport !== 'stdio') {
-      throw new AcpError(
-        'capability_unsupported',
-        'TCP ACP transport is reserved for a later phase'
-      );
-    }
     const environment = this.credentials.resolveEnvironment(profile.env);
     if (profile.custom || !entry) {
       if (!profile.cmd) {
@@ -42,6 +36,9 @@ export class AgentLaunchResolver {
           args: profile.args,
           env: environment,
           cwd: profile.defaultCwd,
+          ...(profile.transport === 'tcp'
+            ? { transport: 'tcp' as const, host: profile.host ?? '127.0.0.1', port: profile.port }
+            : {}),
         },
       };
     }
@@ -49,7 +46,14 @@ export class AgentLaunchResolver {
     return {
       profile,
       catalogEntry: entry,
-      launchSpec: { ...launch, env: { ...launch.env, ...environment }, cwd: profile.defaultCwd },
+      launchSpec: {
+        ...launch,
+        env: { ...launch.env, ...environment },
+        cwd: profile.defaultCwd,
+        ...(profile.transport === 'tcp'
+          ? { transport: 'tcp' as const, host: profile.host ?? '127.0.0.1', port: profile.port }
+          : {}),
+      },
     };
   }
 

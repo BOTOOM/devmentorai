@@ -26,10 +26,10 @@ against the fixture agent and the golden-file normalisation tests pass. No UI ch
 
 ### Phase 2 — Agent catalog, workspace, launch, auth surface
 
-Scope: `catalog/*`, `workspace.ts`, `credentials.ts` (ported from `feat/acp`),
-`agents` table, `ui/agents.*` methods, `auth_required` plumbing with the agent's own
-instructions.
-Requirements: R-010, R-012..R-015, R-013 (Copilot login path), R-062.
+Scope: `catalog/*` (full registry, npx/uvx/binary), agent **profiles** (variants of the same
+agent), `workspace.ts`, `credentials.ts` (ported from `feat/acp`), `agents` table,
+`ui/agents.*` methods, `auth_required` plumbing with the agent's own instructions.
+Requirements: R-010, R-012..R-016, R-062.
 Exit: `copilot --acp --stdio` and one npx agent (Gemini or Claude adapter) can be launched
 and authenticated from the backend; an unauthenticated agent produces the actionable
 `auth_required` error.
@@ -53,14 +53,20 @@ Requirements: R-021, R-025..R-027, R-035, R-036, R-038, R-039, R-030..R-032.
 Exit: Copilot ACP is fully usable — commands, images, page context, tools, permissions.
 `ACP_ENABLED` defaults to true. **This is the MVP.**
 
-### Phase 5 — Multi-agent rollout
+### Phase 5 — All agents: catalog UI, profiles, conformance probe
 
-Scope: registry-driven catalog UI (search/install/uninstall), binary installer with sha256,
-per-agent capability matrix surfaced in the UI, capability-driven control disabling, TCP
-transport, agent switching per session.
-Requirements: R-008, R-011, R-028, R-033, R-037, plus measuring Q2 (replay support) per agent.
-Exit: verified end-to-end on at least Copilot, Gemini CLI, Claude adapter, OpenCode and
-Devin CLI, with a results table committed to `docs/ACP.md`.
+Scope: registry-driven catalog UI for the **whole registry** (search/install/uninstall),
+binary + `uvx` installers with sha256, profile editor (custom commands, args, env, cloud
+variants such as `devin acp --cloud`), TCP transport, agent switching per session,
+capability-driven control disabling, and the **conformance probe** (R-017) that measures each
+agent instead of us hand-integrating it.
+Requirements: R-008, R-011, R-016..R-018, R-028, R-033, R-037; answers Q2 (replay support)
+per agent as probe data.
+Exit: the probe runs green against a first wave — Copilot CLI, Claude, Codex, Gemini,
+OpenCode, Cursor, Devin (local **and** `--cloud`), Kilo, GLM, goose, Qwen, Kimi, Droid — and
+`docs/ACP.md` carries a generated support table. Any other registry agent is usable without
+further work; MiniMax `mini-agent-acp` and private/enterprise agents are covered as custom
+profiles.
 
 ### Phase 6 — History: ACP-first with local cache
 
@@ -114,6 +120,8 @@ Exit: a v2-capable agent works with the flag on and v1 agents are unaffected wit
 | --- | --- |
 | ACP v2 stabilises mid-migration and shifts the target | All version-specific code lives in `normalize/*`; v2 stays flagged (ADR-0001) |
 | Copilot ACP is public preview and may change | Pin the CLI version in the catalog; capability-driven UI degrades instead of breaking |
+| Gemini CLI is being transitioned to Antigravity CLI, which has **no ACP** yet (upstream issue open, and Google's ToS forbid third-party wrapping of `agy`) | Pin the Gemini CLI catalog version, keep Antigravity as T4/documented (R-018), and rely on profiles so the day `agy --acp` ships it needs no code from us |
+| "All agents" is unbounded and cannot be hand-tested | Coverage is data (registry + profiles) plus the automated conformance probe (R-017); the generated support table shows measured, not claimed, support |
 | Copilot ACP fixes reasoning/tool-filtering at server start | Expose them as agent-level (not session-level) settings; document the regression (R-021 AC3) |
 | Agents must now be installed + authenticated locally | Registry-driven install + explicit auth UX (Phase 2/5); actionable errors instead of silent failures |
 | Real permission prompts change the feel of the product | Remembered `allow_always` choices and an opt-in per-agent auto-approve |

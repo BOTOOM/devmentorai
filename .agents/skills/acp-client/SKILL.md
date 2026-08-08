@@ -61,11 +61,17 @@ Launch specs are data, from `https://cdn.agentclientprotocol.com/registry/v1/lat
 | Gemini CLI | `npx @google/gemini-cli --acp` |
 | Claude | `npx @agentclientprotocol/claude-agent-acp` |
 | Codex | `npx @agentclientprotocol/codex-acp` |
-| Devin CLI | `devin acp` |
+| Devin CLI | `devin acp` (add `--cloud` to relay to Devin cloud, `--model`, `--agent-type`) |
 | OpenCode / Cursor / goose | `opencode acp` / `cursor-agent acp` / `goose acp` |
+| Kilo / GLM / Qwen / Kimi / Droid | `kilo acp` / `npx glm-acp-agent` / `npx @qwen-code/qwen-code --acp` / `kimi acp` / `npx droid exec --output-format acp-daemon` |
 
-LM Studio, Ollama and other OpenAI-compatible endpoints are **not** ACP; they are served by
-our own agent, `apps/acp-openai-agent`.
+The registry also ships `uvx` distributions (fast-agent, Minion Code), so the launcher handles
+`npx`, `uvx` and downloaded binaries. Anything not in the registry — private builds, MiniMax's
+`mini-agent-acp` — is a user-defined **profile** (`cmd`/`args`/`env`); never add per-agent code.
+
+Not ACP: LM Studio, Ollama and other OpenAI-compatible endpoints are served by our own agent,
+`apps/acp-openai-agent`. Antigravity (`agy`) has no ACP server yet and must not be wrapped
+(Google's ToS); track `google-antigravity/antigravity-cli#31`.
 
 ## Slash commands
 

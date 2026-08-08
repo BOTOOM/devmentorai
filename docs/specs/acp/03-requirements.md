@@ -73,13 +73,44 @@ and owns its lifecycle (spawn, stderr ring buffer, exit detection, graceful shut
 
 ## B. Agent catalog, install, auth
 
-**R-010 (P0)** An agent catalog exposes built-in curated agents, the ACP registry
+**R-010 (P0)** An agent catalog exposes built-in curated agents, the **whole** ACP registry
 (`registry.json`, cached with a TTL and an offline fallback), and user-defined custom
-agents (`cmd` + `args` + `env`).
+agents (`cmd` + `args` + `env`). No agent is hardcoded: a new registry entry becomes usable
+without a DevMentorAI release.
 - AC1 `ui/agents.list` returns id, name, description, icon, version, source, install state,
   auth state and platform availability. `integration`
 - AC2 With the network unavailable, the cached/built-in catalog is still returned. `unit`
 - AC3 A custom agent defined by the user can be launched and used end-to-end. `integration`
+- AC4 Given a registry containing an agent unknown to our code, then it is listed and
+  launchable with no code change. `integration`
+- AC5 `npx`, `uvx` and `binary` distributions are all resolvable. `unit`
+
+**R-016 (P0)** Agents are configured as **profiles**: a named `{ agentId | custom cmd, args,
+env, cwd default, transport }` tuple, so the same agent can exist several times with
+different configuration (e.g. `devin acp` vs `devin acp --cloud`, `copilot --acp --stdio` vs
+`--acp --port N`, one profile per BYOK provider, `mini-agent-acp` from MiniMax).
+- AC1 Two profiles of the same agent can run simultaneously with independent sessions and
+  independent auth state. `integration`
+- AC2 A profile is created, edited, duplicated and deleted from the UI, and the sessions it
+  owns keep working after an edit (new sessions use the new config). `e2e`
+- AC3 Profile `env` values that reference stored credentials are resolved at spawn time and
+  never displayed. `unit`
+
+**R-017 (P1)** A **conformance probe** can be run against any agent profile: it performs
+`initialize`, `session/new`, a scripted prompt, a slash command, an image block, a permission
+round-trip, a history probe and a cancel, then records the observed capabilities and results.
+- AC1 Running the probe against a profile produces a machine-readable capability record
+  (protocol version, `promptCapabilities`, `loadSession`, advertised commands, auth methods,
+  failures) stored with the agent. `integration`
+- AC2 The UI shows that record as the agent's support matrix, including "not verified". `e2e`
+- AC3 A repo script regenerates the support table in `docs/ACP.md` from probe runs, so agent
+  coverage is documented by measurement, not by hand. `manual`
+- AC4 A probe failure never leaves a stray agent process running. `integration`
+
+**R-018 (P2)** Agents with no ACP server are documented, not wrapped: where a vendor's terms
+forbid third-party wrapping of their CLI (e.g. Antigravity `agy` today), DevMentorAI ships no
+bridge and instead links the upstream tracking issue.
+- AC1 `docs/ACP.md` lists the known non-ACP products, why, and what would unblock them. `manual`
 
 **R-011 (P1)** Binary distributions can be installed on demand into
 `~/.devmentorai/agents/<id>/<version>/`, verified against the registry `sha256`.

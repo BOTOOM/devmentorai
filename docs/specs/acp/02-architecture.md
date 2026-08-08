@@ -47,8 +47,9 @@ agent→UI *requests* such as permissions), [ADR-0006](./adr/0006-local-models-v
 
 | Module | Responsibility |
 | --- | --- |
-| `catalog/agent-catalog.ts` | Built-in curated agents + cached ACP registry (`registry.json`) + user-defined custom agents. Resolves a platform-specific `LaunchSpec { kind: npx\|binary\|command\|tcp, cmd, args, env, sha256? }`. |
-| `catalog/agent-installer.ts` | Optional download/extract of binary distributions into `~/.devmentorai/agents/<id>/<version>/`, sha256-verified; npx agents resolve lazily. |
+| `catalog/agent-catalog.ts` | Built-in curated agents + the full cached ACP registry (`registry.json`) + user-defined agents, all exposed as **profiles** (named launch tuples, so `devin acp` and `devin acp --cloud` are two entries). Resolves a platform-specific `LaunchSpec { kind: npx\|uvx\|binary\|command\|tcp, cmd, args, env, sha256? }`. |
+| `catalog/agent-installer.ts` | Optional download/extract of binary distributions into `~/.devmentorai/agents/<id>/<version>/`, sha256-verified; `npx`/`uvx` agents resolve lazily. |
+| `catalog/conformance.ts` | Scripted probe of a profile (initialize → prompt → command → image → permission → history → cancel) that records what the agent really supports; feeds the UI support matrix and the generated table in `docs/ACP.md`. |
 | `launcher.ts` | Spawns the agent, wires `stdin`/`stdout` into `ndJsonStream`, keeps `stderr` in a bounded ring buffer for diagnostics, owns process lifecycle (exit, crash, kill on idle timeout, graceful shutdown). |
 | `connection.ts` | One `AcpConnection` per running agent: `initialize` + version negotiation, capability record, `authenticate`/`auth/login`, and all Client-side handlers (`sessionUpdate`, `requestPermission`, `elicitation/create` when v2). |
 | `normalize/v1.ts`, `normalize/v2.ts` | Map version-specific wire shapes onto one internal `AcpEvent` union (see §4). All version differences are confined here. |

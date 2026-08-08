@@ -152,22 +152,88 @@ Machine-readable catalog: `https://cdn.agentclientprotocol.com/registry/v1/lates
 either `npx` (`package`, `args`, `env`) or `binary` (per-platform `archive`, `cmd`, `args`,
 `sha256`). This is exactly the metadata our agent catalog needs, including checksums.
 
-Agents relevant to the user's request:
+### 3.1 Coverage model
 
-| Agent | Launch | Notes |
-| --- | --- | --- |
-| GitHub Copilot CLI | `npx @github/copilot --acp [--stdio\|--port N]` | Public preview since 2026-01-28. Registry entry `github-copilot-cli`. Tool filtering / reasoning effort are **server-start flags**, not per-session — a behavioural regression vs today's SDK (see R-021). BYOK via `COPILOT_PROVIDER_*` can run without GitHub login. |
-| Claude (Claude Code / Agent SDK) | `npx @agentclientprotocol/claude-agent-acp` | Official adapter; the old `@zed-industries/claude-agent-acp` is deprecated. |
-| Gemini CLI | `npx @google/gemini-cli --acp` | Native flag. |
-| Codex CLI | `npx @agentclientprotocol/codex-acp` | Adapter. |
-| OpenCode | `opencode acp` (binary, per-platform archive + sha256) | Native. |
-| Cursor | `cursor-agent acp` (binary archive) | Native. |
-| Devin CLI | `devin acp` (binary archive) | Native, stdio only. Advertises its full slash-command set over ACP; credentials from `devin auth login` / `WINDSURF_API_KEY` / the ACP `authenticate` request. |
-| goose, Kimi, Qwen, Factory Droid, Qoder, Kiro, Amp, Cline, Junie, … | registry | Free with the same catalog mechanism — no per-agent code. |
-| **LM Studio / Ollama / any OpenAI-compatible endpoint** | **no native ACP** | Confirmed: LM Studio exposes an OpenAI-compatible + MCP API, not ACP. Options: a third-party bridge (`acp-bridge`) or ship our own tiny ACP *agent* that fronts an OpenAI-compatible endpoint. See ADR-0006. |
+The goal is **every ACP agent on the market**, not a curated list, so coverage is defined by
+tiers rather than by agent names:
 
-Consequence: supporting "as many agents as Devin Desktop" needs **zero per-agent code** for
-registry agents — only a catalog, a launcher, and a strictly capability-driven UI.
+| Tier | What it covers | Mechanism | Per-agent code |
+| --- | --- | --- | --- |
+| **T1 — registry** | Every agent in the ACP registry (38 today, growing without our releases) | catalog entry resolved from `registry.json` | none |
+| **T2 — custom / variant** | ACP agents outside the registry, private/enterprise builds, and *variants* of a T1 agent (different flags, env, model, cloud relay) | user-defined `cmd`/`args`/`env` **agent profile** (R-016) | none |
+| **T3 — non-ACP endpoints** | LM Studio, Ollama, vLLM, OpenRouter, any OpenAI-compatible API | our own ACP agent, `apps/acp-openai-agent` (ADR-0006) | one agent, not one adapter per vendor |
+| **T4 — no ACP path** | Products with no ACP server and no licence to wrap one (see Antigravity below) | documented as unsupported, tracked upstream | none |
+
+Because T1+T2 need no code, "supported agents" is a *data and verification* problem, which is
+why the plan adds a conformance probe (R-017) instead of hand-written integrations.
+
+### 3.2 T1 — the full registry (snapshot, 38 agents)
+
+| Agent | id | Dist | Launch |
+| --- | --- | --- | --- |
+| Agoragentic | `agoragentic-acp` | npx | `npx agoragentic-mcp --acp` |
+| Amp | `amp-acp` | binary | `amp-acp` |
+| Auggie CLI | `auggie` | npx | `npx @augmentcode/auggie --acp` |
+| Autohand Code | `autohand` | npx | `npx @autohandai/autohand-acp` |
+| Claude Agent | `claude-acp` | npx | `npx @agentclientprotocol/claude-agent-acp` |
+| Cline | `cline` | npx | `npx cline --acp` |
+| Codebuddy Code | `codebuddy-code` | npx | `npx @tencent-ai/codebuddy-code --acp` |
+| Codex | `codex-acp` | npx | `npx @agentclientprotocol/codex-acp` |
+| Cortex Code | `cortex-code` | binary | `cortex acp` |
+| Corust Agent | `corust-agent` | binary | — |
+| crow-cli | `crow-cli` | binary | — |
+| **Cursor** | `cursor` | binary | `cursor-agent acp` |
+| DeepAgents | `deepagents` | npx | `npx deepagents-acp` |
+| **Devin** | `devin` | binary | `devin acp` (+ `--cloud`, `--model`, `--agent-type`) |
+| DimCode | `dimcode` | npx | `npx dimcode acp` |
+| Dirac | `dirac` | npx | `npx dirac-cli --acp` |
+| Factory Droid | `factory-droid` | npx | `npx droid exec --output-format acp-daemon` |
+| fast-agent | `fast-agent` | uvx | `uvx fast-agent-acp -x` |
+| Gemini CLI | `gemini` | npx | `npx @google/gemini-cli --acp` |
+| **GitHub Copilot** | `github-copilot-cli` | npx | `npx @github/copilot --acp [--stdio\|--port N]` |
+| **GLM Agent** | `glm-acp-agent` | npx | `npx glm-acp-agent` |
+| goose | `goose` | binary | `goose acp` |
+| Grok Build | `grok-build` | npx | `npx @xai-official/grok agent stdio` |
+| Harn | `harn` | binary | — |
+| Junie (JetBrains) | `junie` | binary | — |
+| **Kilo** | `kilo` | binary | `kilo acp` (opencode-based, uses the ACP SDK) |
+| Kimi CLI | `kimi` | binary | `kimi acp` |
+| Minion Code | `minion-code` | uvx | `uvx minion-code acp` |
+| Mistral Vibe | `mistral-vibe` | binary | — |
+| Nova | `nova` | npx | `npx @compass-ai/nova acp` |
+| **OpenCode** | `opencode` | binary | `opencode acp` |
+| pi ACP | `pi-acp` | npx | `npx pi-acp` |
+| Poolside | `poolside` | binary | — |
+| Qoder CLI | `qoder` | npx | `npx @qoder-ai/qodercli --acp` |
+| Qwen Code | `qwen-code` | npx | `npx @qwen-code/qwen-code --acp` |
+| siGit Code | `sigit` | binary | — |
+| Stakpak | `stakpak` | binary | — |
+| VT Code | `vtcode` | binary | — |
+
+Registry inclusion requires the agent to advertise valid `authMethods`, verified by their CI —
+a useful quality floor for us. `uvx` distributions exist too, so the launcher must support
+`npx`, `uvx` and downloaded binaries.
+
+### 3.3 Agent-specific notes that affect the design
+
+| Agent | Note |
+| --- | --- |
+| GitHub Copilot CLI | ACP is public preview (2026-01-28). Tool filtering and reasoning effort are **server-start flags**, not per-session — a regression vs today's SDK (R-021 AC3). BYOK via `COPILOT_PROVIDER_*` runs without GitHub login. Supports stdio **and** TCP. Measured: v1, `loadSession: true`, image + embeddedContext. |
+| Copilot *cloud* | No ACP surface. The cloud coding agent is reachable over GitHub's own APIs/MCP, not ACP; "Copilot over ACP" means the CLI. Out of scope until GitHub ships one. |
+| Devin CLI | `devin acp` over stdio, full slash-command set advertised, elicitation support, per-tool metadata. **`devin acp --cloud` (insiders) relays to Devin cloud** — i.e. local vs cloud is a *launch variant*, exactly what T2 profiles model. |
+| Claude / Codex | Official `@agentclientprotocol/*` adapters; the old `@zed-industries/claude-agent-acp` is deprecated. |
+| Gemini CLI | Native `--acp`, but Google announced the transition of Gemini CLI to **Antigravity CLI**; treat the Gemini entry as at-risk and pin versions (see risks in 04-roadmap). |
+| **Antigravity (`agy`)** | **No ACP today.** `agy --acp` is an open feature request (`google-antigravity/antigravity-cli#31`); a community bridge (`agy-acp`) exists, but Google's ToS state that using third-party software with an Antigravity login violates the terms, and the ToS question raised by the bridge author is unresolved. **Decision: T4 — do not ship a wrapper.** Track the upstream issue; the moment `agy --acp` exists it becomes a registry/T2 entry with zero code from us. |
+| Kilo | In the registry (`kilo acp`), built on opencode and the ACP SDK. |
+| GLM (Zhipu) | In the registry as `glm-acp-agent`. |
+| MiniMax | The MiniMax **CLI** has an open ACP request, but **Mini Agent ships an ACP server** (`mini-agent-acp`, `uv tool install`) documented for Zed. Not in the registry → supported as a T2 custom profile. |
+| LM Studio / Ollama / vLLM / OpenRouter | Not ACP (OpenAI-compatible + MCP). T3 via `apps/acp-openai-agent` (ADR-0006). |
+
+### 3.4 Consequence
+
+Supporting "all the ACP agents of 2026" needs **zero per-agent code**: a catalog, a launcher
+that speaks npx/uvx/binary/TCP, launch *profiles* for variants, a strictly capability-driven
+UI, and an automated conformance probe that records what each agent actually supports.
 
 ## 4. What the existing `feat/acp` branch actually is
 

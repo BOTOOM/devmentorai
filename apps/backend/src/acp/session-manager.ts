@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type {
+  AcpConfigOption,
   AcpContentBlock,
   AcpEvent,
   AcpSessionRecord,
@@ -8,7 +9,7 @@ import type {
 import { AgentConnection } from './connection.js';
 import { AcpError } from './errors.js';
 import type { LaunchSpec } from './launcher.js';
-import { normalizeV1Update } from './normalize/v1.js';
+import { type AcpMessageRole, normalizeV1Update } from './normalize/v1.js';
 
 export type SessionEventHandler = (sessionId: string, event: AcpEvent) => void | Promise<void>;
 
@@ -25,6 +26,8 @@ export type CreateSessionOptions = {
 
 type ManagedSession = AcpSessionRecord & {
   activeToolCalls: Set<string>;
+  messageIds: Partial<Record<AcpMessageRole, string>>;
+  updateChain: Promise<void>;
 };
 
 export class AcpSessionManager {
@@ -43,7 +46,9 @@ export class AcpSessionManager {
         agentId: options.agentId,
         launchSpec: options.launchSpec,
       });
-    connection.setSessionUpdateHandler((notification) => this.handleUpdate(notification));
+    connection.setSessionUpdateHandler((notification) =>
+      this.handleUpdate(options.agentId, notification)
+    );
     connection.setAgentCrashHandler((error) => this.handleAgentCrash(options.agentId, error));
     this.agents.set(options.agentId, connection);
     return connection;
@@ -59,6 +64,7 @@ export class AcpSessionManager {
       cwd: session.cwd,
       protocolVersion: session.protocolVersion,
       capabilities: session.capabilities,
+      ...(session.configOptions ? { configOptions: session.configOptions } : {}),
     };
   }
 
@@ -76,7 +82,10 @@ export class AcpSessionManager {
       cwd: options.cwd,
       protocolVersion: connection.capabilities.protocolVersion,
       capabilities: connection.capabilities,
+      ...(created.configOptions ? { configOptions: created.configOptions } : {}),
       activeToolCalls: new Set(),
+      messageIds: {},
+      updateChain: Promise.resolve(),
     };
     this.sessions.set(session.id, session);
     return this.getSession(session.id) as AcpSessionRecord;
@@ -84,12 +93,21 @@ export class AcpSessionManager {
 
   async prompt(sessionId: string, prompt: AcpContentBlock[]): Promise<void> {
     const session = this.requireSession(sessionId);
+    session.messageIds = {
+      user: randomUUID(),
+      assistant: randomUUID(),
+      thought: randomUUID(),
+    };
     await this.emit(sessionId, { type: 'state', state: 'running' });
     try {
       const response = await this.requireAgent(session.agentId).prompt(
         session.acpSessionId,
         prompt
       );
+      await session.updateChain;
+      if (response.stopReason === 'cancelled') {
+        await this.cancelUnfinishedTools(session);
+      }
       await this.emit(sessionId, {
         type: 'state',
         state: 'idle',
@@ -105,15 +123,6 @@ export class AcpSessionManager {
 
   async cancelPrompt(sessionId: string): Promise<void> {
     const session = this.requireSession(sessionId);
-    for (const toolCallId of session.activeToolCalls) {
-      await this.emit(sessionId, {
-        type: 'tool_call',
-        toolCallId,
-        status: 'cancelled',
-        mode: 'replace',
-      });
-    }
-    session.activeToolCalls.clear();
     await this.requireAgent(session.agentId).cancel(session.acpSessionId);
   }
 
@@ -121,7 +130,7 @@ export class AcpSessionManager {
     sessionId: string,
     configId: string,
     value: string | boolean
-  ): Promise<unknown> {
+  ): Promise<AcpConfigOption[]> {
     const session = this.requireSession(sessionId);
     return this.requireAgent(session.agentId).setConfigOption({
       sessionId: session.acpSessionId,
@@ -145,27 +154,46 @@ export class AcpSessionManager {
     this.agents.clear();
   }
 
-  private async handleUpdate(notification: {
-    sessionId: string;
-    update: Record<string, unknown>;
-  }): Promise<void> {
-    const session = [...this.sessions.values()].find(
-      (candidate) => candidate.acpSessionId === notification.sessionId
-    );
-    if (!session) return;
-    const event = normalizeV1Update(notification.update);
-    if (event.type === 'tool_call') {
-      if (
-        event.status === 'completed' ||
-        event.status === 'failed' ||
-        event.status === 'cancelled'
-      ) {
-        session.activeToolCalls.delete(event.toolCallId);
-      } else {
-        session.activeToolCalls.add(event.toolCallId);
-      }
+  private handleUpdate(
+    agentId: string,
+    notification: {
+      sessionId: string;
+      update: Record<string, unknown>;
     }
-    await this.emit(session.id, event);
+  ): Promise<void> {
+    const session = [...this.sessions.values()].find(
+      (candidate) =>
+        candidate.agentId === agentId && candidate.acpSessionId === notification.sessionId
+    );
+    if (!session) return Promise.resolve();
+    session.updateChain = session.updateChain.then(async () => {
+      const event = normalizeV1Update(notification.update, { messageIds: session.messageIds });
+      if (event.type === 'tool_call') {
+        if (
+          event.status === 'completed' ||
+          event.status === 'failed' ||
+          event.status === 'cancelled'
+        ) {
+          session.activeToolCalls.delete(event.toolCallId);
+        } else {
+          session.activeToolCalls.add(event.toolCallId);
+        }
+      }
+      await this.emit(session.id, event);
+    });
+    return session.updateChain;
+  }
+
+  private async cancelUnfinishedTools(session: ManagedSession): Promise<void> {
+    for (const toolCallId of session.activeToolCalls) {
+      await this.emit(session.id, {
+        type: 'tool_call',
+        toolCallId,
+        status: 'cancelled',
+        mode: 'replace',
+      });
+    }
+    session.activeToolCalls.clear();
   }
 
   private async handleAgentCrash(agentId: string, error: AcpError): Promise<void> {

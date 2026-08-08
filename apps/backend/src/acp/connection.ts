@@ -6,11 +6,13 @@ import type {
   PermissionOption,
   PromptResponse,
   RequestPermissionRequest,
+  SessionConfigOption,
   SetSessionConfigOptionRequest,
 } from '@agentclientprotocol/sdk';
 import type {
   AcpAgentCapabilities,
   AcpAuthMethod,
+  AcpConfigOption,
   AcpConnectionCapabilities,
   AcpContentBlock,
 } from '@devmentorai/shared';
@@ -72,6 +74,10 @@ function capabilitiesFromResponse(response: InitializeResponse): AcpConnectionCa
   };
 }
 
+function normalizeConfigOptions(options: SessionConfigOption[]): AcpConfigOption[] {
+  return options.map((option) => ({ ...option })) as AcpConfigOption[];
+}
+
 export class AgentConnection {
   readonly agentId: string;
   readonly launchSpec: LaunchSpec;
@@ -85,6 +91,8 @@ export class AgentConnection {
   private cancelledSessions = new Set<string>();
   private configurableSessions = new Set<string>();
   private _capabilities: AcpConnectionCapabilities | undefined;
+  private readonly clientName: string;
+  private readonly clientVersion: string;
 
   constructor(options: AgentConnectionOptions) {
     this.agentId = options.agentId;
@@ -96,9 +104,6 @@ export class AgentConnection {
     this.clientName = options.clientName ?? 'devmentorai';
     this.clientVersion = options.clientVersion ?? '0.1.0';
   }
-
-  private readonly clientName: string;
-  private readonly clientVersion: string;
 
   get capabilities(): AcpConnectionCapabilities {
     if (!this._capabilities) {
@@ -202,7 +207,7 @@ export class AgentConnection {
     }
   }
 
-  async newSession(cwd: string): Promise<{ sessionId: string; configOptions?: unknown[] }> {
+  async newSession(cwd: string): Promise<{ sessionId: string; configOptions?: AcpConfigOption[] }> {
     const connection = this.requireConnection();
     try {
       const response = await connection.agent.request('session/new', {
@@ -214,7 +219,9 @@ export class AgentConnection {
       }
       return {
         sessionId: response.sessionId,
-        ...(response.configOptions ? { configOptions: response.configOptions } : {}),
+        ...(response.configOptions
+          ? { configOptions: normalizeConfigOptions(response.configOptions) }
+          : {}),
       };
     } catch (error) {
       throw toAcpError(error, { agentId: this.agentId });
@@ -254,7 +261,7 @@ export class AgentConnection {
     }
   }
 
-  async setConfigOption(request: SetSessionConfigOptionRequest): Promise<unknown> {
+  async setConfigOption(request: SetSessionConfigOptionRequest): Promise<AcpConfigOption[]> {
     if (!this.configurableSessions.has(request.sessionId)) {
       throw new AcpError(
         'capability_unsupported',
@@ -262,7 +269,11 @@ export class AgentConnection {
       );
     }
     try {
-      return await this.requireConnection().agent.request('session/set_config_option', request);
+      const response = await this.requireConnection().agent.request(
+        'session/set_config_option',
+        request
+      );
+      return normalizeConfigOptions(response.configOptions);
     } catch (error) {
       throw toAcpError(error, { agentId: this.agentId });
     }

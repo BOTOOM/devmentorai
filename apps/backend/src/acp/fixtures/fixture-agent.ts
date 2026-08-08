@@ -57,7 +57,7 @@ const fixture = {
   },
 
   async newSession(): Promise<{ sessionId: string; configOptions: SessionConfigOption[] }> {
-    const sessionId = randomUUID();
+    const sessionId = process.env.ACP_FIXTURE_SESSION_ID ?? randomUUID();
     sessions.set(sessionId, {});
     return {
       sessionId,
@@ -105,18 +105,15 @@ const fixture = {
       });
       await notify({
         sessionUpdate: 'agent_message_chunk',
-        messageId: 'fixture-message',
         content: { type: 'text', text: 'fixture ' },
       });
       await delay(10, signal);
       await notify({
         sessionUpdate: 'agent_thought_chunk',
-        messageId: 'fixture-thought',
         content: { type: 'text', text: 'thinking' },
       });
       await notify({
         sessionUpdate: 'user_message_chunk',
-        messageId: 'fixture-user',
         content: { type: 'text', text: 'echo' },
       });
       await notify({
@@ -161,11 +158,6 @@ const fixture = {
         entries: [{ content: 'Finish fixture', priority: 'high', status: 'completed' }],
       });
       await notify({
-        sessionUpdate: 'plan_update',
-        entries: [{ content: 'Finish fixture', priority: 'high', status: 'completed' }],
-      });
-      await notify({ sessionUpdate: 'plan_removed' });
-      await notify({
         sessionUpdate: 'current_mode_update',
         currentModeId: 'fixture',
       });
@@ -193,12 +185,18 @@ const fixture = {
       });
       await notify({
         sessionUpdate: 'agent_message_chunk',
-        messageId: 'fixture-message',
         content: { type: 'text', text: 'done' },
       });
       return { stopReason: 'end_turn' };
     } catch (error) {
       if (signal.aborted) {
+        if (process.env.ACP_FIXTURE_COMPLETE_TOOL_AFTER_CANCEL === '1') {
+          await notify({
+            sessionUpdate: 'tool_call_update',
+            toolCallId: 'fixture-tool',
+            status: 'completed',
+          }).catch(() => undefined);
+        }
         await notify({
           sessionUpdate: 'agent_message_chunk',
           messageId: 'fixture-after-cancel',

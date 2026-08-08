@@ -62,6 +62,42 @@ describe('ACP v1 fixture integration', () => {
     await manager.shutdown();
   });
 
+  it('uses distinct turn and role-scoped message ids for chunks', async () => {
+    const messages: Array<{ role: string; messageId: string }> = [];
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => {
+        if (event.type === 'message') {
+          messages.push({ role: event.role, messageId: event.messageId });
+        }
+      },
+    });
+    manager.registerAgent({
+      agentId: 'fixture',
+      launchSpec: launchSpec(),
+      connection: new AgentConnection({
+        agentId: 'fixture',
+        launchSpec: launchSpec(),
+        launcher,
+        permissionPolicy: () => ({ outcome: { outcome: 'selected', optionId: 'allow' } }),
+      }),
+    });
+    const session = await manager.createSession({ agentId: 'fixture', cwd });
+    await manager.prompt(session.id, [{ type: 'text', text: 'first' }]);
+    await manager.prompt(session.id, [{ type: 'text', text: 'second' }]);
+    const assistantIds = messages
+      .filter((message) => message.role === 'assistant')
+      .map((message) => message.messageId);
+    const thoughtIds = messages
+      .filter((message) => message.role === 'thought')
+      .map((message) => message.messageId);
+    expect(new Set(assistantIds).size).toBe(2);
+    expect(new Set(thoughtIds).size).toBe(2);
+    expect(new Set([...assistantIds, ...thoughtIds]).size).toBe(4);
+    await manager.shutdown();
+  });
+
   it('uses the default permission policy without auto approval', async () => {
     const launcher = new AgentLauncher();
     launches.add(launcher);
@@ -99,11 +135,16 @@ describe('ACP v1 fixture integration', () => {
 
   it('marks unfinished tool calls cancelled', async () => {
     const events: Array<{ type: string; status?: string }> = [];
+    const sequence: string[] = [];
     const launcher = new AgentLauncher();
     launches.add(launcher);
     const manager = new AcpSessionManager({
       onEvent: (_sessionId, event) => {
-        if (event.type === 'tool_call') events.push(event);
+        if (event.type === 'tool_call') {
+          events.push(event);
+          sequence.push(`tool:${event.status}`);
+        }
+        if (event.type === 'state') sequence.push(`state:${event.state}`);
       },
     });
     manager.registerAgent({
@@ -127,6 +168,43 @@ describe('ACP v1 fixture integration', () => {
       status: 'cancelled',
       mode: 'replace',
     });
+    expect(sequence.indexOf('tool:cancelled')).toBeGreaterThan(sequence.indexOf('tool:pending'));
+    expect(sequence.indexOf('tool:cancelled')).toBeGreaterThan(sequence.indexOf('state:running'));
+    await manager.shutdown();
+  });
+
+  it('does not overwrite a post-cancel completed tool call', async () => {
+    const statuses: string[] = [];
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => {
+        if (event.type === 'tool_call') statuses.push(event.status ?? '');
+      },
+    });
+    manager.registerAgent({
+      agentId: 'fixture',
+      launchSpec: launchSpec({
+        ACP_FIXTURE_STALL_AFTER_TOOL: '1',
+        ACP_FIXTURE_COMPLETE_TOOL_AFTER_CANCEL: '1',
+      }),
+      connection: new AgentConnection({
+        agentId: 'fixture',
+        launchSpec: launchSpec({
+          ACP_FIXTURE_STALL_AFTER_TOOL: '1',
+          ACP_FIXTURE_COMPLETE_TOOL_AFTER_CANCEL: '1',
+        }),
+        launcher,
+        permissionPolicy: () => ({ outcome: { outcome: 'selected', optionId: 'allow' } }),
+      }),
+    });
+    const session = await manager.createSession({ agentId: 'fixture', cwd });
+    const prompt = manager.prompt(session.id, [{ type: 'text', text: 'stall' }]);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await manager.cancelPrompt(session.id);
+    await expect(prompt).resolves.toBeUndefined();
+    expect(statuses).toContain('completed');
+    expect(statuses).not.toContain('cancelled');
     await manager.shutdown();
   });
 
@@ -191,6 +269,52 @@ describe('ACP v1 fixture integration', () => {
     ]);
     expect(updates.get(first.id)?.length).toBeGreaterThan(1);
     expect(updates.get(second.id)?.length).toBeGreaterThan(1);
+    await manager.shutdown();
+  });
+
+  it('routes same ACP session ids by agent', async () => {
+    const messages = new Map<string, string[]>();
+    const launcherA = new AgentLauncher();
+    const launcherB = new AgentLauncher();
+    launches.add(launcherA);
+    launches.add(launcherB);
+    const manager = new AcpSessionManager({
+      onEvent: (sessionId, event) => {
+        if (event.type !== 'message') return;
+        const current = messages.get(sessionId) ?? [];
+        current.push(event.messageId);
+        messages.set(sessionId, current);
+      },
+    });
+    manager.registerAgent({
+      agentId: 'fixture-a',
+      launchSpec: launchSpec({ ACP_FIXTURE_SESSION_ID: 'shared-acp-session' }),
+      connection: new AgentConnection({
+        agentId: 'fixture-a',
+        launchSpec: launchSpec({ ACP_FIXTURE_SESSION_ID: 'shared-acp-session' }),
+        launcher: launcherA,
+        permissionPolicy: () => ({ outcome: { outcome: 'selected', optionId: 'allow' } }),
+      }),
+    });
+    manager.registerAgent({
+      agentId: 'fixture-b',
+      launchSpec: launchSpec({ ACP_FIXTURE_SESSION_ID: 'shared-acp-session' }),
+      connection: new AgentConnection({
+        agentId: 'fixture-b',
+        launchSpec: launchSpec({ ACP_FIXTURE_SESSION_ID: 'shared-acp-session' }),
+        launcher: launcherB,
+        permissionPolicy: () => ({ outcome: { outcome: 'selected', optionId: 'allow' } }),
+      }),
+    });
+    const first = await manager.createSession({ agentId: 'fixture-a', cwd });
+    const second = await manager.createSession({ agentId: 'fixture-b', cwd });
+    await Promise.all([
+      manager.prompt(first.id, [{ type: 'text', text: 'first' }]),
+      manager.prompt(second.id, [{ type: 'text', text: 'second' }]),
+    ]);
+    expect(messages.get(first.id)).toHaveLength(4);
+    expect(messages.get(second.id)).toHaveLength(4);
+    expect(messages.get(first.id)).not.toEqual(messages.get(second.id));
     await manager.shutdown();
   });
 });

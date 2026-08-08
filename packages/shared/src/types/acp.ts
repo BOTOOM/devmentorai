@@ -141,6 +141,10 @@ export type AcpEvent =
       extensions?: Record<string, unknown>;
     }
   | {
+      /**
+       * Consumers merge tool-call events field-wise: omitted fields are unchanged,
+       * present content replaces the previous array, and append mode appends content.
+       */
       type: 'tool_call';
       toolCallId: string;
       title?: string;
@@ -250,4 +254,5 @@ export type AcpSessionRecord = {
   cwd: string;
   protocolVersion: number;
   capabilities: AcpConnectionCapabilities;
+  configOptions?: AcpConfigOption[];
 };

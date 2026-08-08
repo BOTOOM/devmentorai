@@ -11,6 +11,11 @@ import type {
 } from '@devmentorai/shared';
 
 type UnknownRecord = Record<string, unknown>;
+export type AcpMessageRole = 'user' | 'assistant' | 'thought';
+
+export type NormalizeV1Options = {
+  messageIds?: Partial<Record<AcpMessageRole, string>>;
+};
 
 function record(value: unknown): UnknownRecord {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -74,10 +79,20 @@ function optionalStringRecord(
 
 function messageEvent(
   update: UnknownRecord,
-  role: 'user' | 'assistant' | 'thought',
-  mode: 'replace' | 'append'
+  role: AcpMessageRole,
+  mode: 'replace' | 'append',
+  options: NormalizeV1Options
 ): AcpEvent {
-  const messageId = stringValue(update.messageId) ?? 'unknown-message';
+  const messageId = stringValue(update.messageId) ?? options.messageIds?.[role];
+  if (!messageId) {
+    return {
+      type: 'unknown',
+      ...(stringValue(update.sessionUpdate)
+        ? { sessionUpdate: stringValue(update.sessionUpdate) }
+        : {}),
+      data: update,
+    };
+  }
   const content = contentBlock(update.content);
   return {
     type: 'message',
@@ -87,6 +102,15 @@ function messageEvent(
     mode,
     ...(extensions(update) ? { extensions: extensions(update) } : {}),
   };
+}
+
+function nullableStringField(
+  update: UnknownRecord,
+  key: string
+): { value: string | null } | undefined {
+  if (!Object.prototype.hasOwnProperty.call(update, key)) return undefined;
+  const value = update[key];
+  return value === null || typeof value === 'string' ? { value } : undefined;
 }
 
 function toolEvent(update: UnknownRecord): AcpEvent {
@@ -113,16 +137,16 @@ function toolEvent(update: UnknownRecord): AcpEvent {
   };
 }
 
-export function normalizeV1Update(value: unknown): AcpEvent {
+export function normalizeV1Update(value: unknown, options: NormalizeV1Options = {}): AcpEvent {
   const update = record(value);
   const variant = stringValue(update.sessionUpdate);
   switch (variant) {
     case 'user_message_chunk':
-      return messageEvent(update, 'user', 'append');
+      return messageEvent(update, 'user', 'append', options);
     case 'agent_message_chunk':
-      return messageEvent(update, 'assistant', 'append');
+      return messageEvent(update, 'assistant', 'append', options);
     case 'agent_thought_chunk':
-      return messageEvent(update, 'thought', 'append');
+      return messageEvent(update, 'thought', 'append', options);
     case 'tool_call':
     case 'tool_call_update':
       return toolEvent(update);
@@ -150,17 +174,16 @@ export function normalizeV1Update(value: unknown): AcpEvent {
           : [],
         ...(extensions(update) ? { extensions: extensions(update) } : {}),
       };
-    case 'session_info_update':
+    case 'session_info_update': {
+      const title = nullableStringField(update, 'title');
+      const updatedAt = nullableStringField(update, 'updatedAt');
       return {
         type: 'session_info',
-        ...(stringValue(update.title) !== undefined
-          ? { title: update.title as string }
-          : { title: null }),
-        ...(stringValue(update.updatedAt) !== undefined
-          ? { updatedAt: update.updatedAt as string }
-          : { updatedAt: null }),
+        ...(title ? { title: title.value } : {}),
+        ...(updatedAt ? { updatedAt: updatedAt.value } : {}),
         ...(extensions(update) ? { extensions: extensions(update) } : {}),
       };
+    }
     case 'usage_update': {
       const used = numberValue(update.used) ?? 0;
       const size = numberValue(update.size) ?? 0;

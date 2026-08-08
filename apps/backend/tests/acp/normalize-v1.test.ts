@@ -115,6 +115,16 @@ describe('ACP v1 normalization', () => {
       { type: 'session_info', title: 'Title', updatedAt: 'now' },
     ],
     [
+      'session info title-only update',
+      { sessionUpdate: 'session_info_update', title: 'Title' },
+      { type: 'session_info', title: 'Title' },
+    ],
+    [
+      'session info cleared timestamp',
+      { sessionUpdate: 'session_info_update', updatedAt: null },
+      { type: 'session_info', updatedAt: null },
+    ],
+    [
       'usage',
       { sessionUpdate: 'usage_update', used: 1, size: 2, cost: { amount: 0.1, currency: 'USD' } },
       { type: 'usage', used: 1, size: 2, cost: { amount: 0.1, currency: 'USD' } },

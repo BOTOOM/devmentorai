@@ -204,7 +204,15 @@ export class AcpSessionManager {
   }
 
   private async emit(sessionId: string, event: AcpEvent): Promise<void> {
-    await this.onEvent?.(sessionId, event);
+    try {
+      await this.onEvent?.(sessionId, event);
+    } catch (error) {
+      console.error('ACP session event consumer failed', {
+        sessionId,
+        eventType: event.type,
+        error,
+      });
+    }
   }
 
   private async connectAndGetAgent(agentId: string): Promise<AgentConnection> {

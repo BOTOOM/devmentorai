@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AgentConnection } from '../../src/acp/connection.js';
 import { AcpError } from '../../src/acp/errors.js';
 import { AgentLauncher } from '../../src/acp/launcher.js';
@@ -59,6 +59,40 @@ describe('ACP v1 fixture integration', () => {
         'state',
       ])
     );
+    await manager.shutdown();
+  });
+
+  it('continues updates when the event consumer rejects', async () => {
+    const seen: string[] = [];
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => {
+        seen.push(event.type);
+        if (event.type === 'tool_call') {
+          throw new Error('consumer failed');
+        }
+      },
+    });
+    manager.registerAgent({
+      agentId: 'fixture',
+      launchSpec: launchSpec(),
+      connection: new AgentConnection({
+        agentId: 'fixture',
+        launchSpec: launchSpec(),
+        launcher,
+        permissionPolicy: () => ({ outcome: { outcome: 'selected', optionId: 'allow' } }),
+      }),
+    });
+    const session = await manager.createSession({ agentId: 'fixture', cwd });
+    await expect(
+      manager.prompt(session.id, [{ type: 'text', text: 'hello' }])
+    ).resolves.toBeUndefined();
+    expect(seen).toContain('plan');
+    expect(seen).toContain('state');
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
     await manager.shutdown();
   });
 

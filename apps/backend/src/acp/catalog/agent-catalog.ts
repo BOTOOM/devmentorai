@@ -34,6 +34,17 @@ type CatalogOptions = {
 
 const BUILT_IN_AGENTS: Array<Record<string, unknown>> = [
   {
+    id: 'devmentorai-openai-compatible',
+    name: 'OpenAI-compatible endpoint',
+    description: 'DevMentorAI ACP agent for OpenAI-compatible chat-completions endpoints',
+    distribution: {
+      command: {
+        cmd: process.execPath,
+        args: [path.resolve(process.cwd(), 'apps/acp-openai-agent/dist/main.js')],
+      },
+    },
+  },
+  {
     id: 'claude-acp',
     name: 'Claude',
     version: '0.66.0',

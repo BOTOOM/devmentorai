@@ -20,6 +20,9 @@ const configuredCommands = process.env.ACP_FIXTURE_COMMANDS
         input: { hint: 'optional text' },
       },
     ];
+const configuredAuthMethods = process.env.ACP_FIXTURE_AUTH_METHODS
+  ? (JSON.parse(process.env.ACP_FIXTURE_AUTH_METHODS) as acp.AuthMethod[])
+  : ([] satisfies acp.AuthMethod[]);
 
 function delay(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -51,10 +54,12 @@ const fixture = {
         },
         ...configuredCapabilities,
       },
-      authMethods: [],
+      authMethods: configuredAuthMethods,
       agentInfo: { name: 'devmentorai-fixture', version: '1.0.0' },
     };
   },
+
+  async authenticate(): Promise<void> {},
 
   async newSession(): Promise<{ sessionId: string; configOptions: SessionConfigOption[] }> {
     const sessionId = process.env.ACP_FIXTURE_SESSION_ID ?? randomUUID();
@@ -223,6 +228,7 @@ const stream = acp.ndJsonStream(
 acp
   .agent({ name: 'devmentorai-fixture' })
   .onRequest('initialize', (ctx) => fixture.initialize())
+  .onRequest('authenticate', (ctx) => fixture.authenticate())
   .onRequest('session/new', (ctx) => fixture.newSession())
   .onRequest('session/set_config_option', (ctx) => fixture.setConfigOption())
   .onRequest('session/prompt', (ctx) => fixture.prompt(ctx.params, ctx.client))

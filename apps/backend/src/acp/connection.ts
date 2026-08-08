@@ -224,7 +224,7 @@ export class AgentConnection {
           : {}),
       };
     } catch (error) {
-      throw toAcpError(error, { agentId: this.agentId });
+      throw this.mapAgentError(error);
     }
   }
 
@@ -237,7 +237,30 @@ export class AgentConnection {
         prompt: blocks as ContentBlock[],
       });
     } catch (error) {
-      throw toAcpError(error, { agentId: this.agentId });
+      throw this.mapAgentError(error);
+    }
+  }
+
+  async authenticate(methodId: string): Promise<void> {
+    const method = this.capabilities.authMethods.find((candidate) => candidate.id === methodId);
+    if (!method) {
+      throw new AcpError(
+        'capability_unsupported',
+        `Agent did not advertise auth method ${methodId}`
+      );
+    }
+    try {
+      await this.requireConnection().agent.request('authenticate', { methodId });
+    } catch (error) {
+      const mapped = toAcpError(error, { agentId: this.agentId });
+      if (mapped.code === 'auth_required') {
+        throw new AcpError('auth_required', mapped.message, {
+          ...(mapped.details ?? {}),
+          authMethod: method.id,
+          authDescription: method.description,
+        });
+      }
+      throw mapped;
     }
   }
 
@@ -294,5 +317,17 @@ export class AgentConnection {
       throw new AcpError('agent_launch_failed', 'ACP connection is not initialized');
     }
     return this.connection;
+  }
+
+  private mapAgentError(error: unknown): AcpError {
+    const mapped = toAcpError(error, { agentId: this.agentId });
+    if (mapped.code !== 'auth_required') return mapped;
+    return new AcpError('auth_required', mapped.message, {
+      ...(mapped.details ?? {}),
+      authMethods: this.capabilities.authMethods.map(({ id, description }) => ({
+        id,
+        description,
+      })),
+    });
   }
 }

@@ -49,9 +49,11 @@ export function SessionSelector({
               {isActiveWritingAssistant && <Sparkles className="w-3.5 h-3.5 text-amber-500" />}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {isActiveWritingAssistant
-                ? 'Quick Actions History'
-                : activeConfig?.name || 'No session selected'}
+              {activeSession?.agentId
+                ? `${activeSession.agentId}${activeSession.cwd ? ` · ${activeSession.cwd}` : ''}`
+                : isActiveWritingAssistant
+                  ? 'Quick Actions History'
+                  : activeConfig?.name || 'No session selected'}
             </p>
           </div>
         </div>
@@ -106,6 +108,22 @@ export function SessionSelector({
                       <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                         <MessageSquare className="w-3 h-3" />
                         {session.messageCount} messages
+                        {session.agentId && (
+                          <span className="ml-1">
+                            • {session.agentId}
+                            {session.cwd ? ` · ${session.cwd}` : ''}
+                          </span>
+                        )}
+                        {session.historyState === 'stale' && (
+                          <span className="ml-1 text-amber-600 dark:text-amber-400">
+                            • stale cache
+                          </span>
+                        )}
+                        {session.agentId && session.replaySupported === false && (
+                          <span className="ml-1 text-amber-600 dark:text-amber-400">
+                            • read-only history
+                          </span>
+                        )}
                         {isWritingAssistant && (
                           <span className="ml-1 text-amber-600 dark:text-amber-400">
                             • Quick Actions

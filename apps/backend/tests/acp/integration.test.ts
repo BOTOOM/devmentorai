@@ -102,6 +102,55 @@ describe('ACP v1 fixture integration', () => {
     await manager.shutdown();
   });
 
+  it('replays an existing session through ACP history and can replay twice', async () => {
+    const events: string[] = [];
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => {
+        if (event.type === 'message') events.push(event.messageId);
+      },
+    });
+    const connection = new AgentConnection({
+      agentId: 'fixture',
+      launchSpec: launchSpec({ ACP_FIXTURE_LOAD_SESSION: '1' }),
+      launcher,
+      permissionPolicy: () => ({ outcome: { outcome: 'selected', optionId: 'allow' } }),
+    });
+    const loadSession = vi.spyOn(connection, 'loadSession');
+    manager.registerAgent({ agentId: 'fixture', launchSpec: launchSpec(), connection });
+    const session = await manager.createSession({ agentId: 'fixture', cwd });
+    await expect(manager.loadSession(session.id)).resolves.toEqual({ supported: false });
+    expect(loadSession).not.toHaveBeenCalled();
+    await manager.shutdown();
+
+    const replayLauncher = new AgentLauncher();
+    launches.add(replayLauncher);
+    const replayManager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => {
+        if (event.type === 'message') events.push(event.messageId);
+      },
+    });
+    const replayConnection = new AgentConnection({
+      agentId: 'fixture',
+      launchSpec: launchSpec({
+        ACP_FIXTURE_LOAD_SESSION: '1',
+        ACP_FIXTURE_CAPABILITIES: JSON.stringify({ loadSession: true }),
+      }),
+      launcher: replayLauncher,
+    });
+    replayManager.registerAgent({
+      agentId: 'fixture',
+      launchSpec: launchSpec(),
+      connection: replayConnection,
+    });
+    const replaySession = await replayManager.createSession({ agentId: 'fixture', cwd });
+    await expect(replayManager.loadSession(replaySession.id)).resolves.toEqual({ supported: true });
+    await expect(replayManager.loadSession(replaySession.id)).resolves.toEqual({ supported: true });
+    expect(events.filter((id) => id === 'replay-assistant')).toHaveLength(2);
+    await replayManager.shutdown();
+  });
+
   it('continues updates when the event consumer rejects', async () => {
     const seen: string[] = [];
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);

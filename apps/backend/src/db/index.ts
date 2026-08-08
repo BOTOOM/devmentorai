@@ -146,6 +146,7 @@ export function initDatabase(options: DatabaseOptions = {}): Database.Database {
     'config_options_json TEXT',
     "title_source TEXT CHECK (title_source IN ('agent', 'local'))",
     'replay_supported INTEGER',
+    "history_state TEXT NOT NULL DEFAULT 'current'",
     'imported_from TEXT',
   ];
   for (const column of acpSessionColumns) {

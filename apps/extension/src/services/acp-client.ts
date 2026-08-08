@@ -3,6 +3,7 @@ import type {
   AcpContentBlock,
   AcpEvent,
   AcpSessionRecord,
+  Session,
 } from '@devmentorai/shared';
 export type AcpCatalogEntry = {
   id: string;
@@ -139,6 +140,14 @@ export class AcpClient {
       ...(profileId ? { profileId } : {}),
       cwd,
     });
+  }
+
+  async loadSession(sessionId: string): Promise<{ supported: boolean }> {
+    return this.request<{ supported: boolean }>('ui/session.load', { sessionId });
+  }
+
+  async listAgentSessions(): Promise<Session[]> {
+    return this.request<Session[]>('ui/session.agent_list', {});
   }
 
   async prompt(sessionId: string, prompt: string | AcpContentBlock[]): Promise<void> {

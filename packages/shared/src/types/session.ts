@@ -37,6 +37,7 @@ export interface Session {
   configOptions?: Array<Record<string, unknown>>;
   titleSource?: 'agent' | 'local';
   replaySupported?: boolean;
+  historyState?: 'current' | 'stale';
   importedFrom?: 'copilot-sdk';
 }
 

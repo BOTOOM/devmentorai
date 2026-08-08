@@ -5,6 +5,7 @@ import type {
   SessionType,
 } from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AcpClient, acpEnabled } from '../services/acp-client';
 import { ApiClient } from '../services/api-client';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
@@ -21,16 +22,27 @@ export function useSessions(options?: UseSessionsOptions) {
   const prevConnectionStatus = useRef<ConnectionStatus | undefined>(options?.connectionStatus);
 
   const apiClient = useMemo(() => ApiClient.getInstance(), []);
+  const acpClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.listSessions();
       if (response.success && response.data) {
-        setSessions(response.data.items);
+        let nextSessions = response.data.items;
+        if (acpEnabled()) {
+          try {
+            await acpClient.connect();
+            const acpSessions = await acpClient.listAgentSessions();
+            nextSessions = [...acpSessions, ...nextSessions];
+          } catch {
+            // Legacy sessions remain available when ACP history is unavailable.
+          }
+        }
+        setSessions(nextSessions);
 
-        if (!activeSessionId && response.data.items.length > 0) {
-          setActiveSessionId(response.data.items[0].id);
+        if (!activeSessionId && nextSessions.length > 0) {
+          setActiveSessionId(nextSessions[0].id);
         }
       } else {
         setError(response.error?.message || 'Failed to load sessions');
@@ -41,7 +53,7 @@ export function useSessions(options?: UseSessionsOptions) {
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, apiClient]);
+  }, [activeSessionId, acpClient, apiClient]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -103,6 +115,17 @@ export function useSessions(options?: UseSessionsOptions) {
     async (sessionId: string) => {
       setActiveSessionId(sessionId);
 
+      const selected = sessions.find((session) => session.id === sessionId);
+      if (acpEnabled() && selected?.agentId && selected.replaySupported) {
+        try {
+          await acpClient.connect();
+          await acpClient.loadSession(sessionId);
+          return;
+        } catch (err) {
+          console.warn('[useSessions] Failed to load ACP session history:', err);
+        }
+      }
+
       // Resume session on backend to restore Copilot context
       try {
         await apiClient.resumeSession(sessionId);
@@ -111,7 +134,7 @@ export function useSessions(options?: UseSessionsOptions) {
         // Don't fail silently - the session is still selected but may not have full context
       }
     },
-    [apiClient]
+    [acpClient, apiClient, sessions]
   );
 
   const deleteSession = useCallback(

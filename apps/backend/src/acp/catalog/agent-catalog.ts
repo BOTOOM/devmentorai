@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
+import { devmentorHome } from './paths.js';
 import type {
   AgentCatalogEntry,
   AgentDistribution,
@@ -22,6 +22,14 @@ type CatalogOptions = {
   ttlMs?: number;
   builtIns?: Array<Record<string, unknown>>;
   getProfiles?: () => Promise<AgentProfile[]> | AgentProfile[];
+  getInstallState?: (
+    entry: Omit<AgentCatalogEntry, 'platformAvailability'>
+  ) => Promise<AgentCatalogEntry['installState']> | AgentCatalogEntry['installState'];
+  getAuthState?: (
+    entry: Omit<AgentCatalogEntry, 'platformAvailability'>
+  ) =>
+    | Promise<Pick<AgentCatalogEntry, 'authState' | 'authMethods'>>
+    | Pick<AgentCatalogEntry, 'authState' | 'authMethods'>;
 };
 
 const BUILT_IN_AGENTS: Array<Record<string, unknown>> = [
@@ -56,7 +64,7 @@ const BUILT_IN_AGENTS: Array<Record<string, unknown>> = [
 ];
 
 function defaultCachePath(): string {
-  return path.join(os.homedir(), '.devmentorai', 'acp-registry.json');
+  return path.join(devmentorHome(), 'acp-registry.json');
 }
 
 function defaultFetcher(url: string): Promise<unknown> {
@@ -70,10 +78,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-function parseRegistry(value: unknown): RegistryDocument | undefined {
+export function parseRegistry(value: unknown): RegistryDocument | undefined {
   if (!isRecord(value) || !Array.isArray(value.agents)) return undefined;
   const agents = value.agents.filter(isRecord).filter((agent) => typeof agent.id === 'string');
-  return agents.length === value.agents.length ? { agents } : undefined;
+  return { agents };
 }
 
 function distribution(value: unknown): AgentDistribution {
@@ -123,6 +131,27 @@ function availability(
   return { available: false, key: platformKey(), reason: 'No supported distribution' };
 }
 
+async function defaultInstallState(
+  entry: Omit<AgentCatalogEntry, 'platformAvailability'>
+): Promise<AgentCatalogEntry['installState']> {
+  if (entry.distribution.npx || entry.distribution.uvx) return 'lazy';
+  if (entry.distribution.binary) {
+    const binary = entry.distribution.binary[platformKey()];
+    if (!binary) return 'unavailable';
+    const target = path.join(devmentorHome(), 'agents', entry.id, entry.version ?? 'unknown');
+    const command = path.resolve(target, binary.cmd);
+    const relative = path.relative(target, command);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) return 'unavailable';
+    try {
+      const stat = await fs.stat(command);
+      return stat.isFile() ? 'installed' : 'not_installed';
+    } catch {
+      return 'not_installed';
+    }
+  }
+  return entry.source === 'custom' ? 'installed' : entry.installState;
+}
+
 export class AgentCatalog {
   private readonly fetcher: RegistryFetcher;
   private readonly cachePath: string;
@@ -130,6 +159,8 @@ export class AgentCatalog {
   private readonly ttlMs: number;
   private readonly builtIns: Array<Record<string, unknown>>;
   private readonly getProfiles?: CatalogOptions['getProfiles'];
+  private readonly getInstallState?: CatalogOptions['getInstallState'];
+  private readonly getAuthState?: CatalogOptions['getAuthState'];
 
   constructor(options: CatalogOptions = {}) {
     this.fetcher = options.fetcher ?? defaultFetcher;
@@ -138,6 +169,8 @@ export class AgentCatalog {
     this.ttlMs = options.ttlMs ?? DEFAULT_REGISTRY_TTL_MS;
     this.builtIns = options.builtIns ?? BUILT_IN_AGENTS;
     this.getProfiles = options.getProfiles;
+    this.getInstallState = options.getInstallState;
+    this.getAuthState = options.getAuthState;
   }
 
   async list(): Promise<AgentCatalogEntry[]> {
@@ -169,10 +202,18 @@ export class AgentCatalog {
       if (!raw) continue;
       merged.set(profile.id, { ...raw, id: profile.id, name: profile.name, source: 'custom' });
     }
-    return [...merged.values()].map((entry) => ({
-      ...entry,
-      platformAvailability: availability(entry),
-    }));
+    return Promise.all(
+      [...merged.values()].map(async (entry) => {
+        const authState = this.getAuthState ? await this.getAuthState(entry) : undefined;
+        const installState = this.getInstallState?.(entry) ?? (await defaultInstallState(entry));
+        return {
+          ...entry,
+          installState: await installState,
+          ...(authState ?? {}),
+          platformAvailability: availability(entry),
+        };
+      })
+    );
   }
 
   async get(id: string): Promise<AgentCatalogEntry | undefined> {

@@ -1,21 +1,27 @@
+import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   AcpAgentService,
   AgentCatalog,
   AgentInstaller,
+  AgentLaunchResolver,
   AgentProfileStore,
   CredentialStore,
   WorkspaceService,
   platformKey,
 } from '../../src/acp/catalog/index.js';
+import type { AgentCatalogEntry, AgentProfile } from '../../src/acp/catalog/types.js';
 import { AgentConnection } from '../../src/acp/connection.js';
+import { AcpError } from '../../src/acp/errors.js';
 
 const fixture = path.resolve('src/acp/fixtures/fixture-agent.ts');
 const tsx = path.resolve('node_modules/.bin/tsx');
+const execFileAsync = promisify(execFile);
 const temporaryDirectories: string[] = [];
 
 async function tempDirectory(): Promise<string> {
@@ -85,15 +91,93 @@ describe('ACP Phase 2 catalog', () => {
   });
 
   it('rejects malformed registry data without throwing', async () => {
+    const directory = await tempDirectory();
     const catalog = new AgentCatalog({
-      fetcher: async () => ({ agents: 'not-an-array' }),
+      cachePath: path.join(directory, 'registry.json'),
+      fetcher: async () => ({
+        agents: [
+          { id: 'good-agent', name: 'Good', distribution: { npx: { package: 'good@1' } } },
+          { name: 'missing id', distribution: { npx: { package: 'bad@1' } } },
+        ],
+      }),
       builtIns: [
         { id: 'builtin-agent', name: 'Built in', distribution: { command: { cmd: 'agent' } } },
       ],
     });
     await expect(catalog.list()).resolves.toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: 'builtin-agent' })])
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'builtin-agent' }),
+        expect.objectContaining({ id: 'good-agent' }),
+      ])
     );
+  });
+
+  it('concatenates profile arguments for every distribution kind', async () => {
+    const directory = await tempDirectory();
+    const credentials = new CredentialStore({ directory });
+    const resolver = new AgentLaunchResolver({ credentials });
+    const profile = (args: string[]): AgentProfile => ({
+      id: 'profile',
+      name: 'Profile',
+      args,
+      env: {},
+      defaultCwd: directory,
+      transport: 'stdio',
+    });
+    const entry = (distribution: AgentCatalogEntry['distribution']): AgentCatalogEntry => ({
+      id: 'agent',
+      name: 'Agent',
+      version: '1',
+      source: 'registry',
+      distribution,
+      installState: 'lazy',
+      authState: 'unknown',
+      authMethods: [],
+      platformAvailability: { available: true, key: platformKey() },
+    });
+
+    await expect(
+      resolver.resolve(
+        entry({ npx: { package: 'copilot@1', args: ['--acp'] } }),
+        profile(['--port', 'N'])
+      )
+    ).resolves.toMatchObject({
+      launchSpec: { args: ['--yes', 'copilot@1', '--acp', '--port', 'N'] },
+    });
+    await expect(
+      resolver.resolve(
+        entry({ uvx: { package: 'fast-agent', args: ['--acp'] } }),
+        profile(['--model', 'local'])
+      )
+    ).resolves.toMatchObject({
+      launchSpec: { args: ['fast-agent', '--acp', '--model', 'local'] },
+    });
+    await expect(
+      resolver.resolve(entry({ command: { cmd: 'devin', args: ['acp'] } }), profile(['--cloud']))
+    ).resolves.toMatchObject({
+      launchSpec: { args: ['acp', '--cloud'] },
+    });
+
+    const binaryRoot = path.join(directory, 'agents');
+    const binaryTarget = path.join(binaryRoot, 'agent', '1');
+    await fs.mkdir(binaryTarget, { recursive: true });
+    await fs.writeFile(path.join(binaryTarget, 'agent'), '');
+    const installer = new AgentInstaller({
+      root: binaryRoot,
+      fetcher: async () => new Uint8Array(),
+    });
+    await expect(
+      new AgentLaunchResolver({ installer, credentials }).resolve(
+        entry({
+          binary: {
+            [platformKey()]: { archive: 'agent.tar.gz', cmd: './agent', args: ['acp'] },
+          },
+        }),
+        profile(['--cloud'])
+      )
+    ).resolves.toMatchObject({
+      launchSpec: { args: ['acp', '--cloud'] },
+    });
   });
 
   it('reports binary distributions unavailable on the current platform', async () => {
@@ -148,6 +232,78 @@ describe('ACP Phase 2 catalog', () => {
     await expect(fs.access(path.join(directory, 'agents', 'binary-agent', '1'))).rejects.toThrow();
   });
 
+  it('does not reinstall an already installed binary', async () => {
+    const directory = await tempDirectory();
+    const root = path.join(directory, 'agents');
+    const target = path.join(root, 'binary-agent', '1');
+    await fs.mkdir(target, { recursive: true });
+    await fs.writeFile(path.join(target, 'agent'), '');
+    let downloads = 0;
+    const installer = new AgentInstaller({
+      root,
+      fetcher: async () => {
+        downloads += 1;
+        return new Uint8Array();
+      },
+    });
+    const entry = {
+      id: 'binary-agent',
+      name: 'Binary',
+      version: '1',
+      source: 'registry' as const,
+      distribution: {
+        binary: {
+          [platformKey()]: { archive: 'agent.tar.gz', cmd: './agent', args: [] },
+        },
+      },
+      installState: 'not_installed' as const,
+      authState: 'unknown' as const,
+      authMethods: [],
+      platformAvailability: { available: true, key: platformKey() },
+    };
+    await expect(installer.install(entry)).resolves.toBe(target);
+    expect(downloads).toBe(0);
+  });
+
+  it('rejects archive entries that escape the extraction directory', async () => {
+    const directory = await tempDirectory();
+    const source = path.join(directory, 'source');
+    const archive = path.join(directory, 'malicious.tar.gz');
+    await fs.mkdir(source);
+    await fs.writeFile(path.join(source, 'safe'), 'malicious');
+    await execFileAsync('tar', [
+      '-czf',
+      archive,
+      '--transform=s|safe|../escape|',
+      '-C',
+      source,
+      'safe',
+    ]);
+    const bytes = new Uint8Array(await fs.readFile(archive));
+    const installer = new AgentInstaller({
+      root: path.join(directory, 'agents'),
+      fetcher: async () => bytes,
+    });
+    const entry = {
+      id: 'malicious-agent',
+      name: 'Malicious',
+      version: '1',
+      source: 'registry' as const,
+      distribution: {
+        binary: {
+          [platformKey()]: { archive: 'malicious.tar.gz', cmd: './safe' },
+        },
+      },
+      installState: 'not_installed' as const,
+      authState: 'unknown' as const,
+      authMethods: [],
+      platformAvailability: { available: true, key: platformKey() },
+    };
+    await expect(installer.install(entry)).rejects.toMatchObject({
+      code: 'agent_launch_failed',
+    });
+  });
+
   it('stores credentials encrypted and resolves only process environment values', async () => {
     const directory = await tempDirectory();
     const secret = 'phase2-secret-value';
@@ -181,6 +337,68 @@ describe('ACP Phase 2 catalog', () => {
     });
     await expect(connection.authenticate('fixture-login')).resolves.toBeUndefined();
     await connection.shutdown();
+  });
+
+  it('derives lazy install state and persists auth state in the catalog', async () => {
+    const db = new Database(':memory:');
+    db.exec(
+      `CREATE TABLE acp_agents (
+        id TEXT PRIMARY KEY,
+        auth_state TEXT NOT NULL,
+        auth_methods_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`
+    );
+    db.prepare('INSERT INTO acp_agents VALUES (?, ?, ?, ?)').run(
+      'catalog-agent',
+      'authenticated',
+      JSON.stringify([{ id: 'login', description: 'Login' }]),
+      new Date().toISOString()
+    );
+    const catalog = new AgentCatalog({
+      fetcher: async () => ({ agents: [] }),
+      builtIns: [
+        {
+          id: 'catalog-agent',
+          name: 'Catalog',
+          distribution: { npx: { package: 'catalog@1' } },
+        },
+      ],
+      getAuthState: (entry) => {
+        const row = db
+          .prepare('SELECT auth_state, auth_methods_json FROM acp_agents WHERE id = ?')
+          .get(entry.id) as { auth_state: 'authenticated'; auth_methods_json: string };
+        return {
+          authState: row.auth_state,
+          authMethods: JSON.parse(row.auth_methods_json),
+        };
+      },
+    });
+    await expect(catalog.get('catalog-agent')).resolves.toMatchObject({
+      installState: 'lazy',
+      authState: 'authenticated',
+      authMethods: [{ id: 'login', description: 'Login' }],
+    });
+    db.close();
+  });
+
+  it('maps resolver failures to AcpError taxonomy', async () => {
+    const directory = await tempDirectory();
+    const resolver = new AgentLaunchResolver({
+      credentials: new CredentialStore({ directory }),
+    });
+    const profile: AgentProfile = {
+      id: 'tcp',
+      name: 'TCP',
+      args: [],
+      env: {},
+      defaultCwd: directory,
+      transport: 'tcp',
+    };
+    await expect(resolver.resolve(undefined, profile)).rejects.toMatchObject({
+      code: 'capability_unsupported',
+    });
+    expect(new AcpError('agent_error', 'test')).toBeInstanceOf(AcpError);
   });
 
   it('rejects workspace traversal and creates valid directories', async () => {

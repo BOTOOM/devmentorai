@@ -1,7 +1,8 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
+import { AcpError } from '../errors.js';
+import { devmentorHome } from './paths.js';
 
 const VERSION = 'v1';
 
@@ -19,7 +20,7 @@ export class CredentialStore {
   private readonly key: Buffer;
 
   constructor(options: CredentialStoreOptions = {}) {
-    const directory = options.directory ?? path.join(os.homedir(), '.devmentorai');
+    const directory = options.directory ?? devmentorHome();
     this.credentialsPath = options.credentialsPath ?? path.join(directory, 'credentials');
     this.keyPath = options.keyPath ?? path.join(directory, 'credentials.key');
     fs.mkdirSync(path.dirname(this.credentialsPath), { recursive: true, mode: 0o700 });
@@ -27,7 +28,8 @@ export class CredentialStore {
   }
 
   set(id: string, value: string): void {
-    if (!id || !value) throw new Error('Credential id and value are required');
+    if (!id || !value)
+      throw new AcpError('agent_launch_failed', 'Credential id and value are required');
     const credentials = this.read();
     credentials[id] = value;
     this.write(credentials);
@@ -56,7 +58,10 @@ export class CredentialStore {
         const resolved = this.resolveReference(value);
         const isReference = /^(?:credential:|credential:\/\/)|^\$\{credential:/.test(value);
         if (isReference && resolved === undefined) {
-          throw new Error(`Credential reference is not configured for ${key}`);
+          throw new AcpError(
+            'agent_launch_failed',
+            `Credential reference is not configured for environment variable ${key}`
+          );
         }
         return resolved === undefined ? [[key, value]] : [[key, resolved]];
       })
@@ -64,6 +69,7 @@ export class CredentialStore {
   }
 
   private loadOrCreateKey(): Buffer {
+    // The adjacent 0600 key protects against accidental disclosure, not local-account takeover.
     if (fs.existsSync(this.keyPath)) {
       return Buffer.from(fs.readFileSync(this.keyPath, 'utf8').trim(), 'base64');
     }

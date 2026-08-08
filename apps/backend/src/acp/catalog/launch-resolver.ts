@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { AcpError } from '../errors.js';
 import type { LaunchSpec } from '../launcher.js';
 import { AgentInstaller } from './agent-installer.js';
 import { CredentialStore } from './credentials.js';
@@ -23,11 +24,16 @@ export class AgentLaunchResolver {
     profile: AgentProfile
   ): Promise<LaunchResolution> {
     if (profile.transport !== 'stdio') {
-      throw new Error('TCP ACP transport is reserved for a later phase');
+      throw new AcpError(
+        'capability_unsupported',
+        'TCP ACP transport is reserved for a later phase'
+      );
     }
     const environment = this.credentials.resolveEnvironment(profile.env);
     if (profile.custom || !entry) {
-      if (!profile.cmd) throw new Error(`Custom profile ${profile.id} has no command`);
+      if (!profile.cmd) {
+        throw new AcpError('agent_launch_failed', `Custom profile ${profile.id} has no command`);
+      }
       return {
         profile,
         ...(entry ? { catalogEntry: entry } : {}),
@@ -55,7 +61,12 @@ export class AgentLaunchResolver {
     if (distribution.npx) {
       return {
         cmd: 'npx',
-        args: ['--yes', distribution.npx.package, ...(distribution.npx.args ?? profile.args)],
+        args: [
+          '--yes',
+          distribution.npx.package,
+          ...(distribution.npx.args ?? []),
+          ...profile.args,
+        ],
         env: distribution.npx.env,
         cwd: profile.defaultCwd,
       };
@@ -63,7 +74,7 @@ export class AgentLaunchResolver {
     if (distribution.uvx) {
       return {
         cmd: 'uvx',
-        args: [distribution.uvx.package, ...(distribution.uvx.args ?? profile.args)],
+        args: [distribution.uvx.package, ...(distribution.uvx.args ?? []), ...profile.args],
         env: distribution.uvx.env,
         cwd: profile.defaultCwd,
       };
@@ -79,13 +90,18 @@ export class AgentLaunchResolver {
     if (distribution.binary) {
       const root = await this.installer.install(entry);
       const binary = distribution.binary[entry.platformAvailability.key];
-      if (!binary) throw new Error(entry.platformAvailability.reason ?? 'Platform unavailable');
+      if (!binary) {
+        throw new AcpError(
+          'capability_unsupported',
+          entry.platformAvailability.reason ?? 'Platform unavailable'
+        );
+      }
       return {
         cmd: path.resolve(root, binary.cmd),
-        args: binary.args ?? profile.args,
+        args: [...(binary.args ?? []), ...profile.args],
         cwd: profile.defaultCwd,
       };
     }
-    throw new Error(`Unsupported distribution for agent ${entry.id}`);
+    throw new AcpError('agent_launch_failed', `Unsupported distribution for agent ${entry.id}`);
   }
 }

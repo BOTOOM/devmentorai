@@ -1,7 +1,7 @@
 import type { LaunchSpec } from '../launcher.js';
 
 export type AgentSource = 'builtin' | 'registry' | 'custom';
-export type AgentInstallState = 'installed' | 'not_installed' | 'unavailable';
+export type AgentInstallState = 'installed' | 'not_installed' | 'lazy' | 'unavailable';
 export type AgentAuthState = 'unknown' | 'required' | 'authenticated';
 export type AgentTransport = 'stdio' | 'tcp';
 

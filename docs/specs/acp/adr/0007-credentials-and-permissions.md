@@ -19,7 +19,9 @@ files or run commands.
    we don't need.
 2. Where env credentials are unavoidable, store them encrypted at `~/.devmentorai/credentials`
    (`0600`), inject them only into that agent's process environment, and never return them
-   over any API, log or error.
+   over any API, log or error. The local key is stored beside the ciphertext with `0600`
+   permissions, protecting against accidental disclosure (backups, logs and casual reads),
+   not an attacker who already controls the user's local account.
 3. Permission requests are answered by the user. `allow_always` decisions are remembered per
    agent+tool and are revocable; blanket auto-approve is an explicit per-agent opt-in, off by
    default, and shown in the session header.

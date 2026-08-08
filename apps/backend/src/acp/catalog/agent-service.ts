@@ -23,6 +23,7 @@ export type AgentServiceOptions = {
 };
 
 export class AcpAgentService {
+  private readonly db: Database;
   private readonly catalog: AgentCatalog;
   private readonly profiles: AgentProfileStore;
   private readonly credentials: CredentialStore;
@@ -35,6 +36,15 @@ export class AcpAgentService {
   private readonly installed = new Set<string>();
 
   constructor(options: AgentServiceOptions) {
+    this.db = options.db;
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS acp_agents (
+        id TEXT PRIMARY KEY,
+        auth_state TEXT NOT NULL DEFAULT 'unknown',
+        auth_methods_json TEXT NOT NULL DEFAULT '[]',
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
     this.profiles = options.profiles ?? new AgentProfileStore(options.db);
     this.credentials = options.credentials ?? new CredentialStore();
     this.installer = options.installer ?? new AgentInstaller();
@@ -52,12 +62,28 @@ export class AcpAgentService {
 
   async list(): Promise<AgentCatalogEntry[]> {
     const entries = await this.catalog.list();
-    return entries.map((entry) => ({
-      ...entry,
-      ...(this.installed.has(entry.id) ? { installState: 'installed' as const } : {}),
-      ...(this.authStates.has(entry.id) ? { authState: this.authStates.get(entry.id) } : {}),
-      ...(this.authMethods.has(entry.id) ? { authMethods: this.authMethods.get(entry.id) } : {}),
-    }));
+    return Promise.all(
+      entries.map(async (entry) => {
+        const installState = entry.distribution.binary
+          ? this.installed.has(entry.id)
+            ? 'installed'
+            : (await this.installer.isInstalled(entry))
+              ? 'installed'
+              : entry.platformAvailability.available
+                ? 'not_installed'
+                : 'unavailable'
+          : entry.distribution.npx || entry.distribution.uvx
+            ? 'lazy'
+            : entry.installState;
+        const auth = this.readAuthState(entry.id);
+        return {
+          ...entry,
+          installState,
+          authState: auth?.authState ?? this.authStates.get(entry.id) ?? entry.authState,
+          authMethods: auth?.authMethods ?? this.authMethods.get(entry.id) ?? entry.authMethods,
+        };
+      })
+    );
   }
 
   async install(agentId: string): Promise<AgentCatalogEntry> {
@@ -114,12 +140,14 @@ export class AcpAgentService {
     try {
       const capabilities = await connection.connect();
       this.authMethods.set(profileId, capabilities.authMethods);
+      this.writeAuthState(profileId, 'unknown', capabilities.authMethods);
       await connection.authenticate(methodId);
       this.authStates.set(profileId, 'authenticated');
-      if (capabilities.authMethods.length === 0) this.authStates.set(profileId, 'authenticated');
+      this.writeAuthState(profileId, 'authenticated', capabilities.authMethods);
     } catch (error) {
       if (error instanceof AcpError && error.code === 'auth_required') {
         this.authStates.set(profileId, 'required');
+        this.writeAuthState(profileId, 'required', this.authMethods.get(profileId) ?? []);
       }
       throw error;
     }
@@ -148,5 +176,41 @@ export class AcpAgentService {
     const profile = this.profiles.get(id);
     if (!profile) throw new AcpError('agent_error', `Unknown ACP profile ${id}`);
     return profile;
+  }
+
+  private readAuthState(id: string):
+    | {
+        authState: AgentCatalogEntry['authState'];
+        authMethods: AgentCatalogEntry['authMethods'];
+      }
+    | undefined {
+    const row = this.db
+      .prepare('SELECT auth_state, auth_methods_json FROM acp_agents WHERE id = ?')
+      .get(id) as
+      | { auth_state: AgentCatalogEntry['authState']; auth_methods_json: string }
+      | undefined;
+    if (!row) return undefined;
+    try {
+      return { authState: row.auth_state, authMethods: JSON.parse(row.auth_methods_json) };
+    } catch {
+      return { authState: row.auth_state, authMethods: [] };
+    }
+  }
+
+  private writeAuthState(
+    id: string,
+    authState: AgentCatalogEntry['authState'],
+    authMethods: AgentCatalogEntry['authMethods']
+  ): void {
+    this.db
+      .prepare(
+        `INSERT INTO acp_agents (id, auth_state, auth_methods_json, updated_at)
+         VALUES (?, ?, ?, datetime('now'))
+         ON CONFLICT(id) DO UPDATE SET
+           auth_state = excluded.auth_state,
+           auth_methods_json = excluded.auth_methods_json,
+           updated_at = excluded.updated_at`
+      )
+      .run(id, authState, JSON.stringify(authMethods));
   }
 }

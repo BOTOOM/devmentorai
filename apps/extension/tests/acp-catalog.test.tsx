@@ -60,4 +60,25 @@ describe('ACP catalog and profiles', () => {
       env: {},
     });
   });
+
+  it('selects a profile for the ACP session launcher', async () => {
+    const profile = {
+      id: 'profile',
+      name: 'Future Agent',
+      args: [],
+      env: {},
+      defaultCwd: '/workspace',
+      transport: 'stdio' as const,
+    };
+    const client = {
+      listAgents: vi.fn().mockResolvedValue([]),
+      listProfiles: vi.fn().mockResolvedValue([profile]),
+    };
+    const onProfileSelected = vi.fn();
+    render(<AcpCatalogView client={client as never} onProfileSelected={onProfileSelected} />);
+    fireEvent.change(await screen.findByLabelText('ACP profile'), {
+      target: { value: 'profile' },
+    });
+    expect(onProfileSelected).toHaveBeenCalledWith(profile);
+  });
 });

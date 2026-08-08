@@ -1,4 +1,6 @@
+import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -28,6 +30,44 @@ afterEach(async () => {
 });
 
 describe('ACP v1 fixture integration', () => {
+  it('supports TCP turns, peer death, and clean shutdown', async () => {
+    let child: ChildProcessWithoutNullStreams | undefined;
+    const server = net.createServer((socket) => {
+      child = spawn(tsx, [fixture], { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+      child.stdout.pipe(socket);
+      socket.pipe(child.stdin);
+      child.once('exit', () => socket.destroy());
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('TCP fixture did not bind');
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const crashes: string[] = [];
+    const connection = new AgentConnection({
+      agentId: 'tcp-fixture',
+      launchSpec: {
+        cmd: tsx,
+        args: [],
+        cwd,
+        transport: 'tcp',
+        host: '127.0.0.1',
+        port: address.port,
+      },
+      launcher,
+      onAgentCrash: async (error) => crashes.push(error.code),
+    });
+    await connection.connect();
+    const session = await connection.newSession(cwd);
+    await connection.prompt(session.sessionId, [{ type: 'text', text: 'hello' }]);
+    expect(connection.capabilities.protocolVersion).toBe(1);
+    child?.kill('SIGKILL');
+    await vi.waitFor(() => expect(crashes).toContain('agent_crashed'), { timeout: 5_000 });
+    await connection.shutdown();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    expect(server.listening).toBe(false);
+  }, 20_000);
+
   it('completes a turn and routes normalized updates', async () => {
     const events: string[] = [];
     const launcher = new AgentLauncher();

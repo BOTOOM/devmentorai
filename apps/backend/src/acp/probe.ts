@@ -19,6 +19,7 @@ export type AcpProbeReport = {
     cancel: AcpProbeRequestResult;
   };
   verifiedAt: string;
+  launchFailure?: string;
 };
 
 export async function runConformanceProbe(

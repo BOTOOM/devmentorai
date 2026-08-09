@@ -1,11 +1,6 @@
-import type {
-  CreateSessionRequest,
-  ReasoningEffort,
-  Session,
-  SessionType,
-} from '@devmentorai/shared';
+import type { ReasoningEffort, Session, SessionType } from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AcpClient, acpEnabled } from '../services/acp-client';
+import { AcpClient } from '../services/acp-client';
 import { ApiClient } from '../services/api-client';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
@@ -30,14 +25,11 @@ export function useSessions(options?: UseSessionsOptions) {
       const response = await apiClient.listSessions();
       if (response.success && response.data) {
         let nextSessions = response.data.items;
-        if (acpEnabled()) {
-          try {
-            await acpClient.connect();
-            const acpSessions = await acpClient.listAgentSessions();
-            nextSessions = [...acpSessions, ...nextSessions];
-          } catch {
-            // Legacy sessions remain available when ACP history is unavailable.
-          }
+        try {
+          await acpClient.connect();
+          nextSessions = await acpClient.listAgentSessions();
+        } catch {
+          // Preserve imported sessions when the ACP gateway is unavailable.
         }
         setSessions(nextSessions);
 
@@ -91,18 +83,30 @@ export function useSessions(options?: UseSessionsOptions) {
   }, [activeSessionId]);
 
   const createSession = useCallback(
-    async (name: string, type: SessionType, model?: string, reasoningEffort?: ReasoningEffort) => {
+    async (name: string, type: SessionType, model?: string, _reasoningEffort?: ReasoningEffort) => {
       try {
-        const request: CreateSessionRequest = { name, type, model, reasoningEffort };
-        const response = await apiClient.createSession(request);
-
-        if (response.success && response.data) {
-          const createdSession = response.data;
-          setSessions((prev) => [...prev, createdSession]);
-          setActiveSessionId(createdSession.id);
-          return createdSession;
-        }
-        throw new Error(response.error?.message || 'Failed to create session');
+        await acpClient.connect();
+        const record = await acpClient.createSession(undefined, '.');
+        const createdSession: Session = {
+          id: record.id,
+          name,
+          type,
+          status: 'active',
+          model: model ?? 'configured',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          messageCount: 0,
+          agentId: record.agentId,
+          acpSessionId: record.acpSessionId,
+          cwd: record.cwd,
+          protocolVersion: record.protocolVersion,
+          capabilities: record.capabilities,
+          configOptions: record.configOptions,
+          replaySupported: record.capabilities.agentCapabilities.loadSession === true,
+        };
+        setSessions((prev) => [...prev, createdSession]);
+        setActiveSessionId(createdSession.id);
+        return createdSession;
       } catch (err) {
         console.error('[useSessions] Failed to create session:', err);
         throw err;
@@ -116,7 +120,7 @@ export function useSessions(options?: UseSessionsOptions) {
       setActiveSessionId(sessionId);
 
       const selected = sessions.find((session) => session.id === sessionId);
-      if (acpEnabled() && selected?.agentId && selected.replaySupported) {
+      if (selected?.agentId && selected.replaySupported) {
         try {
           await acpClient.connect();
           await acpClient.loadSession(sessionId);
@@ -126,15 +130,9 @@ export function useSessions(options?: UseSessionsOptions) {
         }
       }
 
-      // Resume session on backend to restore Copilot context
-      try {
-        await apiClient.resumeSession(sessionId);
-      } catch (err) {
-        console.warn('[useSessions] Failed to resume session:', err);
-        // Don't fail silently - the session is still selected but may not have full context
-      }
+      // Non-replay ACP agents intentionally render their local cache read-only.
     },
-    [acpClient, apiClient, sessions]
+    [acpClient, sessions]
   );
 
   const deleteSession = useCallback(

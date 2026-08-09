@@ -195,6 +195,65 @@ export class AcpGateway {
     });
   }
 
+  async nativePrompt(params: {
+    profileId?: string;
+    cwd?: string;
+    prompt: string | AcpContentBlock[];
+  }): Promise<{ sessionId: string; events: Array<{ sessionId: string; seq: number; event: AcpEvent }> }> {
+    const messages: Array<Record<string, unknown>> = [];
+    const socket = {
+      readyState: 1,
+      send: (value: string) => {
+        const parsed: unknown = JSON.parse(value);
+        if (isRecord(parsed)) messages.push(parsed);
+      },
+    } as unknown as WebSocket;
+    const client: GatewayClient = { socket, pending: new Map(), nextId: 1 };
+    const session = await this.createSession(client, {
+      ...(params.profileId ? { profileId: params.profileId } : {}),
+      ...(params.cwd ? { cwd: params.cwd } : {}),
+    });
+    await this.prompt({ sessionId: session.id, prompt: params.prompt });
+    const events = messages.flatMap((message) => {
+      if (message.method !== 'ui/session.event' || !isRecord(message.params)) return [];
+      const eventParams = message.params;
+      if (typeof eventParams.sessionId !== 'string' || typeof eventParams.seq !== 'number') return [];
+      return isRecord(eventParams.event)
+        ? [{ sessionId: eventParams.sessionId, seq: eventParams.seq, event: eventParams.event as AcpEvent }]
+        : [];
+    });
+    return { sessionId: session.id, events };
+  }
+
+  async nativeCreateSession(params: {
+    profileId?: string;
+    cwd?: string;
+    name?: string;
+    type?: string;
+    model?: string;
+  }): Promise<Session> {
+    const socket = { readyState: 1, send: () => undefined } as unknown as WebSocket;
+    const client: GatewayClient = { socket, pending: new Map(), nextId: 1 };
+    const record = await this.createSession(client, params);
+    return {
+      id: record.id,
+      name: params.name ?? 'ACP session',
+      type: (params.type as Session['type']) ?? 'general',
+      status: 'active',
+      model: params.model ?? 'configured',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messageCount: 0,
+      agentId: record.agentId,
+      acpSessionId: record.acpSessionId,
+      cwd: record.cwd,
+      protocolVersion: record.protocolVersion,
+      capabilities: record.capabilities,
+      configOptions: record.configOptions,
+      replaySupported: record.capabilities.agentCapabilities.loadSession === true,
+    };
+  }
+
   async shutdown(): Promise<void> {
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
@@ -757,10 +816,6 @@ export class AcpGateway {
   }
 }
 
-export function acpEnabled(): boolean {
-  return process.env.ACP_ENABLED === 'true' || process.env.ACP_ENABLED === '1';
-}
-
 export type AcpGatewayRegistrationOptions = Omit<GatewayOptions, 'db'> & {
   db: Database;
 };
@@ -768,8 +823,7 @@ export type AcpGatewayRegistrationOptions = Omit<GatewayOptions, 'db'> & {
 export async function registerAcpGateway(
   fastify: FastifyInstance,
   options: AcpGatewayRegistrationOptions
-): Promise<AcpGateway | undefined> {
-  if (!acpEnabled()) return undefined;
+): Promise<AcpGateway> {
   const gateway = new AcpGateway(options);
   await gateway.register(fastify);
   return gateway;

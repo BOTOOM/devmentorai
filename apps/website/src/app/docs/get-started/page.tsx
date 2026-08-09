@@ -16,7 +16,7 @@ const PAGE_DESCRIPTION =
 const PREREQUISITES = [
   'Node.js 20+ installed on your machine.',
   'DevMentorAI browser extension downloaded from the latest release.',
-  'GitHub Copilot CLI installed and authenticated.',
+  'An ACP-compatible agent installed and configured.',
   'Local backend command available: npx devmentorai-server.',
 ] as const;
 

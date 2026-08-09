@@ -1,13 +1,4 @@
-import type {
-  CopilotAuthStatus,
-  CopilotQuotaStatus,
-  ImagePayload,
-  MessageContext,
-  ModelInfo,
-  QuickAction,
-  ReasoningEffort,
-  Session,
-} from '@devmentorai/shared';
+import type { ImagePayload, MessageContext, QuickAction, ReasoningEffort, Session } from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AcpCatalogView } from '../../components/AcpCatalogView';
 import { AcpProfileEditor } from '../../components/AcpProfileEditor';
@@ -25,14 +16,12 @@ import { useContextExtraction } from '../../hooks/useContextExtraction';
 import { useSessions } from '../../hooks/useSessions';
 import { useSettings } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
-import { AcpClient, type AcpProfile, acpEnabled } from '../../services/acp-client';
-import { ApiClient } from '../../services/api-client';
+import { AcpClient, type AcpProfile } from '../../services/acp-client';
 
 // Extend QuickAction to include tone variations
 type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
 
 export function SidePanel() {
-  const apiClient = ApiClient.getInstance();
   const acpCatalogClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
 
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
@@ -43,9 +32,6 @@ export function SidePanel() {
   const [showAcpAgents, setShowAcpAgents] = useState(false);
   const [selectedAcpProfile, setSelectedAcpProfile] = useState<AcpProfile>();
   const [contextModeEnabled, setContextModeEnabled] = useState(false);
-  const [, setAvailableModels] = useState<ModelInfo[]>([]);
-  const [authStatus, setAuthStatus] = useState<CopilotAuthStatus | null>(null);
-  const [quotaStatus, setQuotaStatus] = useState<CopilotQuotaStatus | null>(null);
   const [isChangingModel, setIsChangingModel] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     action: ExtendedAction;
@@ -103,52 +89,7 @@ export function SidePanel() {
   const promptCapabilities = (
     activeSession?.capabilities?.agentCapabilities as Record<string, unknown> | undefined
   )?.promptCapabilities as Record<string, unknown> | undefined;
-  const acpImageSupported = !acpEnabled() || promptCapabilities?.image !== false;
-
-  useEffect(() => {
-    if (connectionStatus !== 'connected') {
-      setAuthStatus(null);
-      setQuotaStatus(null);
-      setAvailableModels([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadSidebarData = async () => {
-      try {
-        const [modelsResponse, authResponse, quotaResponse] = await Promise.all([
-          apiClient.getModels(),
-          apiClient.getAccountAuth(),
-          apiClient.getAccountQuota(),
-        ]);
-
-        if (cancelled) return;
-
-        if (modelsResponse.success && modelsResponse.data) {
-          setAvailableModels(modelsResponse.data.models);
-        }
-
-        if (authResponse.success && authResponse.data) {
-          setAuthStatus(authResponse.data);
-        }
-
-        if (quotaResponse.success && quotaResponse.data) {
-          setQuotaStatus(quotaResponse.data);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error('[SidePanel] Failed to load models/auth/quota:', error);
-        }
-      }
-    };
-
-    loadSidebarData();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [connectionStatus, apiClient]);
+  const acpImageSupported = promptCapabilities?.image !== false;
 
   // Check for pending actions from context menu
   useEffect(() => {
@@ -414,22 +355,11 @@ export function SidePanel() {
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       <Header
         connectionStatus={connectionStatus}
-        authStatus={authStatus}
-        quotaStatus={quotaStatus}
         onNewSession={() => setShowNewSessionModal(true)}
         onOpenSettings={() => chrome.runtime.openOptionsPage()}
         onOpenHelp={() => setShowHelpModal(true)}
         onViewPage={() => setShowPageContextModal(true)}
       />
-
-      {connectionStatus === 'connected' && authStatus && !authStatus.isAuthenticated && (
-        <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
-          <p className="text-xs text-amber-700 dark:text-amber-300">
-            Copilot login required. Run <code className="font-mono">copilot login</code> and restart
-            backend.
-          </p>
-        </div>
-      )}
 
       <UpdateBanner
         extensionUpdate={updateState?.extension || null}
@@ -450,8 +380,7 @@ export function SidePanel() {
         onDeleteSession={deleteSession}
       />
 
-      {acpEnabled() ? (
-        <div className="border-b border-gray-200 px-3 py-2 dark:border-gray-700">
+      <div className="border-b border-gray-200 px-3 py-2 dark:border-gray-700">
           <button
             className="w-full rounded border border-primary-300 px-2 py-1 text-sm text-primary-700 dark:border-primary-700 dark:text-primary-300"
             onClick={() => setShowAcpAgents(true)}
@@ -459,8 +388,7 @@ export function SidePanel() {
           >
             Browse ACP agents
           </button>
-        </div>
-      ) : null}
+      </div>
 
       <ChatView
         session={activeSession}

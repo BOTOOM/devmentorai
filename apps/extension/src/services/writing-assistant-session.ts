@@ -1,305 +1,112 @@
 /**
- * Writing Assistant Session Service
- * Manages the special "Writing Assistant" session used for quick actions
+ * ACP-backed writing assistant session used by quick actions.
  */
 
-import type { Session } from '@devmentorai/shared';
-import { ApiClient } from './api-client';
-import { getEffectiveQuickActionModel, invalidateModelAvailabilityCache } from './model-catalog';
+import type { AcpEvent, AcpSessionRecord, Session } from '@devmentorai/shared';
+import { AcpClient } from './acp-client';
 
 const WRITING_ASSISTANT_SESSION_NAME = 'Writing Assistant';
 const WRITING_ASSISTANT_SESSION_TYPE = 'writing';
 
-// Cache the session to avoid repeated API calls
 let cachedSession: Session | null = null;
-let lastFetchTime = 0;
-const CACHE_TTL_MS = 30000; // 30 seconds
+let cachedAcpSession: AcpSessionRecord | null = null;
 
-function isLikelySessionRecoveryError(message: string): boolean {
-  const normalized = message.toLowerCase();
+const acpClient = new AcpClient({ url: 'ws://localhost:3847/acp' });
 
-  return [
-    'session not found',
-    'stream request failed: 404',
-    'stream request failed: 410',
-    'invalid session',
-    'session does not exist',
-    'failed to get writing assistant session',
-  ].some((token) => normalized.includes(token));
+function toSession(record: AcpSessionRecord): Session {
+  const modelOption = record.configOptions?.find((option) => option.id === 'model');
+  const model = typeof modelOption?.currentValue === 'string' ? modelOption.currentValue : 'configured';
+  return {
+    id: record.id,
+    name: WRITING_ASSISTANT_SESSION_NAME,
+    type: WRITING_ASSISTANT_SESSION_TYPE,
+    status: 'active',
+    model,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    messageCount: 0,
+    agentId: record.agentId,
+    acpSessionId: record.acpSessionId,
+    cwd: record.cwd,
+    protocolVersion: record.protocolVersion,
+    capabilities: record.capabilities,
+    configOptions: record.configOptions,
+    replaySupported: record.capabilities.agentCapabilities.loadSession === true,
+  };
 }
 
-function isRecoverableSessionError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return isLikelySessionRecoveryError(message);
+function textFromEvent(event: AcpEvent): string {
+  if (event.type !== 'message') return '';
+  return event.content
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
 }
 
-function isModelUnavailableError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.includes('MODEL_UNAVAILABLE') || message.toLowerCase().includes('not available');
-}
-
-async function streamQuickActionOnce(
-  apiClient: ApiClient,
-  sessionId: string,
-  prompt: string,
-  onEvent: (event: { type: string; content?: string; error?: string }) => void,
-  signal?: AbortSignal
-): Promise<void> {
-  let fullContent = '';
-  let deferredSessionError: string | null = null;
-
-  await apiClient.streamChat(
-    sessionId,
-    { prompt },
-    (event) => {
-      console.log('[WritingAssistant] Stream event:', event.type, {
-        deltaContent: event.data.deltaContent?.substring(0, 30),
-        content: event.data.content?.substring(0, 30),
-        fullContent: fullContent.substring(0, 30),
-      });
-
-      switch (event.type) {
-        case 'message_start':
-          onEvent({ type: 'start' });
-          break;
-
-        case 'message_delta':
-          if (event.data.deltaContent) {
-            fullContent += event.data.deltaContent;
-            onEvent({ type: 'delta', content: fullContent });
-          }
-          break;
-
-        case 'message_complete': {
-          const finalContent = event.data.content || fullContent;
-          console.log(
-            '[WritingAssistant] Complete event, finalContent length:',
-            finalContent.length
-          );
-          onEvent({ type: 'complete', content: finalContent });
-          break;
-        }
-
-        case 'error': {
-          const streamError = event.data.error || 'Unknown error';
-          if (isLikelySessionRecoveryError(streamError)) {
-            deferredSessionError = streamError;
-          } else {
-            onEvent({ type: 'error', error: streamError });
-          }
-          break;
-        }
-
-        case 'done':
-          break;
-      }
-    },
-    signal
-  );
-
-  if (deferredSessionError) {
-    throw new Error(deferredSessionError);
-  }
-}
-
-async function ensureWritingAssistantModel(
-  apiClient: ApiClient,
-  session: Session,
-  model?: string
-): Promise<Session> {
-  if (!model || session.model === model) {
-    return session;
-  }
-
-  console.log('[WritingAssistant] Switching existing session model:', {
-    sessionId: session.id,
-    from: session.model,
-    to: model,
-  });
-
-  const response = await apiClient.switchSessionModel(session.id, model);
-
-  if (!response.success || !response.data) {
-    const codePrefix = response.error?.code ? `${response.error.code}: ` : '';
-    throw new Error(
-      `${codePrefix}${response.error?.message || 'Failed to switch Writing Assistant model'}`
-    );
-  }
-
-  cachedSession = response.data;
-  lastFetchTime = Date.now();
-  return response.data;
-}
-
-/**
- * Get or create the Writing Assistant session
- * This session is used for all quick actions to provide fast AI responses
- */
-export async function getOrCreateWritingAssistantSession(model?: string): Promise<Session | null> {
-  const apiClient = ApiClient.getInstance();
-
-  // Check cache
-  const now = Date.now();
-  if (cachedSession && now - lastFetchTime < CACHE_TTL_MS) {
-    return ensureWritingAssistantModel(apiClient, cachedSession, model);
-  }
-
+export async function getOrCreateWritingAssistantSession(_model?: string): Promise<Session | null> {
+  if (cachedSession && cachedAcpSession) return cachedSession;
   try {
-    // Fetch all sessions
-    const response = await apiClient.listSessions();
-
-    if (!response.success || !response.data) {
-      console.error('[WritingAssistant] Failed to list sessions:', response.error);
-      return null;
-    }
-
-    // Look for existing Writing Assistant session
-    const existingSession = response.data.items.find(
-      (session) =>
-        session.name === WRITING_ASSISTANT_SESSION_NAME &&
-        session.type === WRITING_ASSISTANT_SESSION_TYPE
-    );
-
-    if (existingSession) {
-      const session = await ensureWritingAssistantModel(apiClient, existingSession, model);
-      cachedSession = session;
-      lastFetchTime = now;
-      console.log('[WritingAssistant] Found existing session:', session.id);
-      return session;
-    }
-
-    // Create new Writing Assistant session
-    console.log('[WritingAssistant] Creating new session with model:', model);
-    const createResponse = await apiClient.createSession({
-      name: WRITING_ASSISTANT_SESSION_NAME,
-      type: WRITING_ASSISTANT_SESSION_TYPE,
-      model: model,
-    });
-
-    if (!createResponse.success || !createResponse.data) {
-      console.error('[WritingAssistant] Failed to create session:', createResponse.error);
-      return null;
-    }
-
-    cachedSession = createResponse.data;
-    lastFetchTime = now;
-    console.log('[WritingAssistant] Created new session:', createResponse.data.id);
-    return createResponse.data;
-  } catch (error) {
-    console.error('[WritingAssistant] Error getting/creating session:', error);
+    await acpClient.connect();
+    const record = await acpClient.createSession(undefined, '.');
+    cachedAcpSession = record;
+    cachedSession = toSession(record);
+    return cachedSession;
+  } catch {
     return null;
   }
 }
 
-/**
- * Check if a session is the Writing Assistant session
- */
 export function isWritingAssistantSession(session: Session): boolean {
-  return (
-    session.name === WRITING_ASSISTANT_SESSION_NAME &&
-    session.type === WRITING_ASSISTANT_SESSION_TYPE
-  );
+  return session.name === WRITING_ASSISTANT_SESSION_NAME && session.type === WRITING_ASSISTANT_SESSION_TYPE;
 }
 
-/**
- * Get the Writing Assistant session name (for display)
- */
 export function getWritingAssistantSessionName(): string {
   return WRITING_ASSISTANT_SESSION_NAME;
 }
 
-/**
- * Clear the cached session (useful when session is deleted)
- */
 export function clearWritingAssistantCache(): void {
   cachedSession = null;
-  lastFetchTime = 0;
+  cachedAcpSession = null;
 }
 
-/**
- * Stream a quick action to the Writing Assistant session
- * Returns an async generator that yields stream events
- */
 export async function streamQuickAction(
   prompt: string,
-  model: string,
+  _model: string,
   onEvent: (event: { type: string; content?: string; error?: string }) => void,
   signal?: AbortSignal
 ): Promise<void> {
-  let effectiveModel = model;
-  let session = await getOrCreateWritingAssistantSession(effectiveModel);
-
-  if (!session) {
-    onEvent({ type: 'error', error: 'Failed to get Writing Assistant session' });
+  const session = await getOrCreateWritingAssistantSession();
+  if (!session || !cachedAcpSession) {
+    onEvent({ type: 'error', error: 'Failed to create ACP writing assistant session' });
     return;
   }
 
-  const apiClient = ApiClient.getInstance();
+  let content = '';
+  const unsubscribe = acpClient.onEvent((sessionId, _sequence, event) => {
+    if (sessionId !== session.id) return;
+    if (event.type === 'state' && event.state === 'running') onEvent({ type: 'start' });
+    if (event.type === 'message' && event.role === 'assistant') {
+      const next = textFromEvent(event);
+      content = event.mode === 'append' ? `${content}${next}` : next;
+      onEvent({ type: 'delta', content });
+    }
+    if (event.type === 'state' && event.state === 'idle') onEvent({ type: 'complete', content });
+    if (event.type === 'error') onEvent({ type: 'error', error: event.error.message });
+  });
 
+  const abort = () => {
+    void acpClient.cancel(session.id);
+  };
+  signal?.addEventListener('abort', abort, { once: true });
   try {
-    try {
-      await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
-      return;
-    } catch (error) {
-      if (!isRecoverableSessionError(error)) {
-        throw error;
-      }
-
-      console.warn(
-        '[WritingAssistant] Recoverable session error detected, attempting one recovery cycle:',
-        error
-      );
-
-      let resumeSucceeded = false;
-      try {
-        const resumeResponse = await apiClient.resumeSession(session.id);
-        resumeSucceeded = resumeResponse.success;
-      } catch (resumeError) {
-        console.warn('[WritingAssistant] Resume attempt failed during recovery:', resumeError);
-      }
-
-      if (!resumeSucceeded) {
-        clearWritingAssistantCache();
-        const recoveredSession = await getOrCreateWritingAssistantSession(effectiveModel);
-        if (!recoveredSession) {
-          throw error;
-        }
-        session = recoveredSession;
-      }
-
-      await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
-    }
+    await acpClient.prompt(session.id, prompt);
   } catch (error) {
-    if (isModelUnavailableError(error)) {
-      await invalidateModelAvailabilityCache();
-      const fallbackModel = await getEffectiveQuickActionModel(effectiveModel, {
-        forceRefresh: true,
-        excludeModelIds: [effectiveModel],
-      });
-
-      if (fallbackModel.modelId !== effectiveModel) {
-        effectiveModel = fallbackModel.modelId;
-        clearWritingAssistantCache();
-        session = await getOrCreateWritingAssistantSession(effectiveModel);
-        if (session) {
-          try {
-            await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
-            return;
-          } catch (retryError) {
-            onEvent({
-              type: 'error',
-              error: retryError instanceof Error ? retryError.message : 'Unknown error',
-            });
-            return;
-          }
-        }
-      }
-    }
-
-    if (error instanceof Error && error.name === 'AbortError') {
-      onEvent({ type: 'error', error: 'Request cancelled' });
-    } else {
-      onEvent({ type: 'error', error: error instanceof Error ? error.message : 'Unknown error' });
-    }
+    onEvent({
+      type: 'error',
+      error: error instanceof Error ? error.message : 'ACP prompt failed',
+    });
+  } finally {
+    signal?.removeEventListener('abort', abort);
+    unsubscribe();
   }
 }

@@ -4,7 +4,11 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink)](https://github.com/sponsors/BOTOOM)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/edwardiazdev)
 
-A Chrome/Chromium browser extension that provides DevOps mentoring, infrastructure guidance, and writing assistance powered by GitHub Copilot CLI via the Copilot SDK for Node.js.
+A Chrome/Chromium browser extension that provides DevOps mentoring, infrastructure guidance, and writing assistance through the Agent Client Protocol (ACP).
+
+DevMentorAI is an ACP host: choose an agent from the catalog or create a profile for any
+ACP-compatible distribution. GitHub Copilot remains available as an ACP catalog entry, while
+OpenAI-compatible endpoints are supported by the bundled `apps/acp-openai-agent` distribution.
 
 ## Features
 

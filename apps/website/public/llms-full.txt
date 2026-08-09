@@ -1,10 +1,10 @@
 # DevMentorAI — Full Context
 
-> DevMentorAI is a Chrome/Firefox browser extension powered by GitHub Copilot CLI that provides AI-powered DevOps mentoring, writing assistance, and development help directly in your browser. It captures page context (DOM, errors, network logs) and works on authenticated/private pages with a privacy-first local architecture.
+> DevMentorAI is a Chrome/Firefox browser extension powered by Agent Client Protocol (ACP) agents that provides AI-powered DevOps mentoring, writing assistance, and development help directly in your browser. It captures page context (DOM, errors, network logs) with a privacy-first local architecture.
 
 - Backend installable via: `npx devmentorai-server` (npm: https://www.npmjs.com/package/devmentorai-server)
 - Extension available for Chrome (.zip) and Firefox (.xpi) on GitHub Releases: https://github.com/BOTOOM/devmentorai/releases
-- Powered by GitHub Copilot SDK via JSON-RPC (local CLI, no cloud storage)
+- Powered by an ACP WebSocket gateway and catalog-managed agents (local host, no required cloud storage)
 - MIT Licensed open source project
 - Repository: https://github.com/BOTOOM/devmentorai
 
@@ -20,7 +20,7 @@ DevMentorAI is a monorepo with three packages:
 
 2. **Backend** (`apps/backend/`): Fastify server with SQLite persistence
    - Session management (CRUD, multi-session support)
-   - CopilotService wrapping @github/copilot-sdk
+   - ACP gateway wrapping catalog-managed agents
    - SSE streaming for real-time AI responses
    - Custom DevOps tools (read_file, list_directory, analyze_config, analyze_error)
    - Image handling with Sharp-based thumbnail service
@@ -29,7 +29,7 @@ DevMentorAI is a monorepo with three packages:
 3. **Shared** (`packages/shared/`): TypeScript types, contracts, and utilities
 
 ### Data Flow
-User types message → React hook → CommunicationService → POST /api/sessions/:id/chat/stream → Backend saves to SQLite → CopilotService.streamMessage() → SDK emits events → SSE to client → React updates UI → Save assistant message → Close SSE
+User types message → React hook → ACP WebSocket gateway → ACP agent streams updates → React updates UI → SQLite caches display history
 
 ### Communication Protocols
 - **HTTP/SSE** (default): REST API + Server-Sent Events for streaming
@@ -102,7 +102,7 @@ Azure (Portal, DevOps, VMs), AWS (Console, EC2, S3, CloudFormation), GCP (Cloud 
 2. Download extension from GitHub Releases
 3. Load in Chrome via chrome://extensions (Developer mode → Load unpacked)
 
-Prerequisites: Node.js 20+, GitHub Copilot CLI installed and authenticated
+Prerequisites: Node.js 20+ and an ACP-compatible agent profile
 
 ## Security
 

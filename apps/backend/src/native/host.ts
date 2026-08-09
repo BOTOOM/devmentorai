@@ -152,6 +152,19 @@ class NativeMessagingHost {
     }
 
     try {
+      if (message.path === '/api/native/acp' && message.body && this.app.acpGateway) {
+        const body = message.body as { profileId?: string; cwd?: string; prompt?: unknown };
+        if (typeof body.prompt !== 'string' && !Array.isArray(body.prompt)) {
+          throw new Error('ACP native prompt must be text or content blocks');
+        }
+        const result = await this.app.acpGateway.nativePrompt({
+          ...(body.profileId ? { profileId: body.profileId } : {}),
+          ...(body.cwd ? { cwd: body.cwd } : {}),
+          prompt: body.prompt,
+        });
+        this.writeMessage({ id: message.id, type: 'response', status: 200, data: result });
+        return;
+      }
       // Route the request through Fastify's inject method
       const response = await this.app.inject({
         method: message.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',

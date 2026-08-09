@@ -278,6 +278,10 @@ export class AcpClient {
   }
 }
 
+export function acpEnabled(): boolean {
+  return true;
+}
+
 function isEventParams(value: unknown): value is {
   sessionId: string;
   seq: number;
@@ -307,8 +311,4 @@ function isPermissionRequest(value: unknown): value is AcpPermissionRequest {
     typeof (value as { sessionId?: unknown }).sessionId === 'string' &&
     Array.isArray((value as { options?: unknown }).options)
   );
-}
-
-export function acpEnabled(): boolean {
-  return import.meta.env.VITE_ACP_ENABLED === 'true';
 }

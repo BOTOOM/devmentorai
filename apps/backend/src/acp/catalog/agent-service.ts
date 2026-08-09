@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Database } from 'better-sqlite3';
 import { AgentConnection } from '../connection.js';
 import { AcpError } from '../errors.js';
@@ -24,6 +25,7 @@ export type AgentServiceOptions = {
 };
 
 const DEFAULT_PROFILE_ID = 'github-copilot-cli-default';
+const BACKEND_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 
 export class AcpAgentService {
   private readonly db: Database;
@@ -125,6 +127,18 @@ export class AcpAgentService {
   }
 
   ensureDefaultProfile(): AgentProfile {
+    if (process.env.ACP_FIXTURE_AGENT === '1') {
+      return this.profiles.save({
+        id: DEFAULT_PROFILE_ID,
+        name: 'Deterministic ACP fixture',
+        custom: true,
+        cmd: path.join(BACKEND_ROOT, 'node_modules/.bin/tsx'),
+        args: [path.join(BACKEND_ROOT, 'src/acp/fixtures/fixture-agent.ts')],
+        env: {},
+        defaultCwd: this.workspace.defaultCwd,
+        transport: 'stdio',
+      });
+    }
     const firstProfile = this.profiles.list()[0];
     if (firstProfile) return firstProfile;
     const existing = this.profiles.get(DEFAULT_PROFILE_ID);

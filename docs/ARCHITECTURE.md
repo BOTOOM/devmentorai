@@ -2,7 +2,14 @@
 
 ## Overview
 
-DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, writing assistance, and development help. It uses GitHub Copilot CLI via the official Copilot SDK for Node.js.
+DevMentorAI is a Chrome extension and provider-agnostic ACP host. It launches ACP agents through
+catalog distributions or user profiles and renders only the capabilities each agent advertises.
+GitHub Copilot is one catalog entry, not a backend integration.
+
+The WebSocket gateway is the product boundary. Sessions, streamed messages, thoughts, tool calls,
+plans, permissions, configuration, cancellation, replay and diagnostics are represented through
+ACP. SQLite stores a display cache and preserves imported pre-ACP history; it is not the source
+of truth for agents that support replay.
 
 ## System Architecture
 

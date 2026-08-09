@@ -199,7 +199,10 @@ export class AcpGateway {
     profileId?: string;
     cwd?: string;
     prompt: string | AcpContentBlock[];
-  }): Promise<{ sessionId: string; events: Array<{ sessionId: string; seq: number; event: AcpEvent }> }> {
+  }): Promise<{
+    sessionId: string;
+    events: Array<{ sessionId: string; seq: number; event: AcpEvent }>;
+  }> {
     const messages: Array<Record<string, unknown>> = [];
     const socket = {
       readyState: 1,
@@ -217,9 +220,16 @@ export class AcpGateway {
     const events = messages.flatMap((message) => {
       if (message.method !== 'ui/session.event' || !isRecord(message.params)) return [];
       const eventParams = message.params;
-      if (typeof eventParams.sessionId !== 'string' || typeof eventParams.seq !== 'number') return [];
+      if (typeof eventParams.sessionId !== 'string' || typeof eventParams.seq !== 'number')
+        return [];
       return isRecord(eventParams.event)
-        ? [{ sessionId: eventParams.sessionId, seq: eventParams.seq, event: eventParams.event as AcpEvent }]
+        ? [
+            {
+              sessionId: eventParams.sessionId,
+              seq: eventParams.seq,
+              event: eventParams.event as AcpEvent,
+            },
+          ]
         : [];
     });
     return { sessionId: session.id, events };

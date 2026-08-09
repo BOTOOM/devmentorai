@@ -38,9 +38,7 @@ export async function statusCommand(): Promise<void> {
       console.log(`  Uptime:  ${formatUptime(data.uptime as number)}`);
     }
     if (data.acpConnected !== undefined) {
-      console.log(
-        `  ACP:     ${data.acpConnected ? '✓ connected' : '⊘ disconnected'}`
-      );
+      console.log(`  ACP:     ${data.acpConnected ? '✓ connected' : '⊘ disconnected'}`);
     }
   }
 

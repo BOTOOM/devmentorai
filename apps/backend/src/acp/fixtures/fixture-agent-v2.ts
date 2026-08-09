@@ -28,6 +28,35 @@ acp
     sessions.add(sessionId);
     return { sessionId };
   })
+  .onRequest(acp.methods.agent.session.resume, async ({ params, client }) => {
+    if (!sessions.has(params.sessionId)) throw new Error('Unknown fixture session');
+    const updates = [
+      {
+        sessionUpdate: 'user_message',
+        messageId: 'fixture-v2-user',
+        content: [{ type: 'text', text: 'replayed prompt' }],
+      },
+      {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'fixture-v2-tool',
+        status: 'completed',
+      },
+      {
+        sessionUpdate: 'agent_message',
+        messageId: 'fixture-v2-message',
+        content: [{ type: 'text', text: 'v2 fixture response' }],
+      },
+    ];
+    if (params.replayFrom) {
+      for (const update of updates) {
+        await client.notify(acp.methods.client.session.update, {
+          sessionId: params.sessionId,
+          update,
+        });
+      }
+    }
+    return {};
+  })
   .onRequest(acp.methods.agent.session.prompt, async ({ params, client }) => {
     if (!sessions.has(params.sessionId)) throw new Error('Unknown fixture session');
     await client.notify(acp.methods.client.session.update, {
@@ -41,6 +70,12 @@ acp
         messageId: 'fixture-v2-message',
         content: { type: 'text', text: 'v2 fixture response' },
       },
+    });
+    await client.request(acp.methods.client.elicitation.create, {
+      sessionId: params.sessionId,
+      mode: 'form',
+      message: 'Fixture elicitation',
+      requestedSchema: { type: 'object', properties: {} },
     });
     await client.notify(acp.methods.client.session.update, {
       sessionId: params.sessionId,

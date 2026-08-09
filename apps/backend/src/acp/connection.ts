@@ -229,6 +229,16 @@ export class AgentConnection {
         }
         return this.permissionPolicy(params);
       });
+    if (v2Enabled) {
+      (
+        app as unknown as {
+          onRequest(
+            method: string,
+            handler: (context: unknown) => Promise<Record<string, string>>
+          ): unknown;
+        }
+      ).onRequest('elicitation/create', async () => ({ action: 'cancel' }));
+    }
 
     try {
       const stream = v2Enabled

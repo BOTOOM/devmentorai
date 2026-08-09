@@ -62,6 +62,7 @@ describe('ACP v1 fixture integration', () => {
     const session = await connection.newSession(cwd);
     await connection.prompt(session.sessionId, [{ type: 'text', text: 'hello' }]);
     expect(connection.capabilities.protocolVersion).toBe(1);
+    expect(connection.capabilities.agentCapabilities.elicitation).toBeUndefined();
     child?.kill('SIGKILL');
     await vi.waitFor(() => expect(crashes).toContain('agent_crashed'), { timeout: 5_000 });
     await connection.shutdown();
@@ -449,6 +450,8 @@ describe('ACP v1 fixture integration', () => {
     expect(connection.capabilities.agentCapabilities.elicitation).toBe(true);
     const session = await manager.createSession({ agentId: 'fixture-v2', cwd });
     await manager.prompt(session.id, [{ type: 'text', text: 'v2 turn' }]);
+    await connection.loadSession(session.acpSessionId, cwd);
+    await connection.loadSession(session.acpSessionId, cwd);
     expect(events).toEqual(expect.arrayContaining(['state', 'message', 'plan']));
     await manager.shutdown();
     await connection.shutdown();

@@ -3,6 +3,7 @@ export * from './connection.js';
 export * from './errors.js';
 export * from './launcher.js';
 export * from './normalize/v1.js';
+export * from './normalize/v2.js';
 export * from './session-manager.js';
 export * from './catalog/index.js';
 export * from './gateway.js';

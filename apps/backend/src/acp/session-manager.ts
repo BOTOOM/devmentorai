@@ -11,6 +11,7 @@ import { AgentConnection } from './connection.js';
 import { AcpError } from './errors.js';
 import type { LaunchSpec } from './launcher.js';
 import { type AcpMessageRole, normalizeV1Update } from './normalize/v1.js';
+import { normalizeV2Update } from './normalize/v2.js';
 
 export type SessionEventHandler = (sessionId: string, event: AcpEvent) => void | Promise<void>;
 
@@ -106,6 +107,7 @@ export class AcpSessionManager {
         prompt
       );
       await session.updateChain;
+      if (session.protocolVersion >= 2) return;
       if (response.stopReason === 'cancelled') {
         await this.cancelUnfinishedTools(session);
       }
@@ -182,7 +184,10 @@ export class AcpSessionManager {
     );
     if (!session) return Promise.resolve();
     session.updateChain = session.updateChain.then(async () => {
-      const event = normalizeV1Update(notification.update, { messageIds: session.messageIds });
+      const event =
+        session.protocolVersion >= 2
+          ? normalizeV2Update(notification.update, { messageIds: session.messageIds })
+          : normalizeV1Update(notification.update, { messageIds: session.messageIds });
       if (event.type === 'tool_call') {
         if (
           event.status === 'completed' ||

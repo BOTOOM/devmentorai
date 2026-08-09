@@ -228,6 +228,7 @@ export type AcpPromptCapabilities = {
 
 export type AcpAgentCapabilities = {
   loadSession?: boolean;
+  elicitation?: boolean;
   promptCapabilities?: AcpPromptCapabilities;
   sessionCapabilities?: Record<string, unknown>;
   [key: string]: unknown;

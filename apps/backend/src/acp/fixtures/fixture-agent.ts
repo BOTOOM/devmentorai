@@ -110,13 +110,22 @@ const fixture = {
     const controller = new AbortController();
     session.controller = controller;
     const { signal } = controller;
+    const v2Fixture = process.env.ACP_FIXTURE_PROTOCOL_VERSION === '2';
     const notify = (update: Record<string, unknown>) =>
       client.notify(acp.methods.client.session.update, {
         sessionId: params.sessionId,
-        update,
+        update:
+          v2Fixture && update.sessionUpdate === 'tool_call'
+            ? { ...update, sessionUpdate: 'tool_call_update' }
+            : v2Fixture && update.sessionUpdate === 'plan'
+              ? { ...update, sessionUpdate: 'plan_update', planId: 'fixture-plan' }
+              : update,
       });
 
     try {
+      if (v2Fixture) {
+        await notify({ sessionUpdate: 'state_update', state: 'running' });
+      }
       if (process.env.ACP_FIXTURE_STALL === '1') {
         await delay(60_000, signal);
       }
@@ -211,6 +220,9 @@ const fixture = {
         sessionUpdate: 'agent_message_chunk',
         content: { type: 'text', text: 'done' },
       });
+      if (v2Fixture) {
+        await notify({ sessionUpdate: 'state_update', state: 'idle', stopReason: 'end_turn' });
+      }
       return { stopReason: 'end_turn' };
     } catch (error) {
       if (signal.aborted) {
@@ -226,6 +238,9 @@ const fixture = {
           messageId: 'fixture-after-cancel',
           content: { type: 'text', text: 'after cancel' },
         }).catch(() => undefined);
+        if (v2Fixture) {
+          await notify({ sessionUpdate: 'state_update', state: 'idle', stopReason: 'cancelled' });
+        }
         return { stopReason: 'cancelled' };
       }
       throw error;

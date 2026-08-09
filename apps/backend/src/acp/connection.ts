@@ -9,6 +9,7 @@ import type {
   SessionConfigOption,
   SetSessionConfigOptionRequest,
 } from '@agentclientprotocol/sdk';
+import * as acpV2 from '@agentclientprotocol/sdk/experimental/v2';
 import type {
   AcpAgentCapabilities,
   AcpAuthMethod,
@@ -65,18 +66,46 @@ function defaultPermissionPolicy(request: RequestPermissionRequest): PermissionD
 }
 
 function capabilitiesFromResponse(response: InitializeResponse): AcpConnectionCapabilities {
-  const agentCapabilities = normalizeCapabilities(
-    response.agentCapabilities as AgentCapabilities | null | undefined
-  );
+  const raw = response as unknown as Record<string, unknown>;
+  const v2Capabilities =
+    raw.capabilities && typeof raw.capabilities === 'object'
+      ? (raw.capabilities as Record<string, unknown>)
+      : undefined;
+  const v2Session =
+    v2Capabilities?.session && typeof v2Capabilities.session === 'object'
+      ? (v2Capabilities.session as Record<string, unknown>)
+      : undefined;
+  const v2Prompt =
+    v2Session?.prompt && typeof v2Session.prompt === 'object'
+      ? (v2Session.prompt as Record<string, unknown>)
+      : undefined;
+  const agentCapabilities =
+    response.protocolVersion >= 2
+      ? {
+          loadSession: Boolean(v2Session),
+          promptCapabilities: {
+            image: Boolean(v2Prompt?.image),
+            audio: Boolean(v2Prompt?.audio),
+            embeddedContext: Boolean(v2Prompt?.embeddedContext),
+          },
+        }
+      : normalizeCapabilities(response.agentCapabilities as AgentCapabilities | null | undefined);
   const authMethods: AcpAuthMethod[] = (response.authMethods ?? []).map((method) => ({
     ...method,
     ...(method.description ? { description: method.description } : { description: method.name }),
   }));
   return {
     protocolVersion: response.protocolVersion,
-    agentCapabilities,
+    agentCapabilities: {
+      ...agentCapabilities,
+      ...(process.env.ACP_V2 === '1' ? { elicitation: true } : {}),
+    },
     authMethods,
-    ...(response.agentInfo ? { agentInfo: { ...response.agentInfo } } : {}),
+    ...(response.agentInfo
+      ? { agentInfo: { ...response.agentInfo } }
+      : raw.info && typeof raw.info === 'object'
+        ? { agentInfo: { ...(raw.info as Record<string, unknown>) } }
+        : {}),
   };
 }
 
@@ -180,8 +209,11 @@ export class AgentConnection {
       }
     });
 
-    const app = acp
-      .client({ name: this.clientName })
+    const v2Enabled = process.env.ACP_V2 === '1';
+    const app = (v2Enabled
+      ? acpV2.client({ name: this.clientName })
+      : acp.client({ name: this.clientName })) as unknown as ReturnType<typeof acp.client>;
+    app
       .onNotification(
         acp.methods.client.session.update,
         (params: unknown) => params,
@@ -199,16 +231,25 @@ export class AgentConnection {
       });
 
     try {
-      this.connection = app.connect(acp.ndJsonStream(this.process.stdin, this.process.stdout));
-      const response = await this.connection.agent.request('initialize', {
-        protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: {},
-        clientInfo: {
-          name: this.clientName,
-          version: this.clientVersion,
-        },
-      });
-      if (response.protocolVersion !== acp.PROTOCOL_VERSION) {
+      const stream = v2Enabled
+        ? acpV2.ndJsonStream(this.process.stdin, this.process.stdout)
+        : acp.ndJsonStream(this.process.stdin, this.process.stdout);
+      this.connection = app.connect(
+        stream as unknown as Parameters<ReturnType<typeof acp.client>['connect']>[0]
+      );
+      const response = (await this.connection.agent.request('initialize', {
+        protocolVersion: v2Enabled ? 2 : acp.PROTOCOL_VERSION,
+        clientCapabilities: v2Enabled
+          ? ({ elicitation: { form: {} } } as unknown as Record<string, unknown>)
+          : {},
+        ...(v2Enabled
+          ? { info: { name: this.clientName, version: this.clientVersion } }
+          : { clientInfo: { name: this.clientName, version: this.clientVersion } }),
+      })) as InitializeResponse;
+      if (
+        response.protocolVersion !== acp.PROTOCOL_VERSION &&
+        !(v2Enabled && response.protocolVersion === 2)
+      ) {
         throw new AcpError(
           'protocol_version_unsupported',
           `Agent negotiated unsupported ACP protocol version ${response.protocolVersion}`,
@@ -252,11 +293,19 @@ export class AgentConnection {
   }
 
   async loadSession(sessionId: string, cwd: string): Promise<void> {
-    await this.requireConnection().agent.request('session/load', {
-      sessionId,
-      cwd,
-      mcpServers: [],
-    });
+    if (this.capabilities.protocolVersion >= 2) {
+      await this.requireConnection().agent.request('session/resume', {
+        sessionId,
+        cwd,
+        replayFrom: { type: 'start' },
+      });
+    } else {
+      await this.requireConnection().agent.request('session/load', {
+        sessionId,
+        cwd,
+        mcpServers: [],
+      });
+    }
   }
 
   async listSessions(): Promise<unknown> {

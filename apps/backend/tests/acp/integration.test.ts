@@ -10,6 +10,7 @@ import { AgentLauncher } from '../../src/acp/launcher.js';
 import { AcpSessionManager } from '../../src/acp/session-manager.js';
 
 const fixture = path.resolve('src/acp/fixtures/fixture-agent.ts');
+const fixtureV2 = path.resolve('src/acp/fixtures/fixture-agent-v2.ts');
 const tsx = path.resolve('node_modules/.bin/tsx');
 const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'devmentorai-acp-'));
 
@@ -427,6 +428,32 @@ describe('ACP v1 fixture integration', () => {
     });
     expect(() => connection.capabilities).toThrow();
     await connection.shutdown();
+  });
+
+  it('accepts the draft protocol only when ACP_V2 is enabled', async () => {
+    const previous = process.env.ACP_V2;
+    process.env.ACP_V2 = '1';
+    const events: string[] = [];
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => events.push(event.type),
+    });
+    const connection = new AgentConnection({
+      agentId: 'fixture-v2',
+      launchSpec: { ...launchSpec(), args: [fixtureV2] },
+      launcher,
+    });
+    manager.registerAgent({ agentId: 'fixture-v2', launchSpec: launchSpec(), connection });
+    await expect(connection.connect()).resolves.toMatchObject({ protocolVersion: 2 });
+    expect(connection.capabilities.agentCapabilities.elicitation).toBe(true);
+    const session = await manager.createSession({ agentId: 'fixture-v2', cwd });
+    await manager.prompt(session.id, [{ type: 'text', text: 'v2 turn' }]);
+    expect(events).toEqual(expect.arrayContaining(['state', 'message', 'plan']));
+    await manager.shutdown();
+    await connection.shutdown();
+    if (previous === undefined) process.env.ACP_V2 = undefined;
+    else process.env.ACP_V2 = previous;
   });
 
   it('supports multiple sessions on one connection without cross-talk', async () => {

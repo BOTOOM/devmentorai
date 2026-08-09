@@ -102,9 +102,12 @@ export async function runConformanceProbe(
       ? await requestPrompt(connection, session.sessionId, [imageBlock])
       : { supported: false, error: { message: 'image capability not advertised' } };
     report.checks.permission = 'available';
-    report.checks.history = await connection.probeRequest('session/load', {
-      sessionId: session.sessionId,
-    });
+    report.checks.history = await connection.probeRequest(
+      capabilities.protocolVersion >= 2 ? 'session/resume' : 'session/load',
+      capabilities.protocolVersion >= 2
+        ? { sessionId: session.sessionId, cwd, replayFrom: { type: 'start' } }
+        : { sessionId: session.sessionId }
+    );
     report.checks.cancel = await connection.probeRequest('session/cancel', {
       sessionId: session.sessionId,
     });

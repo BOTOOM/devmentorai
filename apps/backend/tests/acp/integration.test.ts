@@ -102,6 +102,72 @@ describe('ACP v1 fixture integration', () => {
     await manager.shutdown();
   });
 
+  it('streams a quick-action prompt through ACP (R-050)', async () => {
+    const messages: string[] = [];
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => {
+        if (event.type === 'message' && event.role === 'assistant') {
+          messages.push(
+            event.content
+              .filter((block) => block.type === 'text')
+              .map((block) => block.text)
+              .join('')
+          );
+        }
+      },
+    });
+    manager.registerAgent({
+      agentId: 'quick-action-fixture',
+      launchSpec: launchSpec(),
+      connection: new AgentConnection({
+        agentId: 'quick-action-fixture',
+        launchSpec: launchSpec(),
+        launcher,
+      }),
+    });
+    const session = await manager.createSession({ agentId: 'quick-action-fixture', cwd });
+    await manager.prompt(session.id, [{ type: 'text', text: 'Explain this selected text: hello' }]);
+    expect(messages.join('')).toContain('fixture');
+    await manager.shutdown();
+  });
+
+  it('preserves a resource context block through an ACP prompt (R-052)', async () => {
+    const events: string[] = [];
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => events.push(event.type),
+    });
+    manager.registerAgent({
+      agentId: 'context-fixture',
+      launchSpec: launchSpec(),
+      connection: new AgentConnection({
+        agentId: 'context-fixture',
+        launchSpec: launchSpec(),
+        launcher,
+      }),
+    });
+    const session = await manager.createSession({ agentId: 'context-fixture', cwd });
+    await manager.prompt(session.id, [
+      { type: 'text', text: 'Help with this page' },
+      {
+        type: 'resource',
+        resource: {
+          uri: 'devmentorai://context/test',
+          mimeType: 'text/plain',
+          text: '{"page":{"title":"Fixture page"}}',
+        },
+      },
+    ]);
+    expect(events).toContain('message');
+    expect(
+      manager.getSession(session.id)?.capabilities.agentCapabilities.promptCapabilities
+    ).toMatchObject({ embeddedContext: true });
+    await manager.shutdown();
+  });
+
   it('replays an existing session through ACP history and can replay twice', async () => {
     const events: string[] = [];
     const launcher = new AgentLauncher();

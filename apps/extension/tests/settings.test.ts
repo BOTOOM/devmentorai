@@ -3,7 +3,6 @@
  * Tests settings validation, defaults, and storage
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_QUICK_ACTION_MODEL } from '../src/constants/models';
 import { AVAILABLE_LANGUAGES, DEFAULT_SETTINGS, type Settings } from '../src/hooks/useSettings';
 
 describe('Settings', () => {
@@ -21,7 +20,6 @@ describe('Settings', () => {
       expect(DEFAULT_SETTINGS).toHaveProperty('screenshotBehavior');
       expect(DEFAULT_SETTINGS).toHaveProperty('imageAttachmentsEnabled');
       expect(DEFAULT_SETTINGS).toHaveProperty('textReplacementBehavior');
-      expect(DEFAULT_SETTINGS).toHaveProperty('quickActionModel');
     });
 
     it('should have valid theme value', () => {
@@ -60,11 +58,6 @@ describe('Settings', () => {
       expect(typeof DEFAULT_SETTINGS.language).toBe('string');
       expect(typeof DEFAULT_SETTINGS.translationLanguage).toBe('string');
       expect(typeof DEFAULT_SETTINGS.targetTranslationLanguage).toBe('string');
-      expect(typeof DEFAULT_SETTINGS.quickActionModel).toBe('string');
-    });
-
-    it('should default quick actions to GPT-5 Mini', () => {
-      expect(DEFAULT_SETTINGS.quickActionModel).toBe(DEFAULT_QUICK_ACTION_MODEL);
     });
   });
 

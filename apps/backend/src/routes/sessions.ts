@@ -25,6 +25,24 @@ export async function sessionRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.send({ success: true, data: fastify.sessionService.listSessions(page, pageSize) });
   });
 
+  fastify.delete<{
+    Params: { id: string };
+    Reply: ApiResponse<void>;
+  }>('/sessions/:id', async (request, reply) => {
+    if (process.env.ACP_FIXTURE_AGENT !== '1') {
+      return reply.code(404).send({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Session not found' },
+      });
+    }
+    const deleted = fastify.sessionService.deleteSession(request.params.id);
+    return reply.send({
+      success: true,
+      data: undefined,
+      ...(deleted ? {} : { error: { code: 'NOT_FOUND', message: 'Session not found' } }),
+    });
+  });
+
   fastify.get<{
     Params: { id: string };
     Reply: ApiResponse<Session>;

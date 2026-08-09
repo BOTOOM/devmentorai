@@ -63,7 +63,7 @@ const fixture = {
   async authenticate(): Promise<void> {},
 
   async newSession(): Promise<{ sessionId: string; configOptions: SessionConfigOption[] }> {
-    const sessionId = replaySessionId;
+    const sessionId = process.env.ACP_FIXTURE_SESSION_ID ?? randomUUID();
     sessions.set(sessionId, {});
     return {
       sessionId,

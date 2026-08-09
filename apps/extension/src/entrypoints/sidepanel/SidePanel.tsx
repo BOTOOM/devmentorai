@@ -389,7 +389,7 @@ export function SidePanel() {
         onSendMessage={handleSendMessage}
         onAbort={abortMessage}
         onChangeModel={canChangeSessionModel ? handleChangeSessionModel : undefined}
-        disabled={connectionStatus !== 'connected'}
+        disabled={connectionStatus !== 'connected' && !activeSession}
         pendingText={pendingAction?.action === 'chat' ? pendingAction.selectedText : undefined}
         // Context-aware mode props
         contextEnabled={contextModeEnabled}

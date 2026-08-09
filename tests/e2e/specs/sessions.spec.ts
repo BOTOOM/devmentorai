@@ -68,7 +68,7 @@ test.describe('Session Management', () => {
   });
 
   test('should create a session with ACP configuration available', async ({ sidePanelPage }) => {
-    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByRole('button', { name: 'New session', exact: true }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Custom Model Test');
     await newSessionTypeButton(sidePanelPage, /devops mentor/i).click();
 
@@ -88,7 +88,7 @@ test.describe('Session Management', () => {
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
 
     // Create second session
-    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByRole('button', { name: 'New session', exact: true }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Session 2');
     await newSessionTypeButton(sidePanelPage, /writing assistant/i).click();
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();

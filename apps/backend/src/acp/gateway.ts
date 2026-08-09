@@ -349,6 +349,10 @@ export class AcpGateway {
       case 'ui/session.create':
         return this.createSession(client, params);
       case 'ui/session.prompt':
+        if (sessionId) {
+          const session = this.sessions.get(sessionId);
+          if (session) this.clientsByAcpSession.set(session.acpSessionId, client);
+        }
         return this.prompt({ ...params, ...(sessionId ? { sessionId } : {}) });
       case 'ui/session.cancel':
         await this.manager.cancelPrompt(sessionId ?? asString(params.sessionId, 'sessionId'));

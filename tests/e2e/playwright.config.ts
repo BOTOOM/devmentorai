@@ -48,7 +48,7 @@ export default defineConfig({
   // Run backend before tests
   webServer: {
     command:
-      'rm -rf .e2e-home && mkdir -p .e2e-home && HOME=$PWD/.e2e-home ACP_FIXTURE_AGENT=1 pnpm --filter devmentorai-server dev',
+      'rm -rf .e2e-home || true; mkdir -p .e2e-home && HOME=$PWD/.e2e-home ACP_FIXTURE_AGENT=1 /home/ubuntu/.nvm/versions/node/v22.12.0/bin/node /home/ubuntu/.nvm/versions/node/v22.12.0/lib/node_modules/pnpm/bin/pnpm.cjs --filter devmentorai-server dev',
     url: 'http://localhost:3847/api/health',
     reuseExistingServer: false,
     timeout: 30000,

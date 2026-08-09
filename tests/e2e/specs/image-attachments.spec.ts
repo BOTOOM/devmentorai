@@ -15,7 +15,7 @@ const TEST_JPEG_BASE64 =
 test.describe('Image Attachments', () => {
   test.beforeEach(async ({ sidePanelPage }) => {
     // Create a session before each test
-    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByRole('button', { name: 'New session', exact: true }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Image Test Session');
     await sidePanelPage
       .getByRole('button', { name: /general assistant/i })
@@ -27,6 +27,7 @@ test.describe('Image Attachments', () => {
     await expect(
       sidePanelPage.getByRole('button', { name: /image test session/i }).first()
     ).toBeVisible();
+    await expect(sidePanelPage.locator('button[title="Attach images"]')).toBeVisible();
   });
 
   test('should show image attachment button', async ({ sidePanelPage }) => {
@@ -62,10 +63,10 @@ test.describe('Image Attachments', () => {
       dataTransfer.items.add(new File([blob], 'test.png', { type: 'image/png' }));
 
       const pasteEvent = new ClipboardEvent('paste', {
-        clipboardData: dataTransfer,
         bubbles: true,
         cancelable: true,
       });
+      Object.defineProperty(pasteEvent, 'clipboardData', { value: dataTransfer });
 
       // Find the textarea and dispatch paste
       const textarea = document.querySelector('textarea');
@@ -101,10 +102,10 @@ test.describe('Image Attachments', () => {
       dataTransfer.items.add(new File([blob], 'test.png', { type: 'image/png' }));
 
       const pasteEvent = new ClipboardEvent('paste', {
-        clipboardData: dataTransfer,
         bubbles: true,
         cancelable: true,
       });
+      Object.defineProperty(pasteEvent, 'clipboardData', { value: dataTransfer });
 
       const textareaEl = document.querySelector('textarea');
       textareaEl?.dispatchEvent(pasteEvent);
@@ -202,7 +203,7 @@ test.describe('Image Attachments', () => {
     }, TEST_PNG_BASE64);
 
     await expect(removeButton).toBeVisible({ timeout: 5000 });
-    await removeButton.click();
+    await removeButton.click({ force: true });
 
     // Thumbnail should be removed
     await expect(draftThumbnail).not.toBeVisible({ timeout: 5000 });

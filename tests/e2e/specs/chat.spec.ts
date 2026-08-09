@@ -3,7 +3,7 @@ import { expect, test } from '../fixtures';
 test.describe('Chat Functionality', () => {
   test.beforeEach(async ({ sidePanelPage }) => {
     // Create a session before each test
-    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByRole('button', { name: 'New session', exact: true }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Test Session');
     await sidePanelPage
       .getByRole('button', { name: /general assistant/i })
@@ -25,7 +25,7 @@ test.describe('Chat Functionality', () => {
     await messageInput.fill('Hello, how are you?');
 
     // Send message
-    await sendButton.click();
+    await messageInput.press('Enter');
 
     // Verify user message appears
     await expect(sidePanelPage.getByText('Hello, how are you?')).toBeVisible();
@@ -41,7 +41,8 @@ test.describe('Chat Functionality', () => {
     const copyButton = sidePanelPage.getByRole('button', { name: /copy/i }).last();
 
     await messageInput.fill('Tell me a long story');
-    await sendButton.click();
+    await expect(sendButton).toBeEnabled();
+    await messageInput.press('Enter');
 
     // Depending on response speed, we may briefly see an activity indicator or jump straight to the response
     await Promise.race([

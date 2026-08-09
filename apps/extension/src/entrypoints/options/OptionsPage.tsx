@@ -6,22 +6,12 @@ import {
   useSettings,
 } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
-import {
-  type QuickActionModelOption,
-  getQuickActionModelState,
-} from '../../services/model-catalog';
 import { EXTENSION_VERSION } from '../../version.js';
 
 export function OptionsPage() {
   const { settings, isLoaded, saveAllSettings } = useSettings();
   const { updateState, isChecking, hasAnyUpdate, checkNow } = useUpdateChecker();
   const [localSettings, setLocalSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [quickActionModelOptions, setQuickActionModelOptions] = useState<QuickActionModelOption[]>(
-    []
-  );
-  const [quickActionModelStatus, setQuickActionModelStatus] = useState(
-    'Using built-in model fallback.'
-  );
   const [saved, setSaved] = useState(false);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>(
     'checking'
@@ -57,40 +47,6 @@ export function OptionsPage() {
       setLocalSettings(settings);
     }
   }, [settings, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    let cancelled = false;
-
-    const loadQuickActionModels = async () => {
-      const modelState = await getQuickActionModelState();
-
-      if (cancelled) {
-        return;
-      }
-
-      setQuickActionModelOptions(modelState.options);
-      setQuickActionModelStatus(modelState.statusMessage);
-
-      const selectedModelAvailable = modelState.options.some(
-        (option) => option.value === settings.quickActionModel
-      );
-
-      if (!selectedModelAvailable && modelState.options[0]) {
-        setLocalSettings((prev) => ({
-          ...prev,
-          quickActionModel: modelState.options[0].value,
-        }));
-      }
-    };
-
-    void loadQuickActionModels();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded, settings.quickActionModel]);
 
   const checkBackendConnection = useCallback(async () => {
     try {
@@ -623,32 +579,6 @@ export function OptionsPage() {
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 {textReplacementDescriptionByState[localSettings.textReplacementBehavior]}
-              </p>
-            </div>
-
-            <div>
-              <label
-                htmlFor="quick-action-model"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Quick Action Model
-              </label>
-              <select
-                id="quick-action-model"
-                value={localSettings.quickActionModel}
-                onChange={(e) => updateLocalSetting('quickActionModel', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                {quickActionModelOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                    {option.recommended ? ' · Fast' : ''}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Model used for quick actions like grammar fix, rewrite, translate.{' '}
-                {quickActionModelStatus}
               </p>
             </div>
           </div>

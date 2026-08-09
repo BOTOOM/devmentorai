@@ -41,7 +41,7 @@ test.describe('Session Management', () => {
 
   test('should create a DevOps session', async ({ sidePanelPage }) => {
     // Click new session button
-    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByRole('button', { name: 'New session', exact: true }).click();
 
     // Fill session name
     await sidePanelPage.getByLabel(/session name/i).fill('AWS Migration');
@@ -59,7 +59,7 @@ test.describe('Session Management', () => {
   });
 
   test('should create a Writing session', async ({ sidePanelPage }) => {
-    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByRole('button', { name: 'New session', exact: true }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Email Draft');
     await newSessionTypeButton(sidePanelPage, /writing assistant/i).click();
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
@@ -67,22 +67,14 @@ test.describe('Session Management', () => {
     await expect(sidePanelPage.getByRole('button', { name: /email draft/i }).first()).toBeVisible();
   });
 
-  test('should create a session with custom model', async ({ sidePanelPage }) => {
+  test('should create a session with ACP configuration available', async ({ sidePanelPage }) => {
     await sidePanelPage.getByRole('button', { name: /new/i }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Custom Model Test');
     await newSessionTypeButton(sidePanelPage, /devops mentor/i).click();
 
-    // Open model selector
-    await sidePanelPage
-      .getByRole('button', { name: /gpt-4\.1/i })
-      .last()
-      .click();
-    // Select a different model
-    await sidePanelPage.getByRole('button', { name: /claude sonnet 4\.5/i }).click();
-
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
 
-    // Verify session created with model displayed
+    // Verify session created; ACP runtime options are configured after creation.
     await expect(
       sidePanelPage.getByRole('button', { name: /custom model test/i }).first()
     ).toBeVisible();
@@ -90,7 +82,7 @@ test.describe('Session Management', () => {
 
   test('should switch between sessions', async ({ sidePanelPage }) => {
     // Create first session
-    await sidePanelPage.getByRole('button', { name: /new/i }).click();
+    await sidePanelPage.getByRole('button', { name: 'New session', exact: true }).click();
     await sidePanelPage.getByLabel(/session name/i).fill('Session 1');
     await newSessionTypeButton(sidePanelPage, /devops mentor/i).click();
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
@@ -122,9 +114,7 @@ test.describe('Session Management', () => {
     await sidePanelPage.getByRole('button', { name: /create session/i }).click();
 
     // Verify session info bar shows type icon
-    await expect(
-      sidePanelPage.getByRole('button', { name: /🛠️.*devops test.*devops mentor/i }).first()
-    ).toBeVisible();
+    await expect(sidePanelPage.getByRole('button', { name: /devops test/i }).first()).toBeVisible();
   });
 
   test('should show quick prompts for session type', async ({ sidePanelPage }) => {

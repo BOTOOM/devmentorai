@@ -146,7 +146,7 @@ export default function FeaturesPage() {
                   <span className="text-primary">→</span>
                   <span>Server</span>
                   <span className="text-primary">→</span>
-                  <span>Copilot CLI</span>
+                  <span>ACP agent</span>
                   <span className="text-primary">→</span>
                   <span>LLM</span>
                 </div>
@@ -250,8 +250,8 @@ export default function FeaturesPage() {
               </div>
               <h2 className="mb-6 text-3xl font-bold">Local & Private</h2>
               <p className="mb-6 text-lg leading-relaxed text-[var(--muted)]">
-                Security isn&apos;t an afterthought. DevMentorAI leverages the GitHub Copilot CLI
-                for local processing, ensuring your sensitive data never leaves your machine.
+                Security isn&apos;t an afterthought. DevMentorAI uses ACP permission prompts and for
+                local processing, ensuring your sensitive data never leaves your machine.
               </p>
               <div className="flex flex-wrap gap-3">
                 <span className="rounded-full border border-[var(--card-border)] bg-[var(--card)] px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[var(--muted)]">

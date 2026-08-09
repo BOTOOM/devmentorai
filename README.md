@@ -28,14 +28,14 @@ OpenAI-compatible endpoints are supported by the bundled `apps/acp-openai-agent`
 
 - **Node.js** 20+ 
 - **pnpm** 9+
-- **GitHub Copilot CLI** installed and authenticated ([Installation Guide](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli))
+- An ACP-compatible agent configured through the agent catalog
 - **Chrome/Chromium** browser
 
 ## Quick Start
 
-If you want to run the backend in Docker with Copilot CLI auth/session persistence, see:
+If you want to run the backend in Docker with agent profile persistence, see:
 
-- [Docker Backend + Copilot CLI Setup](docs/DOCKER_COPILOT_SETUP.md)
+- [Docker Backend Setup](docs/DOCKER_COPILOT_SETUP.md)
 
 ### 1. Install Dependencies
 
@@ -93,7 +93,7 @@ devmentorai/
 │   └── backend/            # Node.js Backend
 │       ├── src/
 │       │   ├── routes/     # API endpoints
-│       │   ├── services/   # CopilotService, SessionService
+│       │   ├── services/   # ACP gateway and session services
 │       │   ├── tools/      # Custom DevOps tools
 │       │   ├── native/     # Native Messaging host
 │       │   └── db/         # SQLite database
@@ -107,7 +107,7 @@ devmentorai/
 │
 └── docs/
     ├── ARCHITECTURE.md         # Detailed architecture docs
-    └── DOCKER_COPILOT_SETUP.md # Docker backend + Copilot CLI guide
+    └── DOCKER_COPILOT_SETUP.md # Docker backend and agent profile guide
 ```
 
 ## Architecture
@@ -138,7 +138,7 @@ devmentorai/
                           JSON-RPC
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     GitHub Copilot CLI                           │
+│                     ACP agent catalog                            │
 │              (pre-installed & authenticated)                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -267,7 +267,7 @@ export const myTool: Tool = {
   - Monorepo setup with pnpm
   - WXT extension with React + Tailwind
   - Fastify backend with SQLite
-  - Copilot SDK integration
+  - ACP agent catalog, profiles, permissions, and workspace context
   - Chat UI with streaming
   - DevOps/Writing/Development modes
   - Context menu actions

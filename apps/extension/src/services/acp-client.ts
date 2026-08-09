@@ -278,10 +278,6 @@ export class AcpClient {
   }
 }
 
-export function acpEnabled(): boolean {
-  return true;
-}
-
 function isEventParams(value: unknown): value is {
   sessionId: string;
   seq: number;

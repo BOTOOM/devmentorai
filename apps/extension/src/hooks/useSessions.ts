@@ -1,4 +1,4 @@
-import type { ReasoningEffort, Session, SessionType } from '@devmentorai/shared';
+import type { Session, SessionType } from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AcpClient } from '../services/acp-client';
 import { ApiClient } from '../services/api-client';
@@ -17,24 +17,17 @@ export function useSessions(options?: UseSessionsOptions) {
   const prevConnectionStatus = useRef<ConnectionStatus | undefined>(options?.connectionStatus);
 
   const apiClient = useMemo(() => ApiClient.getInstance(), []);
-  const acpClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
+  const acpClient = useMemo(() => new AcpClient({ url: 'ws://127.0.0.1:3847/acp' }), []);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.listSessions();
       if (response.success && response.data) {
-        let nextSessions = response.data.items;
-        try {
-          await acpClient.connect();
-          nextSessions = await acpClient.listAgentSessions();
-        } catch {
-          // Preserve imported sessions when the ACP gateway is unavailable.
-        }
-        setSessions(nextSessions);
+        setSessions(response.data.items);
 
-        if (!activeSessionId && nextSessions.length > 0) {
-          setActiveSessionId(nextSessions[0].id);
+        if (!activeSessionId && response.data.items.length > 0) {
+          setActiveSessionId(response.data.items[0].id);
         }
       } else {
         setError(response.error?.message || 'Failed to load sessions');
@@ -45,7 +38,7 @@ export function useSessions(options?: UseSessionsOptions) {
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, acpClient, apiClient]);
+  }, [activeSessionId, apiClient]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -83,27 +76,13 @@ export function useSessions(options?: UseSessionsOptions) {
   }, [activeSessionId]);
 
   const createSession = useCallback(
-    async (name: string, type: SessionType, model?: string, _reasoningEffort?: ReasoningEffort) => {
+    async (name: string, type: SessionType) => {
       try {
-        await acpClient.connect();
-        const record = await acpClient.createSession(undefined, '.');
-        const createdSession: Session = {
-          id: record.id,
-          name,
-          type,
-          status: 'active',
-          model: model ?? 'configured',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          messageCount: 0,
-          agentId: record.agentId,
-          acpSessionId: record.acpSessionId,
-          cwd: record.cwd,
-          protocolVersion: record.protocolVersion,
-          capabilities: record.capabilities,
-          configOptions: record.configOptions,
-          replaySupported: record.capabilities.agentCapabilities.loadSession === true,
-        };
+        const response = await apiClient.createSession({ name, type });
+        if (!response.success || !response.data) {
+          throw new Error(response.error?.message || 'Failed to create session');
+        }
+        const createdSession = response.data;
         setSessions((prev) => [...prev, createdSession]);
         setActiveSessionId(createdSession.id);
         return createdSession;
@@ -169,26 +148,6 @@ export function useSessions(options?: UseSessionsOptions) {
     [activeSessionId, apiClient, sessions]
   );
 
-  const updateSessionModel = useCallback(
-    async (sessionId: string, model: string, reasoningEffort?: ReasoningEffort) => {
-      // Use switchSessionModel which calls SDK v0.2.x setModel() for seamless switching
-      const response = await apiClient.switchSessionModel(sessionId, model, reasoningEffort);
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error?.message || 'Failed to update session model');
-      }
-
-      const updatedSession = response.data;
-
-      setSessions((prev) =>
-        prev.map((session) => (session.id === sessionId ? updatedSession : session))
-      );
-
-      return updatedSession;
-    },
-    [apiClient]
-  );
-
   const activeSession = sessions.find((s) => s.id === activeSessionId) || null;
 
   return {
@@ -198,7 +157,6 @@ export function useSessions(options?: UseSessionsOptions) {
     isLoading,
     error,
     createSession,
-    updateSessionModel,
     selectSession,
     deleteSession,
     refreshSessions: loadSessions,

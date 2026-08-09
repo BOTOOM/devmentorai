@@ -13,7 +13,12 @@
       "**/.output/**",
       "**/.wxt/**",
       "**/coverage/**",
-      "**/*.d.ts"
+      "**/*.d.ts",
+      "apps/website/.next/**",
+      "apps/extension/.output/**",
+      "apps/backend/dist/**",
+      "packages/shared/src/**/*.js",
+      "packages/shared/src/**/*.js.map"
     ]
   },
   "formatter": {

@@ -42,7 +42,7 @@ User types message → React hook → ACP WebSocket gateway → ACP agent stream
 | DevOps | devops-mentor | Expert in AWS, Azure, GCP, Kubernetes, CI/CD, Terraform, security |
 | Writing | writing-assistant | Email composition, rewriting, translation, grammar, tone adjustment |
 | Development | dev-helper | Code review, debugging, architecture, testing, refactoring |
-| General | (default Copilot) | General-purpose AI assistant |
+| General | (configured ACP agent) | General-purpose AI assistant |
 
 ## Custom DevOps Tools
 
@@ -82,7 +82,7 @@ Azure (Portal, DevOps, VMs), AWS (Console, EC2, S3, CloudFormation), GCP (Cloud 
 - Max 5 images per message, 5MB each
 - Supported: PNG, JPEG, WebP
 - Thumbnails: 200x200px JPEG at 60% quality, stored in ~/.devmentorai/images/
-- Original images sent to Copilot API, only thumbnails persisted
+- Original images are sent only when the ACP agent advertises image support; thumbnails may be persisted
 
 ## API Endpoints
 
@@ -106,7 +106,7 @@ Prerequisites: Node.js 20+ and an ACP-compatible agent profile
 
 ## Security
 
-- No credential storage (relies on Copilot CLI auth)
+- Credentials remain with the configured ACP agent and backend credential store.
 - Local-only communication (localhost)
 - Zod schema validation on all API inputs
 - Shadow DOM for content script isolation

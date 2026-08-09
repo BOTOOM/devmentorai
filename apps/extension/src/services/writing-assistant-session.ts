@@ -11,11 +11,12 @@ const WRITING_ASSISTANT_SESSION_TYPE = 'writing';
 let cachedSession: Session | null = null;
 let cachedAcpSession: AcpSessionRecord | null = null;
 
-const acpClient = new AcpClient({ url: 'ws://localhost:3847/acp' });
+const acpClient = new AcpClient({ url: 'ws://127.0.0.1:3847/acp' });
 
 function toSession(record: AcpSessionRecord): Session {
   const modelOption = record.configOptions?.find((option) => option.id === 'model');
-  const model = typeof modelOption?.currentValue === 'string' ? modelOption.currentValue : 'configured';
+  const model =
+    typeof modelOption?.currentValue === 'string' ? modelOption.currentValue : 'configured';
   return {
     id: record.id,
     name: WRITING_ASSISTANT_SESSION_NAME,
@@ -57,7 +58,10 @@ export async function getOrCreateWritingAssistantSession(_model?: string): Promi
 }
 
 export function isWritingAssistantSession(session: Session): boolean {
-  return session.name === WRITING_ASSISTANT_SESSION_NAME && session.type === WRITING_ASSISTANT_SESSION_TYPE;
+  return (
+    session.name === WRITING_ASSISTANT_SESSION_NAME &&
+    session.type === WRITING_ASSISTANT_SESSION_TYPE
+  );
 }
 
 export function getWritingAssistantSessionName(): string {
@@ -71,7 +75,6 @@ export function clearWritingAssistantCache(): void {
 
 export async function streamQuickAction(
   prompt: string,
-  _model: string,
   onEvent: (event: { type: string; content?: string; error?: string }) => void,
   signal?: AbortSignal
 ): Promise<void> {

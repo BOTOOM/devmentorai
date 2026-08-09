@@ -4,7 +4,6 @@ import type { TextReplacementBehavior } from '@devmentorai/shared';
  * Handles theme changes, language, and other preferences
  */
 import { useCallback, useEffect, useState } from 'react';
-import { DEFAULT_QUICK_ACTION_MODEL, normalizeQuickActionModel } from '../constants/models';
 import { storageGet, storageSet } from '../lib/browser-utils';
 
 export interface Settings {
@@ -23,8 +22,6 @@ export interface Settings {
   imageAttachmentsEnabled: boolean;
   /** Text replacement behavior when AI action is executed from editable field */
   textReplacementBehavior: TextReplacementBehavior;
-  /** Model to use for quick actions (Writing Assistant) */
-  quickActionModel: string;
   /** Tone for AI assistant responses */
   assistantTone: 'concise' | 'friendly' | 'professional' | 'technical' | 'balanced';
   /** Whether to always explain pros and cons in recommendations */
@@ -44,7 +41,6 @@ export const DEFAULT_SETTINGS: Settings = {
   screenshotBehavior: 'ask', // Default: user must explicitly enable
   imageAttachmentsEnabled: true, // Default: enabled
   textReplacementBehavior: 'ask', // Default: ask before replacing
-  quickActionModel: DEFAULT_QUICK_ACTION_MODEL, // Fast model for quick actions without reasoning
   assistantTone: 'balanced', // Default: balanced tone
   explainTradeoffs: false, // Default: don't automatically explain tradeoffs
 };
@@ -105,16 +101,8 @@ export function useSettings() {
         const loadedSettings = {
           ...DEFAULT_SETTINGS,
           ...result,
-          quickActionModel: normalizeQuickActionModel(result.quickActionModel),
         };
         setSettings(loadedSettings);
-
-        if (
-          result.quickActionModel &&
-          result.quickActionModel !== loadedSettings.quickActionModel
-        ) {
-          await storageSet({ quickActionModel: loadedSettings.quickActionModel });
-        }
 
         // Apply theme immediately
         applyTheme(loadedSettings.theme);
@@ -172,10 +160,8 @@ export function useSettings() {
 
   const updateSetting = useCallback(
     async <K extends keyof Settings>(key: K, value: Settings[K]) => {
-      const normalizedValue =
-        key === 'quickActionModel' ? normalizeQuickActionModel(value as string) : value;
-      setSettings((prev) => ({ ...prev, [key]: normalizedValue }));
-      await storageSet({ [key]: normalizedValue });
+      setSettings((prev) => ({ ...prev, [key]: value }));
+      await storageSet({ [key]: value });
     },
     []
   );

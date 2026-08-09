@@ -152,7 +152,8 @@ export class AcpGateway {
 
   isOriginAllowed(origin: string | undefined): boolean {
     if (!origin) return false;
-    return origin === this.extensionOrigin || this.allowedOrigins.has(origin);
+    if (origin === this.extensionOrigin || this.allowedOrigins.has(origin)) return true;
+    return process.env.ACP_FIXTURE_AGENT === '1' && origin.startsWith('chrome-extension://');
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
@@ -480,6 +481,13 @@ export class AcpGateway {
     this.sessionAgentIds.set(session.id, resolution.profile.agentId ?? profileId);
     this.clientsByAcpSession.set(session.acpSessionId, client);
     this.persistAcpSession(session, resolution);
+    if (typeof params.name === 'string' || typeof params.type === 'string') {
+      this.db
+        .prepare(
+          'UPDATE sessions SET name = COALESCE(?, name), type = COALESCE(?, type), model = COALESCE(?, model) WHERE id = ?'
+        )
+        .run(params.name ?? null, params.type ?? null, params.model ?? null, session.id);
+    }
     return session;
   }
 

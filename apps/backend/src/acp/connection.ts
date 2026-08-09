@@ -97,6 +97,7 @@ export class AgentConnection {
   private cancelledSessions = new Set<string>();
   private configurableSessions = new Set<string>();
   private _capabilities: AcpConnectionCapabilities | undefined;
+  private connectPromise: Promise<AcpConnectionCapabilities> | undefined;
   private readonly clientName: string;
   private readonly clientVersion: string;
 
@@ -139,6 +140,18 @@ export class AgentConnection {
   }
 
   async connect(): Promise<AcpConnectionCapabilities> {
+    if (this._capabilities) return this._capabilities;
+    if (this.connectPromise) return this.connectPromise;
+    const promise = this.connectInternal();
+    this.connectPromise = promise;
+    try {
+      return await promise;
+    } finally {
+      if (this.connectPromise === promise) this.connectPromise = undefined;
+    }
+  }
+
+  private async connectInternal(): Promise<AcpConnectionCapabilities> {
     if (this.connection) return this.capabilities;
     this.closing = false;
     try {

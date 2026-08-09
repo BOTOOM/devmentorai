@@ -11,7 +11,7 @@ const PAGE_URL = `${SITE_URL}${PAGE_PATH}`;
 
 const PAGE_TITLE = 'Get Started with DevMentorAI';
 const PAGE_DESCRIPTION =
-  'Get started quickly with DevMentorAI: prerequisites, Copilot CLI setup, extension installation, and first chat session flow.';
+  'Get started quickly with DevMentorAI: configure an ACP agent, install the extension, and start your first chat session.';
 
 const PREREQUISITES = [
   'Node.js 20+ installed on your machine.',
@@ -22,11 +22,11 @@ const PREREQUISITES = [
 
 const STARTUP_STEPS = [
   {
-    title: 'Install and login to Copilot CLI',
+    title: 'Configure an ACP agent',
     description:
-      'If Copilot CLI is not ready, complete that first. The backend command depends on an authenticated Copilot CLI session.',
+      'Configure an ACP-compatible agent profile first. The backend launches agents through the ACP catalog.',
     href: '/docs/get-started/copilot-cli',
-    cta: 'Open Copilot CLI guide',
+    cta: 'Open ACP agent guide',
   },
   {
     title: 'Start the local backend',
@@ -75,7 +75,7 @@ export default function DocsGetStartedPage() {
         step: [
           {
             '@type': 'HowToStep',
-            name: 'Install and login to Copilot CLI',
+            name: 'Configure an ACP agent',
             url: `${SITE_URL}/docs/get-started/copilot-cli`,
           },
           {
@@ -141,7 +141,7 @@ export default function DocsGetStartedPage() {
             <ul className="mt-3 space-y-2 text-sm text-[var(--muted)] sm:text-base">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                Copilot CLI must be installed and authenticated before backend startup.
+                An ACP-compatible agent profile must be configured before backend startup.
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />

@@ -14,7 +14,7 @@ const DOC_SECTIONS = [
     title: 'Get Started',
     description:
       'Install the extension, prepare the backend, and understand the exact prerequisites before your first session.',
-    highlights: ['Prerequisites checklist', 'Fast onboarding flow', 'Copilot CLI guide'],
+    highlights: ['Prerequisites checklist', 'Fast onboarding flow', 'ACP agent guide'],
   },
   {
     href: '/docs/quick-actions',
@@ -41,7 +41,7 @@ const DOC_SECTIONS = [
 
 const PAGE_TITLE = 'DevMentorAI Documentation';
 const PAGE_DESCRIPTION =
-  'Official DevMentorAI docs: installation prerequisites, Copilot CLI login, quick actions, chat workflow, and settings.';
+  'Official DevMentorAI docs: installation prerequisites, ACP agent profiles, quick actions, chat workflow, and settings.';
 
 export const metadata: Metadata = {
   title: 'Documentation',
@@ -120,7 +120,7 @@ export default function DocsPage() {
             <li className="flex items-start gap-2">
               <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               Use the{' '}
-              <strong className="font-semibold text-[var(--foreground)]">Copilot CLI guide</strong>{' '}
+              <strong className="font-semibold text-[var(--foreground)]">ACP agent guide</strong>{' '}
               before running the backend command.
             </li>
             <li className="flex items-start gap-2">
@@ -169,7 +169,7 @@ export default function DocsPage() {
                 Most common setup blocker
               </p>
               <p className="mt-1 text-sm text-[var(--muted)] sm:text-base">
-                If the backend command fails, install and login to Copilot CLI first.
+                If the backend command fails, verify the configured ACP agent profile first.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:items-end">
@@ -177,7 +177,7 @@ export default function DocsPage() {
                 href="/docs/get-started/copilot-cli"
                 className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
               >
-                Open Copilot CLI Guide
+                Open ACP Agent Guide
               </Link>
               <Link
                 href="/installation"

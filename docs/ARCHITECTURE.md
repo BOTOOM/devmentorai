@@ -49,7 +49,7 @@ of truth for agents that support replay.
 │  ┌─────────────────────┼────────────┼──────────────┼─────────┐  │
 │  │                     Services Layer                        │  │
 │  │  ┌──────────────────┐ ┌────────────────────────────────┐ │  │
-│  │  │  SessionService  │ │       CopilotService           │ │  │
+│  │  │  SessionService  │ │          ACP Gateway            │ │  │
 │  │  │ - CRUD ops       │ │ - SDK client wrapper           │ │  │
 │  │  │ - Message history│ │ - Tool execution               │ │  │
 │  │  │ - Persistence    │ │ - MCP server integration       │ │  │
@@ -58,7 +58,7 @@ of truth for agents that support replay.
 │  └───────────┼────────────────────────┼─────────────────────┘  │
 │              │                        │                        │
 │  ┌───────────┴──────────┐  ┌─────────┴────────────────────┐   │
-│  │     SQLite DB        │  │   @github/copilot-sdk        │   │
+│  │     SQLite DB        │  │       ACP client/host         │   │
 │  │  ~/.devmentorai/     │  │   - CopilotClient            │   │
 │  │  - sessions table    │  │   - createSession()          │   │
 │  │  - messages table    │  │   - Custom agents + Tools    │   │
@@ -75,7 +75,7 @@ of truth for agents that support replay.
                │ JSON-RPC
                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     GitHub Copilot CLI                           │
+│                     Configured ACP agent                         │
 │  - Pre-installed by user                                         │
 │  - Authenticated via GitHub                                      │
 │  - Handles LLM communication                                     │
@@ -152,11 +152,11 @@ await service.initialize(); // Auto-detects available mode
                 ↓
 3. CommunicationService routes to appropriate adapter
                 ↓
-4. POST /api/sessions/:id/chat/stream
+4. ui/session.prompt over the ACP WebSocket gateway
                 ↓
 5. Backend saves user message to SQLite
                 ↓
-6. CopilotService.streamMessage() called
+6. ACP session manager streams session/update events
                 ↓
 7. SDK emits events (message_delta, tool_start, etc.)
                 ↓
@@ -215,7 +215,7 @@ await service.initialize(); // Auto-detects available mode
 
 1. **No Credential Storage**
    - Extension never stores GitHub tokens
-   - Relies on Copilot CLI's existing authentication
+   - Agents own their authentication and credential lifecycle
 
 2. **Local-Only Communication**
    - Backend only listens on localhost
@@ -246,7 +246,7 @@ await service.initialize(); // Auto-detects available mode
                                        └────────┬─────────┘
                                                 │
                                        ┌────────┴─────────┐
-                                       │  Copilot SDK     │
+                                       │  ACP transport   │
                                        └──────────────────┘
 ```
 

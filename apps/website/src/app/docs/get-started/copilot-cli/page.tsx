@@ -20,9 +20,9 @@ const OFFICIAL_INSTALL_DOCS =
   'https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli';
 const OFFICIAL_COPILOT_DOCS = 'https://docs.github.com/en/copilot';
 
-const PAGE_TITLE = 'Install and Login Copilot CLI for DevMentorAI';
+const PAGE_TITLE = 'Configure an ACP Agent for DevMentorAI';
 const PAGE_DESCRIPTION =
-  'Step-by-step Copilot CLI setup for DevMentorAI: install command, login flow, quota notes, and what to run next.';
+  'Step-by-step ACP agent profile setup for DevMentorAI: choose an agent, configure its launch profile, and start the backend.';
 
 const OS_INSTALL_REFERENCES = [
   {
@@ -40,7 +40,7 @@ const OS_INSTALL_REFERENCES = [
 ] as const;
 
 export const metadata: Metadata = {
-  title: 'Docs: Copilot CLI Setup',
+  title: 'Docs: ACP Agent Setup',
   description: PAGE_DESCRIPTION,
   alternates: {
     canonical: PAGE_PATH,
@@ -74,7 +74,7 @@ export default function CopilotCliDocsPage() {
         step: [
           {
             '@type': 'HowToStep',
-            name: 'Install Copilot CLI',
+            name: 'Configure an ACP agent',
             text: 'Install globally with npm: npm install -g @github/copilot-cli',
             url: OFFICIAL_INSTALL_DOCS,
           },
@@ -115,7 +115,7 @@ export default function CopilotCliDocsPage() {
           {
             '@type': 'ListItem',
             position: 4,
-            name: 'Copilot CLI',
+            name: 'ACP agent',
             item: PAGE_URL,
           },
         ],
@@ -131,13 +131,13 @@ export default function CopilotCliDocsPage() {
       />
 
       <HeroSection
-        badge={<Badge icon={<TerminalSquare className="h-3 w-3" />}>Copilot CLI Guide</Badge>}
+        badge={<Badge icon={<TerminalSquare className="h-3 w-3" />}>ACP Agent Guide</Badge>}
         title={
           <>
-            Install and login to <span className="text-primary">Copilot CLI</span>
+            Configure an <span className="text-primary">ACP agent</span>
           </>
         }
-        subtitle="DevMentorAI backend commands rely on an authenticated Copilot CLI session. Complete this once, then continue with installation."
+        subtitle="DevMentorAI launches configured ACP agents through the backend catalog. Complete this once, then continue with installation."
       />
 
       <section className="mx-auto max-w-5xl px-4 pb-20 sm:px-6 md:pb-24">
@@ -150,7 +150,7 @@ export default function CopilotCliDocsPage() {
             <ul className="mt-3 space-y-2 text-sm text-[var(--foreground)] sm:text-base">
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
-                Install Copilot CLI first.
+                Configure an ACP agent profile first.
               </li>
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" />
@@ -172,7 +172,7 @@ export default function CopilotCliDocsPage() {
 
           <aside className="rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6">
             <p className="text-sm font-semibold">On this page</p>
-            <nav aria-label="Copilot CLI table of contents" className="mt-3 space-y-2 text-sm">
+            <nav aria-label="ACP agent table of contents" className="mt-3 space-y-2 text-sm">
               <a
                 href="#why"
                 className="block rounded-md px-2 py-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--section-alt)] hover:text-primary"
@@ -206,11 +206,11 @@ export default function CopilotCliDocsPage() {
           className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
         >
           <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-            Why Copilot CLI is required
+            Why ACP agent profiles are required
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
-            DevMentorAI backend uses your Copilot CLI authentication context. If Copilot CLI is
-            missing or not logged in, backend responses can be limited or fail.
+            DevMentorAI backend launches agents through ACP. If an agent is missing or not logged
+            in, backend responses can be limited or fail.
           </p>
         </article>
 
@@ -218,7 +218,7 @@ export default function CopilotCliDocsPage() {
           id="install"
           className="mt-6 rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 sm:p-6"
         >
-          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Install Copilot CLI</h2>
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Configure an ACP agent</h2>
           <p className="mt-2 text-sm text-[var(--muted)] sm:text-base">
             Recommended method using npm:
           </p>
@@ -259,7 +259,7 @@ export default function CopilotCliDocsPage() {
           <div className="mt-4 space-y-4">
             <div className="rounded-xl border border-[var(--card-border)] bg-[var(--section-alt)] p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-primary">Step 1</p>
-              <p className="mt-1 text-sm text-[var(--muted)]">Open Copilot CLI interactive mode.</p>
+              <p className="mt-1 text-sm text-[var(--muted)]">Open the ACP agent configuration.</p>
               <div className="mt-3">
                 <CodeBlock code="copilot" language="bash" />
               </div>

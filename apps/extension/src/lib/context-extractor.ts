@@ -1207,6 +1207,7 @@ export function startNetworkErrorCapture(): void {
   XMLHttpRequest.prototype.open = function (
     method: string,
     url: string | URL,
+    // biome-ignore lint/style/noInferrableTypes: XMLHttpRequest overload requires a boolean parameter.
     async: boolean = true,
     username: string | null = null,
     password: string | null = null

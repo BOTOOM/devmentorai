@@ -1,4 +1,10 @@
-import type { ImagePayload, MessageContext, QuickAction, ReasoningEffort, Session } from '@devmentorai/shared';
+import type {
+  AcpConfigOption,
+  ImagePayload,
+  MessageContext,
+  QuickAction,
+  Session,
+} from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AcpCatalogView } from '../../components/AcpCatalogView';
 import { AcpProfileEditor } from '../../components/AcpProfileEditor';
@@ -22,7 +28,7 @@ import { AcpClient, type AcpProfile } from '../../services/acp-client';
 type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
 
 export function SidePanel() {
-  const acpCatalogClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
+  const acpCatalogClient = useMemo(() => new AcpClient({ url: 'ws://127.0.0.1:3847/acp' }), []);
 
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false); // D.2
@@ -32,7 +38,6 @@ export function SidePanel() {
   const [showAcpAgents, setShowAcpAgents] = useState(false);
   const [selectedAcpProfile, setSelectedAcpProfile] = useState<AcpProfile>();
   const [contextModeEnabled, setContextModeEnabled] = useState(false);
-  const [isChangingModel, setIsChangingModel] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     action: ExtendedAction;
     selectedText: string;
@@ -58,7 +63,6 @@ export function SidePanel() {
     createSession,
     selectSession,
     deleteSession,
-    refreshSessions,
   } = useSessions({ connectionStatus });
 
   const {
@@ -276,13 +280,8 @@ export function SidePanel() {
   );
 
   const handleNewSession = useCallback(
-    async (
-      name: string,
-      type: Session['type'],
-      model?: string,
-      reasoningEffort?: ReasoningEffort
-    ) => {
-      await createSession(name, type, model, reasoningEffort);
+    async (name: string, type: Session['type']) => {
+      await createSession(name, type);
       setShowNewSessionModal(false);
     },
     [createSession]
@@ -299,27 +298,19 @@ export function SidePanel() {
     setShowAcpAgents(false);
   }, [acpCatalogClient, selectedAcpProfile]);
 
-  // Model switching - now opens modal for SDK v0.2.x setModel with reasoning effort
-  const canChangeSessionModel = true; // Allow changing model anytime with new SDK
+  const canChangeSessionModel = Boolean(activeSession);
 
   const handleChangeSessionModel = useCallback(() => {
     if (!activeSession?.id) return;
     setShowModelSwitchModal(true);
   }, [activeSession?.id]);
 
-  const handleModelSwitched = useCallback(async () => {
-    setShowModelSwitchModal(false);
-    if (activeSession?.id) {
-      setIsChangingModel(true);
-      try {
-        await refreshSessions();
-      } catch (error) {
-        console.error('[SidePanel] Failed to refresh sessions after model switch:', error);
-      } finally {
-        setIsChangingModel(false);
-      }
-    }
-  }, [activeSession?.id, refreshSessions]);
+  const handleModelSwitched = useCallback(
+    async (option: AcpConfigOption, value: string | boolean) => {
+      await setAcpConfigOption(option, value);
+    },
+    [setAcpConfigOption]
+  );
 
   // D.1 - Handle using page context in chat
   const handleUsePageContext = useCallback(
@@ -381,13 +372,13 @@ export function SidePanel() {
       />
 
       <div className="border-b border-gray-200 px-3 py-2 dark:border-gray-700">
-          <button
-            className="w-full rounded border border-primary-300 px-2 py-1 text-sm text-primary-700 dark:border-primary-700 dark:text-primary-300"
-            onClick={() => setShowAcpAgents(true)}
-            type="button"
-          >
-            Browse ACP agents
-          </button>
+        <button
+          className="w-full rounded border border-primary-300 px-2 py-1 text-sm text-primary-700 dark:border-primary-700 dark:text-primary-300"
+          onClick={() => setShowAcpAgents(true)}
+          type="button"
+        >
+          Browse ACP agents
+        </button>
       </div>
 
       <ChatView
@@ -398,7 +389,7 @@ export function SidePanel() {
         onSendMessage={handleSendMessage}
         onAbort={abortMessage}
         onChangeModel={canChangeSessionModel ? handleChangeSessionModel : undefined}
-        disabled={connectionStatus !== 'connected' || isChangingModel}
+        disabled={connectionStatus !== 'connected'}
         pendingText={pendingAction?.action === 'chat' ? pendingAction.selectedText : undefined}
         // Context-aware mode props
         contextEnabled={contextModeEnabled}
@@ -473,8 +464,9 @@ export function SidePanel() {
       {showModelSwitchModal && activeSession && (
         <ModelSwitchModal
           session={activeSession}
+          configOptions={acpState?.configOptions ?? []}
+          onConfigOptionChange={handleModelSwitched}
           onClose={() => setShowModelSwitchModal(false)}
-          onModelSwitched={handleModelSwitched}
         />
       )}
 

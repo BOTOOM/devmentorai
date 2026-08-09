@@ -142,11 +142,8 @@ test.describe('Image Attachments', () => {
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(new File([blob], 'test.png', { type: 'image/png' }));
 
-      const pasteEvent = new ClipboardEvent('paste', {
-        clipboardData: dataTransfer,
-        bubbles: true,
-        cancelable: true,
-      });
+      const pasteEvent = new Event('paste', { bubbles: true, cancelable: true });
+      Object.defineProperty(pasteEvent, 'clipboardData', { value: dataTransfer });
 
       document.querySelector('textarea')?.dispatchEvent(pasteEvent);
     }, TEST_PNG_BASE64);

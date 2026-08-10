@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
+import net from 'node:net';
 import path from 'node:path';
 import type { Database } from 'better-sqlite3';
 import { AgentConnection } from '../connection.js';
 import { AcpError } from '../errors.js';
+import { type AcpProbeReport, runConformanceProbe } from '../probe.js';
 import { AgentCatalog } from './agent-catalog.js';
 import { AgentInstaller } from './agent-installer.js';
 import { CredentialStore } from './credentials.js';
@@ -86,6 +88,15 @@ export class AcpAgentService {
         };
       })
     );
+  }
+
+  listProfiles(): AgentProfile[] {
+    return this.profiles.list();
+  }
+
+  async probe(profileId: string): Promise<AcpProbeReport> {
+    const resolution = await this.resolveLaunch(profileId);
+    return runConformanceProbe(resolution, resolution.profile.defaultCwd);
   }
 
   async install(agentId: string): Promise<AgentCatalogEntry> {

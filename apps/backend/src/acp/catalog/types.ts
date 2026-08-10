@@ -60,6 +60,8 @@ export type AgentProfile = {
   env: Record<string, string>;
   defaultCwd: string;
   transport: AgentTransport;
+  host?: string;
+  port?: number;
 };
 
 export type LaunchResolution = {

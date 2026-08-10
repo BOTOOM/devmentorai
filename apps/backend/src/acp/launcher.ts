@@ -1,4 +1,5 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import net from 'node:net';
 import { Readable, Writable } from 'node:stream';
 import type { AcpErrorPayload } from '@devmentorai/shared';
 import { AcpError } from './errors.js';
@@ -8,6 +9,9 @@ export type LaunchSpec = {
   args?: string[];
   env?: Record<string, string | undefined>;
   cwd: string;
+  transport?: 'stdio' | 'tcp';
+  host?: string;
+  port?: number;
 };
 
 export type ProcessExit = {
@@ -40,25 +44,41 @@ export class AgentProcess {
   readonly stdout: ReadableStream<Uint8Array>;
   readonly exited: Promise<ProcessExit>;
   readonly pid: number | undefined;
-  private readonly child: ChildProcessWithoutNullStreams;
+  private readonly child?: ChildProcessWithoutNullStreams;
+  private readonly socket?: net.Socket;
   private readonly stderrBuffer: RingBuffer;
   private exitResult: ProcessExit | undefined;
 
-  constructor(child: ChildProcessWithoutNullStreams, stderrLimit = DEFAULT_STDERR_LIMIT) {
-    this.child = child;
-    this.pid = child.pid;
+  constructor(
+    process: ChildProcessWithoutNullStreams | net.Socket,
+    stderrLimit = DEFAULT_STDERR_LIMIT
+  ) {
+    this.child = process instanceof net.Socket ? undefined : process;
+    this.socket = process instanceof net.Socket ? process : undefined;
+    this.pid = this.child?.pid;
     this.stderrBuffer = new RingBuffer(stderrLimit);
-    child.stderr.on('data', (chunk: Buffer) => this.stderrBuffer.append(chunk));
+    if (this.child)
+      this.child.stderr.on('data', (chunk: Buffer) => this.stderrBuffer.append(chunk));
     this.exited = new Promise((resolve) => {
-      child.once('exit', (code, signal) => {
+      const finish = (code: number | null, signal: NodeJS.Signals | null) => {
         this.exitResult = {
           code,
           signal,
           stderr: this.stderrBuffer.toString(),
         };
         resolve(this.exitResult);
+      };
+      this.child?.once('exit', finish);
+      this.socket?.once('close', () => finish(0, null));
+      this.child?.once('error', (error) => {
+        this.exitResult = {
+          code: null,
+          signal: null,
+          stderr: `${this.stderrBuffer.toString()}${error.message}`,
+        };
+        resolve(this.exitResult);
       });
-      child.once('error', (error) => {
+      this.socket?.once('error', (error) => {
         this.exitResult = {
           code: null,
           signal: null,
@@ -67,8 +87,11 @@ export class AgentProcess {
         resolve(this.exitResult);
       });
     });
-    this.stdin = Writable.toWeb(child.stdin) as WritableStream<Uint8Array>;
-    this.stdout = Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>;
+    const writable = this.child?.stdin ?? this.socket;
+    const readable = this.child?.stdout ?? this.socket;
+    if (!writable || !readable) throw new Error('Agent process has no transport streams');
+    this.stdin = Writable.toWeb(writable) as WritableStream<Uint8Array>;
+    this.stdout = Readable.toWeb(readable) as ReadableStream<Uint8Array>;
   }
 
   get exitedAlready(): ProcessExit | undefined {
@@ -80,9 +103,8 @@ export class AgentProcess {
   }
 
   kill(signal: NodeJS.Signals = 'SIGTERM'): void {
-    if (!this.child.killed && this.child.exitCode === null) {
-      this.child.kill(signal);
-    }
+    if (this.child && !this.child.killed && this.child.exitCode === null) this.child.kill(signal);
+    if (this.socket && !this.socket.destroyed) this.socket.destroy();
   }
 
   async shutdown(timeoutMs = 1_000): Promise<ProcessExit | undefined> {
@@ -105,6 +127,22 @@ export class AgentLauncher {
   private readonly processes = new Set<AgentProcess>();
 
   launch(spec: LaunchSpec, stderrLimit = DEFAULT_STDERR_LIMIT): AgentProcess {
+    if (spec.transport === 'tcp') {
+      const host = spec.host;
+      const port = spec.port;
+      if (
+        !host ||
+        typeof port !== 'number' ||
+        !Number.isInteger(port) ||
+        port < 1 ||
+        port > 65535 ||
+        (!net.isIP(host) && !/^[a-zA-Z0-9.-]+$/.test(host))
+      ) {
+        throw new AcpError('agent_launch_failed', 'TCP profile has an invalid host or port');
+      }
+      const socket = net.createConnection({ host, port });
+      return this.track(new AgentProcess(socket, stderrLimit));
+    }
     let child: ChildProcessWithoutNullStreams;
     try {
       child = spawn(spec.cmd, spec.args ?? [], {
@@ -122,7 +160,10 @@ export class AgentLauncher {
       });
     }
 
-    const agentProcess = new AgentProcess(child, stderrLimit);
+    return this.track(new AgentProcess(child, stderrLimit));
+  }
+
+  private track(agentProcess: AgentProcess): AgentProcess {
     this.processes.add(agentProcess);
     void agentProcess.exited.finally(() => this.processes.delete(agentProcess));
     return agentProcess;

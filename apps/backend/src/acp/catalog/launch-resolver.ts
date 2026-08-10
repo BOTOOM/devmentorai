@@ -1,3 +1,4 @@
+import net from 'node:net';
 import path from 'node:path';
 import { AcpError } from '../errors.js';
 import type { LaunchSpec } from '../launcher.js';
@@ -23,25 +24,24 @@ export class AgentLaunchResolver {
     entry: AgentCatalogEntry | undefined,
     profile: AgentProfile
   ): Promise<LaunchResolution> {
-    if (profile.transport !== 'stdio') {
-      throw new AcpError(
-        'capability_unsupported',
-        'TCP ACP transport is reserved for a later phase'
-      );
-    }
     const environment = this.credentials.resolveEnvironment(profile.env);
     if (profile.custom || !entry) {
-      if (!profile.cmd) {
+      if (profile.transport === 'tcp') {
+        validateTcpProfile(profile);
+      } else if (!profile.cmd) {
         throw new AcpError('agent_launch_failed', `Custom profile ${profile.id} has no command`);
       }
       return {
         profile,
         ...(entry ? { catalogEntry: entry } : {}),
         launchSpec: {
-          cmd: profile.cmd,
+          cmd: profile.cmd ?? '',
           args: profile.args,
           env: environment,
           cwd: profile.defaultCwd,
+          ...(profile.transport === 'tcp'
+            ? { transport: 'tcp' as const, host: profile.host ?? '127.0.0.1', port: profile.port }
+            : {}),
         },
       };
     }
@@ -49,7 +49,14 @@ export class AgentLaunchResolver {
     return {
       profile,
       catalogEntry: entry,
-      launchSpec: { ...launch, env: { ...launch.env, ...environment }, cwd: profile.defaultCwd },
+      launchSpec: {
+        ...launch,
+        env: { ...launch.env, ...environment },
+        cwd: profile.defaultCwd,
+        ...(profile.transport === 'tcp'
+          ? { transport: 'tcp' as const, host: profile.host ?? '127.0.0.1', port: profile.port }
+          : {}),
+      },
     };
   }
 
@@ -103,5 +110,21 @@ export class AgentLaunchResolver {
       };
     }
     throw new AcpError('agent_launch_failed', `Unsupported distribution for agent ${entry.id}`);
+  }
+}
+
+function validateTcpProfile(profile: AgentProfile): void {
+  if (
+    profile.host &&
+    (!profile.host.trim() ||
+      (net.isIP(profile.host) === 0 && !/^[a-zA-Z0-9.-]+$/.test(profile.host)))
+  ) {
+    throw new AcpError('agent_launch_failed', `Invalid TCP host for profile ${profile.id}`);
+  }
+  if (
+    profile.port !== undefined &&
+    (!Number.isInteger(profile.port) || profile.port < 1 || profile.port > 65535)
+  ) {
+    throw new AcpError('agent_launch_failed', `Invalid TCP port for profile ${profile.id}`);
   }
 }

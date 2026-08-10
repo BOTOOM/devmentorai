@@ -8,7 +8,9 @@ import type {
   ReasoningEffort,
   Session,
 } from '@devmentorai/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AcpCatalogView } from '../../components/AcpCatalogView';
+import { AcpProfileEditor } from '../../components/AcpProfileEditor';
 import { ChatView } from '../../components/ChatView';
 import { Header } from '../../components/Header';
 import { HelpModal } from '../../components/HelpModal';
@@ -23,7 +25,7 @@ import { useContextExtraction } from '../../hooks/useContextExtraction';
 import { useSessions } from '../../hooks/useSessions';
 import { useSettings } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
-import { acpEnabled } from '../../services/acp-client';
+import { AcpClient, type AcpProfile, acpEnabled } from '../../services/acp-client';
 import { ApiClient } from '../../services/api-client';
 
 // Extend QuickAction to include tone variations
@@ -31,12 +33,15 @@ type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
 
 export function SidePanel() {
   const apiClient = ApiClient.getInstance();
+  const acpCatalogClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
 
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false); // D.2
   const [showPageContextModal, setShowPageContextModal] = useState(false); // D.1
   const [showModelSwitchModal, setShowModelSwitchModal] = useState(false);
   const [showScreenshotConfirm, setShowScreenshotConfirm] = useState(false);
+  const [showAcpAgents, setShowAcpAgents] = useState(false);
+  const [selectedAcpProfile, setSelectedAcpProfile] = useState<AcpProfile>();
   const [contextModeEnabled, setContextModeEnabled] = useState(false);
   const [, setAvailableModels] = useState<ModelInfo[]>([]);
   const [authStatus, setAuthStatus] = useState<CopilotAuthStatus | null>(null);
@@ -342,6 +347,23 @@ export function SidePanel() {
     [createSession]
   );
 
+  const handleAcpProfileSelected = useCallback((profile: AcpProfile) => {
+    setSelectedAcpProfile(profile);
+  }, []);
+
+  const handleStartAcpSession = useCallback(async () => {
+    if (!selectedAcpProfile) return;
+    await acpCatalogClient.connect();
+    const created = await acpCatalogClient.createSession(
+      selectedAcpProfile.id,
+      selectedAcpProfile.defaultCwd
+    );
+    await refreshSessions();
+    await selectSession(created.id);
+    acpCatalogClient.disconnect();
+    setShowAcpAgents(false);
+  }, [acpCatalogClient, refreshSessions, selectSession, selectedAcpProfile]);
+
   // Model switching - now opens modal for SDK v0.2.x setModel with reasoning effort
   const canChangeSessionModel = true; // Allow changing model anytime with new SDK
 
@@ -434,6 +456,18 @@ export function SidePanel() {
         onDeleteSession={deleteSession}
       />
 
+      {acpEnabled() ? (
+        <div className="border-b border-gray-200 px-3 py-2 dark:border-gray-700">
+          <button
+            className="w-full rounded border border-primary-300 px-2 py-1 text-sm text-primary-700 dark:border-primary-700 dark:text-primary-300"
+            onClick={() => setShowAcpAgents(true)}
+            type="button"
+          >
+            Browse ACP agents
+          </button>
+        </div>
+      ) : null}
+
       <ChatView
         session={activeSession}
         messages={messages}
@@ -472,6 +506,39 @@ export function SidePanel() {
           onSubmit={handleNewSession}
         />
       )}
+
+      {showAcpAgents ? (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4">
+          <div className="mx-auto max-w-lg rounded-lg bg-white shadow-xl dark:bg-gray-800">
+            <div className="flex items-center justify-between border-b p-3 dark:border-gray-700">
+              <h2 className="font-semibold">ACP agents and profiles</h2>
+              <button onClick={() => setShowAcpAgents(false)} type="button">
+                Close
+              </button>
+            </div>
+            <AcpCatalogView
+              client={acpCatalogClient}
+              onProfileSelected={handleAcpProfileSelected}
+              selectedProfileId={selectedAcpProfile?.id}
+            />
+            <AcpProfileEditor
+              client={acpCatalogClient}
+              onSaved={handleAcpProfileSelected}
+              profile={selectedAcpProfile}
+            />
+            <div className="flex justify-end border-t p-3 dark:border-gray-700">
+              <button
+                className="rounded bg-primary-600 px-3 py-1 text-sm text-white disabled:opacity-50"
+                disabled={!selectedAcpProfile}
+                onClick={() => void handleStartAcpSession()}
+                type="button"
+              >
+                Use selected profile for ACP session
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showHelpModal && <HelpModal onClose={() => setShowHelpModal(false)} />}
 

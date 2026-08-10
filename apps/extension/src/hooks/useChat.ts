@@ -23,6 +23,7 @@ export interface SendMessageOptions {
   fullContext?: ContextPayload;
   useContextAwareMode?: boolean;
   images?: ImagePayload[];
+  workspaceFiles?: Array<{ path: string; name?: string; mimeType?: string; size?: number }>;
 }
 
 function isLikelySessionRecoveryError(message: string): boolean {
@@ -176,7 +177,10 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
 
       const isSendMessageOptions =
         options &&
-        ('useContextAwareMode' in options || 'fullContext' in options || 'images' in options);
+        ('useContextAwareMode' in options ||
+          'fullContext' in options ||
+          'images' in options ||
+          'workspaceFiles' in options);
       const sendOptions: SendMessageOptions = isSendMessageOptions
         ? (options as SendMessageOptions)
         : { context: options as MessageContext };
@@ -227,6 +231,17 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
                 type: 'text',
                 text: `${content}\n\n\`\`\`context\n${JSON.stringify(context, null, 2)}\n\`\`\``,
               };
+            }
+          }
+          for (const file of sendOptions.workspaceFiles ?? []) {
+            if (file.path.startsWith('/')) {
+              blocks.push({
+                type: 'resource_link',
+                uri: `file://${file.path}`,
+                ...(file.name ? { name: file.name } : {}),
+                ...(file.mimeType ? { mimeType: file.mimeType } : {}),
+                ...(file.size !== undefined ? { size: file.size } : {}),
+              });
             }
           }
           dispatchAcpEvent({

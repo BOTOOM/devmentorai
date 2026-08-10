@@ -504,13 +504,14 @@ describe('ACP Phase 2 catalog', () => {
     const profile: AgentProfile = {
       id: 'tcp',
       name: 'TCP',
+      cmd: 'copilot',
       args: [],
       env: {},
       defaultCwd: directory,
       transport: 'tcp',
     };
-    await expect(resolver.resolve(undefined, profile)).rejects.toMatchObject({
-      code: 'capability_unsupported',
+    await expect(resolver.resolve(undefined, profile)).resolves.toMatchObject({
+      launchSpec: { transport: 'tcp', host: '127.0.0.1' },
     });
     expect(new AcpError('agent_error', 'test')).toBeInstanceOf(AcpError);
   });

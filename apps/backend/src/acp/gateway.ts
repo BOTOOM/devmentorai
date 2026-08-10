@@ -1,3 +1,4 @@
+import net from 'node:net';
 import type { RequestPermissionRequest } from '@agentclientprotocol/sdk';
 import type { AcpContentBlock, AcpEvent, AcpSessionRecord, Session } from '@devmentorai/shared';
 import type { WebSocket } from '@fastify/websocket';
@@ -99,6 +100,10 @@ function asBlocks(value: unknown): AcpContentBlock[] {
   if (!Array.isArray(value))
     throw new AcpError('agent_error', 'Prompt must be text or content blocks');
   return value as AcpContentBlock[];
+}
+
+function isLoopbackHost(host: string): boolean {
+  return net.isIP(host) === 4 && host.startsWith('127.');
 }
 
 function permissionTool(request: RequestPermissionRequest): string {
@@ -331,6 +336,8 @@ export class AcpGateway {
         return { revoked: true };
       case 'ui/agents.list':
         return this.agentService.list();
+      case 'ui/agents.profiles.list':
+        return this.agentService.listProfiles();
       case 'ui/agents.install':
         return this.agentService.install(asString(params.agentId, 'agentId'));
       case 'ui/agents.uninstall':
@@ -354,6 +361,31 @@ export class AcpGateway {
         return { authenticated: true };
       case 'ui/agents.resolve_launch':
         return this.agentService.resolveLaunch(asString(params.profileId, 'profileId'));
+      case 'ui/agents.probe': {
+        const profileId = asString(params.profileId, 'profileId');
+        const profile = this.agentService.listProfiles().find((item) => item.id === profileId);
+        if (!profile || profile.custom) {
+          throw new AcpError(
+            'capability_unsupported',
+            'Only trusted catalog profiles can be probed'
+          );
+        }
+        if (
+          profile.transport === 'tcp' &&
+          (!profile.host ||
+            typeof profile.port !== 'number' ||
+            !Number.isInteger(profile.port) ||
+            profile.port < 1 ||
+            profile.port > 65535 ||
+            !isLoopbackHost(profile.host))
+        ) {
+          throw new AcpError(
+            'capability_unsupported',
+            'Only valid loopback TCP profiles can be probed'
+          );
+        }
+        return this.agentService.probe(profileId);
+      }
       default:
         throw new AcpError('capability_unsupported', `Unknown UI method ${method}`);
     }

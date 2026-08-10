@@ -90,6 +90,9 @@ export class AcpAgentService {
 
   async install(agentId: string): Promise<AgentCatalogEntry> {
     const entry = await this.requireEntry(agentId);
+    if (entry.distribution.npx || entry.distribution.uvx) {
+      return { ...entry, installState: 'lazy' };
+    }
     await this.installer.install(entry);
     this.installed.add(agentId);
     return { ...entry, installState: 'installed' };
@@ -158,7 +161,7 @@ export class AcpAgentService {
     try {
       const capabilities = await connection.connect();
       this.authMethods.set(profileId, capabilities.authMethods);
-      this.writeAuthState(profileId, 'unknown', capabilities.authMethods);
+      this.writeAuthMethods(profileId, capabilities.authMethods);
       await connection.authenticate(methodId);
       this.authStates.set(profileId, 'authenticated');
       this.writeAuthState(profileId, 'authenticated', capabilities.authMethods);
@@ -230,5 +233,17 @@ export class AcpAgentService {
            updated_at = excluded.updated_at`
       )
       .run(id, authState, JSON.stringify(authMethods));
+  }
+
+  private writeAuthMethods(id: string, authMethods: AgentCatalogEntry['authMethods']): void {
+    this.db
+      .prepare(
+        `INSERT INTO acp_agents (id, auth_state, auth_methods_json, updated_at)
+         VALUES (?, 'unknown', ?, datetime('now'))
+         ON CONFLICT(id) DO UPDATE SET
+           auth_methods_json = excluded.auth_methods_json,
+           updated_at = excluded.updated_at`
+      )
+      .run(id, JSON.stringify(authMethods));
   }
 }

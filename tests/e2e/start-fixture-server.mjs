@@ -13,7 +13,7 @@ const context = await chromium.launchPersistentContext('', {
 });
 let [worker] = context.serviceWorkers();
 if (!worker) worker = await context.waitForEvent('serviceworker');
-const extensionOrigin = new URL(worker.url()).origin;
+const extensionOrigin = worker.url().split('/').slice(0, 3).join('/');
 await context.close();
 
 const server = spawn('pnpm', ['--filter', 'devmentorai-server', 'dev'], {

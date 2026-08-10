@@ -56,6 +56,7 @@ export default defineConfig({
     name: 'DevMentorAI',
     description: 'DevOps mentoring and writing assistant powered by GitHub Copilot',
     version: '1.9.0',
+    key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxAJFCdzqrdDm/BndxDSg6pkLmBncHIoOG1OvZTaZQVclFvKhIyoZAYP2h2sZF2KMjOeTRY84BBRXhAZYZvqfNU/7gDYxIubOw0OX5nTT8HnEKZV4zyTOmodiP5SRRpPNXQEwhuvToUGy04e5R5blcCxGfXxUhtBjGdhPkWlRL8TMbF9uDtsjAiFT3BFSvRWvZAarW5r33uy9JqH0g3AVigt7pGfthidiaq70VNGOrQsok9sNmCWkLLgJehBEJsPomfBXLnlsp2223bfIPvZ1etqEWGOZ0C3jjtla2PuZeiLxisHunVP+f5zUL8q7s60CVEs5XtNUSjZBN6z7OoHfQQIDAQAB',
     browser_specific_settings: {
       gecko: {
         id: 'devmentorai@devmentorai.com',

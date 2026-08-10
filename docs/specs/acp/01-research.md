@@ -290,7 +290,7 @@ event interface, and per-adapter history reconstruction.
   `loadSession: true`, `image: true`, `audio: false`, `embeddedContext: true`.
 - **Q2** Which of the *other* target agents support `session/load`/`session/resume` replay
   in practice? Copilot does; the SDK example does not. Determines how much of our local
-  history we can retire (R-040). Measured per agent during Phase 5.
+  history we can retire (R-046/R-047). Measured per agent during Phase 5.
 - **Q3** Do we bundle any agent (e.g. pin `@github/copilot`) or always resolve at runtime
   from the registry with a user-visible install step?
 - **Q4** Native messaging host: keep it as-is, or route it through the same ACP host?

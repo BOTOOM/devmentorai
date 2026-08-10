@@ -48,7 +48,7 @@ export async function getOrCreateWritingAssistantSession(_model?: string): Promi
   if (cachedSession && cachedAcpSession) return cachedSession;
   try {
     await acpClient.connect();
-    const record = await acpClient.createSession(undefined, '.');
+    const record = await acpClient.createSession();
     cachedAcpSession = record;
     cachedSession = toSession(record);
     return cachedSession;

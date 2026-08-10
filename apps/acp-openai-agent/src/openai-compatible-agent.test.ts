@@ -5,6 +5,7 @@ import { type Server, createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable, Writable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 import * as acp from '@agentclientprotocol/sdk';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -76,8 +77,9 @@ async function connectAgent(
   allowTools = true,
   cwd = process.cwd()
 ) {
-  const child = spawn('node', ['dist/main.js'], {
-    cwd: process.cwd(),
+  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const child = spawn(process.execPath, ['--import', 'tsx/esm', 'src/main.ts'], {
+    cwd: packageRoot,
     env: {
       ...process.env,
       OPENAI_COMPATIBLE_BASE_URL: baseUrl,
@@ -400,6 +402,57 @@ describe('OpenAI-compatible ACP agent', () => {
       await expect(prompt).resolves.toMatchObject({ stopReason: 'cancelled' });
       expect(requests).toHaveLength(1);
     } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('runs shell commands in the session cwd without exposing provider credentials', async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), 'acp-openai-agent-'));
+    const requests: string[] = [];
+    const previousKey = process.env.OPENAI_COMPATIBLE_API_KEY;
+    process.env.OPENAI_COMPATIBLE_API_KEY = 'must-not-leak';
+    try {
+      const baseUrl = await fakeServer({
+        chunks: [],
+        requests,
+        completionSequences: [
+          [
+            {
+              choices: [
+                {
+                  delta: {
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: 'shell-env-1',
+                        function: {
+                          name: 'run_shell',
+                          arguments:
+                            '{"command":"printf \\"%s|%s\\" \\"$OPENAI_COMPATIBLE_API_KEY\\" \\"$PWD\\""}',
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+          [{ choices: [{ delta: { content: 'done' } }] }],
+        ],
+      });
+      const result = await connectAgent(baseUrl, false, true, cwd);
+      await result.connection.agent.request('session/prompt', {
+        sessionId: result.session.sessionId,
+        prompt: [{ type: 'text', text: 'inspect the shell environment' }],
+      });
+      const secondRequest = JSON.parse(requests[1] ?? '{}') as {
+        messages?: Array<{ role?: string; content?: string }>;
+      };
+      const toolMessage = secondRequest.messages?.find((message) => message.role === 'tool');
+      expect(toolMessage?.content).toBe(`|${cwd}`);
+    } finally {
+      if (previousKey === undefined) process.env.OPENAI_COMPATIBLE_API_KEY = undefined;
+      else process.env.OPENAI_COMPATIBLE_API_KEY = previousKey;
       await rm(cwd, { recursive: true, force: true });
     }
   });

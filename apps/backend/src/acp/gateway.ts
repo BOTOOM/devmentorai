@@ -153,7 +153,18 @@ export class AcpGateway {
   isOriginAllowed(origin: string | undefined): boolean {
     if (!origin) return false;
     if (origin === this.extensionOrigin || this.allowedOrigins.has(origin)) return true;
-    return process.env.ACP_FIXTURE_AGENT === '1' && origin.startsWith('chrome-extension://');
+    return origin === process.env.ACP_FIXTURE_EXTENSION_ORIGIN;
+  }
+
+  isAcpConnected(): boolean {
+    return [...this.connections.values()].some((connection) => {
+      try {
+        connection.capabilities;
+        return true;
+      } catch {
+        return false;
+      }
+    });
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
@@ -243,9 +254,7 @@ export class AcpGateway {
     type?: string;
     model?: string;
   }): Promise<Session> {
-    const socket = { readyState: 1, send: () => undefined } as unknown as WebSocket;
-    const client: GatewayClient = { socket, pending: new Map(), nextId: 1 };
-    const record = await this.createSession(client, params);
+    const record = await this.createSession(undefined, params);
     return {
       id: record.id,
       name: params.name ?? 'ACP session',
@@ -263,6 +272,20 @@ export class AcpGateway {
       configOptions: record.configOptions,
       replaySupported: record.capabilities.agentCapabilities.loadSession === true,
     };
+  }
+
+  async nativeDeleteSession(sessionId: string): Promise<boolean> {
+    const resolved = this.resolveSessionId(sessionId);
+    const session = this.sessions.get(resolved);
+    if (!session) return false;
+    try {
+      await this.manager.closeSession(resolved);
+    } catch {
+      // Cache deletion remains authoritative when the agent cannot close.
+    }
+    this.sessions.delete(resolved);
+    this.db.prepare('DELETE FROM sessions WHERE id = ?').run(resolved);
+    return true;
   }
 
   async shutdown(): Promise<void> {
@@ -440,7 +463,7 @@ export class AcpGateway {
   }
 
   private async createSession(
-    client: GatewayClient,
+    client: GatewayClient | undefined,
     params: Record<string, unknown>
   ): Promise<AcpSessionRecord> {
     const profileId =
@@ -483,7 +506,7 @@ export class AcpGateway {
     const session = await this.manager.createSession({ agentId: profileId, cwd });
     this.sessions.set(session.id, session);
     this.sessionAgentIds.set(session.id, resolution.profile.agentId ?? profileId);
-    this.clientsByAcpSession.set(session.acpSessionId, client);
+    if (client) this.clientsByAcpSession.set(session.acpSessionId, client);
     this.persistAcpSession(session, resolution);
     if (typeof params.name === 'string' || typeof params.type === 'string') {
       this.db
@@ -631,7 +654,7 @@ export class AcpGateway {
 
   private permissionRequest(
     acpSessionId: string,
-    client: GatewayClient,
+    client: GatewayClient | undefined,
     request: RequestPermissionRequest,
     agentId: string
   ): Promise<PermissionDecision> {
@@ -642,10 +665,15 @@ export class AcpGateway {
         outcome: { outcome: 'selected', optionId: remembered.optionId },
       });
     }
-    this.clientsByAcpSession.set(
-      acpSessionId,
-      this.clientsByAcpSession.get(acpSessionId) ?? client
-    );
+    if (client) {
+      this.clientsByAcpSession.set(
+        acpSessionId,
+        this.clientsByAcpSession.get(acpSessionId) ?? client
+      );
+    }
+    if (!client && !this.clientsByAcpSession.has(acpSessionId)) {
+      return Promise.resolve({ outcome: { outcome: 'cancelled' } });
+    }
     return new Promise((resolve) => {
       this.pendingPermissions.set(acpSessionId, { request, resolve, agentId, tool });
       this.sendPendingPermission(acpSessionId);

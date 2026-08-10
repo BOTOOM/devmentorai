@@ -69,9 +69,10 @@ type PendingRequest = {
 export class AcpClient {
   private readonly url: string;
   private reconnect: boolean;
-  private readonly permissionHandler: AcpPermissionHandler;
+  private permissionHandler: AcpPermissionHandler;
   private readonly reconnectDelayMs: number;
   private socket: WebSocket | undefined;
+  private connectPromise: Promise<void> | undefined;
   private nextId = 1;
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   private pending = new Map<JsonRpcId, PendingRequest>();
@@ -103,9 +104,14 @@ export class AcpClient {
     return () => this.permissionRequests.delete(handler);
   }
 
+  setPermissionHandler(handler: AcpPermissionHandler): void {
+    this.permissionHandler = handler;
+  }
+
   connect(): Promise<void> {
     if (this.socket?.readyState === WebSocket.OPEN) return Promise.resolve();
-    return new Promise((resolve, reject) => {
+    if (this.connectPromise) return this.connectPromise;
+    const promise = new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(this.url);
       this.socket = socket;
       socket.onopen = () => {
@@ -113,11 +119,15 @@ export class AcpClient {
         resolve();
         void this.replayKnownSessions();
       };
-      socket.onerror = () => reject(new Error('ACP WebSocket connection failed'));
+      socket.onerror = () => {
+        if (this.socket === socket) this.socket = undefined;
+        reject(new Error('ACP WebSocket connection failed'));
+      };
       socket.onmessage = (message) => {
         void this.handleMessage(message.data);
       };
       socket.onclose = () => {
+        if (this.connectPromise === promise) this.connectPromise = undefined;
         for (const pending of this.pending.values())
           pending.reject(new Error('ACP WebSocket closed'));
         this.pending.clear();
@@ -125,6 +135,16 @@ export class AcpClient {
         if (this.reconnect) this.scheduleReconnect();
       };
     });
+    this.connectPromise = promise;
+    void promise.then(
+      () => {
+        if (this.connectPromise === promise) this.connectPromise = undefined;
+      },
+      () => {
+        if (this.connectPromise === promise) this.connectPromise = undefined;
+      }
+    );
+    return promise;
   }
 
   disconnect(): void {
@@ -135,10 +155,10 @@ export class AcpClient {
     this.socket = undefined;
   }
 
-  async createSession(profileId: string | undefined, cwd: string): Promise<AcpSessionRecord> {
+  async createSession(profileId?: string, cwd?: string): Promise<AcpSessionRecord> {
     return this.request<AcpSessionRecord>('ui/session.create', {
       ...(profileId ? { profileId } : {}),
-      cwd,
+      ...(cwd ? { cwd } : {}),
     });
   }
 

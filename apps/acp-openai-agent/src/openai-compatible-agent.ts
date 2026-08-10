@@ -178,6 +178,7 @@ export class OpenAICompatibleAgent {
     const controller = new AbortController();
     session.controller = controller;
     session.messages.push(this.toMessage(params.prompt));
+    const initialMessageCount = session.messages.length - 1;
     try {
       for (let round = 0; round < 8; round += 1) {
         const result = await this.complete(session, params.sessionId, client);
@@ -211,8 +212,19 @@ export class OpenAICompatibleAgent {
         }
         if (controller.signal.aborted) return { stopReason: 'cancelled' };
       }
-      throw new Error('Tool-call loop exceeded its maximum number of rounds');
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: 'The maximum number of tool-call rounds was reached.',
+          },
+        },
+      });
+      return { stopReason: 'max_turn_requests' };
     } catch (error) {
+      session.messages.splice(initialMessageCount);
       if (controller.signal.aborted) return { stopReason: 'cancelled' };
       throw error;
     } finally {
@@ -259,8 +271,13 @@ export class OpenAICompatibleAgent {
       for (const line of lines) {
         if (!line.startsWith('data:')) continue;
         const payload = line.slice(5).trim();
-        if (payload === '[DONE]') continue;
-        const parsed: unknown = JSON.parse(payload);
+        if (payload === '' || payload === '[DONE]') continue;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(payload);
+        } catch {
+          continue;
+        }
         if (!isRecord(parsed) || !Array.isArray(parsed.choices)) continue;
         const choice = parsed.choices[0] as CompletionChoice | undefined;
         const delta = choice?.delta?.content;
@@ -318,7 +335,12 @@ export class OpenAICompatibleAgent {
       });
       const permission = await client.request(acp.methods.client.session.requestPermission, {
         sessionId,
-        toolCall: { toolCallId: call.id, title: call.name, kind: 'execute', status: 'pending' },
+        toolCall: {
+          toolCallId: call.id,
+          title: `${call.name}(${call.arguments.slice(0, 500)})`,
+          kind: 'execute',
+          status: 'pending',
+        },
         options: [
           { optionId: 'allow', name: 'Allow once', kind: 'allow_once' },
           { optionId: 'reject', name: 'Reject', kind: 'reject_once' },
@@ -374,8 +396,15 @@ export class OpenAICompatibleAgent {
       return 'File written.';
     }
     if (call.name === 'run_shell') {
-      const result = await execFileAsync('/bin/sh', ['-c', stringValue(input.command)], {
+      const command = stringValue(input.command);
+      const env = Object.fromEntries(
+        ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'TERM', 'USER', 'SHELL']
+          .filter((name) => process.env[name] !== undefined)
+          .map((name) => [name, process.env[name] as string])
+      );
+      const result = await execFileAsync('/bin/sh', ['-c', command], {
         cwd: session.cwd,
+        env,
         maxBuffer: 1024 * 1024,
         ...(session.controller ? { signal: session.controller.signal } : {}),
       });

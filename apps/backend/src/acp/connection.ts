@@ -342,6 +342,18 @@ export class AgentConnection {
     }
   }
 
+  async probeNotification(method: string, params: unknown): Promise<AcpProbeRequestResult> {
+    try {
+      await this.requireConnection().agent.notify(method, params);
+      return { supported: true };
+    } catch (error) {
+      return {
+        supported: false,
+        error: { message: error instanceof Error ? error.message : String(error) },
+      };
+    }
+  }
+
   async prompt(sessionId: string, blocks: AcpContentBlock[]): Promise<PromptResponse> {
     assertPromptCapabilities(this.capabilities, blocks);
     this.cancelledSessions.delete(sessionId);

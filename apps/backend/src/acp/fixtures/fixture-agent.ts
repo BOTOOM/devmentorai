@@ -186,6 +186,14 @@ const fixture = {
         rawOutput: permission,
         content: [{ type: 'content', content: { type: 'text', text: 'done' } }],
       });
+      if (process.env.ACP_FIXTURE_PARTIAL_AFTER_COMPLETE === '1') {
+        await notify({
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'fixture-tool',
+          content: [{ type: 'content', content: { type: 'text', text: 'later' } }],
+        });
+        await delay(60_000, signal);
+      }
       await notify({
         sessionUpdate: 'plan',
         entries: [{ content: 'Finish fixture', priority: 'high', status: 'completed' }],
@@ -287,7 +295,7 @@ const fixture = {
   },
 
   async listSessions(): Promise<{ sessions: Array<{ sessionId: string; cwd: string }> }> {
-    const ids = (process.env.ACP_FIXTURE_LIST_SESSIONS ?? replaySessionId)
+    const ids = (process.env.ACP_FIXTURE_LIST_SESSIONS ?? [...sessions.keys()].join(','))
       .split(',')
       .filter(Boolean);
     return {

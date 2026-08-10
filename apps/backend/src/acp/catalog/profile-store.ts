@@ -36,14 +36,7 @@ function toProfile(row: ProfileRow): AgentProfile {
 }
 
 export class AgentProfileStore {
-  constructor(private readonly db: Database) {
-    try {
-      this.db.exec('ALTER TABLE acp_profiles ADD COLUMN custom INTEGER NOT NULL DEFAULT 0');
-      this.db.exec('UPDATE acp_profiles SET custom = 1 WHERE agent_id IS NULL');
-    } catch {
-      // The additive profile migration already ran.
-    }
-  }
+  constructor(private readonly db: Database) {}
 
   list(): AgentProfile[] {
     return (this.db.prepare('SELECT * FROM acp_profiles ORDER BY name').all() as ProfileRow[]).map(

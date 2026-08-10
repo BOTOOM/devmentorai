@@ -47,8 +47,7 @@ export class CredentialStore {
 
   resolveReference(reference: string): string | undefined {
     const match =
-      /^(?:credential:|credential:\/\/)(.+)$/.exec(reference) ??
-      /^\$\{credential:([^}]+)\}$/.exec(reference);
+      /^credential:(?:\/\/)?(.+)$/.exec(reference) ?? /^\$\{credential:([^}]+)\}$/.exec(reference);
     return match ? this.get(match[1]) : undefined;
   }
 

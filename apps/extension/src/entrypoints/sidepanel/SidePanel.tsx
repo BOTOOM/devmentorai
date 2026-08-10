@@ -33,6 +33,7 @@ type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
 
 export function SidePanel() {
   const apiClient = ApiClient.getInstance();
+  const acpClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
   const acpCatalogClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
 
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
@@ -73,7 +74,7 @@ export function SidePanel() {
     selectSession,
     deleteSession,
     refreshSessions,
-  } = useSessions({ connectionStatus });
+  } = useSessions({ acpClient, connectionStatus });
 
   const {
     messages,
@@ -87,7 +88,7 @@ export function SidePanel() {
     revokePermission,
     acpState,
     setAcpConfigOption,
-  } = useChat(activeSession?.id, activeSession?.capabilities);
+  } = useChat(activeSession?.id, activeSession?.capabilities, acpClient);
 
   // Context extraction hook
   const {
@@ -103,7 +104,7 @@ export function SidePanel() {
   const promptCapabilities = (
     activeSession?.capabilities?.agentCapabilities as Record<string, unknown> | undefined
   )?.promptCapabilities as Record<string, unknown> | undefined;
-  const acpImageSupported = !acpEnabled() || promptCapabilities?.image !== false;
+  const acpImageSupported = !acpEnabled() || promptCapabilities?.image === true;
 
   useEffect(() => {
     if (connectionStatus !== 'connected') {
@@ -354,9 +355,15 @@ export function SidePanel() {
   const handleStartAcpSession = useCallback(async () => {
     if (!selectedAcpProfile) return;
     await acpCatalogClient.connect();
-    await acpCatalogClient.createSession(selectedAcpProfile.id, selectedAcpProfile.defaultCwd);
+    const created = await acpCatalogClient.createSession(
+      selectedAcpProfile.id,
+      selectedAcpProfile.defaultCwd
+    );
+    await refreshSessions();
+    await selectSession(created.id);
+    acpCatalogClient.disconnect();
     setShowAcpAgents(false);
-  }, [acpCatalogClient, selectedAcpProfile]);
+  }, [acpCatalogClient, refreshSessions, selectSession, selectedAcpProfile]);
 
   // Model switching - now opens modal for SDK v0.2.x setModel with reasoning effort
   const canChangeSessionModel = true; // Allow changing model anytime with new SDK
@@ -513,6 +520,7 @@ export function SidePanel() {
             <AcpCatalogView
               client={acpCatalogClient}
               onProfileSelected={handleAcpProfileSelected}
+              selectedProfileId={selectedAcpProfile?.id}
             />
             <AcpProfileEditor
               client={acpCatalogClient}

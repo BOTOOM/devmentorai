@@ -186,6 +186,7 @@ export class AgentCatalog {
 
   async list(): Promise<AgentCatalogEntry[]> {
     const merged = new Map<string, Omit<AgentCatalogEntry, 'platformAvailability'>>();
+    const unavailableProfiles = new Map<string, string>();
     for (const entry of this.builtIns) {
       if (typeof entry.id === 'string') merged.set(entry.id, sourceEntry(entry, 'builtin'));
     }
@@ -210,7 +211,19 @@ export class AgentCatalog {
             },
             'custom'
           );
-      if (!raw) continue;
+      if (!raw) {
+        unavailableProfiles.set(profile.id, `Catalog entry '${profile.agentId}' is unavailable`);
+        merged.set(profile.id, {
+          id: profile.id,
+          name: profile.name,
+          source: 'custom',
+          distribution: {},
+          installState: 'unavailable',
+          authState: 'unknown',
+          authMethods: [],
+        });
+        continue;
+      }
       merged.set(profile.id, { ...raw, id: profile.id, name: profile.name, source: 'custom' });
     }
     return Promise.all(
@@ -219,9 +232,15 @@ export class AgentCatalog {
         const installState = this.getInstallState?.(entry) ?? (await defaultInstallState(entry));
         return {
           ...entry,
-          installState: await installState,
+          installState: unavailableProfiles.has(entry.id) ? 'unavailable' : await installState,
           ...(authState ?? {}),
-          platformAvailability: availability(entry),
+          platformAvailability: unavailableProfiles.has(entry.id)
+            ? {
+                available: false,
+                key: platformKey(),
+                reason: unavailableProfiles.get(entry.id),
+              }
+            : availability(entry),
         };
       })
     );

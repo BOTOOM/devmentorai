@@ -38,6 +38,19 @@ export function AcpSurfaces({ state, onConfigChange }: Readonly<AcpSurfacesProps
                     </option>
                   );
                 })}
+                {option.currentValue !== undefined &&
+                !(option.options ?? []).some(
+                  (candidate) =>
+                    String(candidate.value ?? candidate.id ?? '') === String(option.currentValue)
+                ) ? (
+                  <option value={String(option.currentValue)}>{String(option.currentValue)}</option>
+                ) : null}
+                {option.type === 'boolean' && !(option.options ?? []).length ? (
+                  <>
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                  </>
+                ) : null}
               </select>
             </label>
           ))}
@@ -120,7 +133,16 @@ export function AcpSurfaces({ state, onConfigChange }: Readonly<AcpSurfacesProps
             <span className="ml-2">Restart the session to try again.</span>
           ) : null}
           {event.error.code === 'auth_required' && event.error.details?.authMethods ? (
-            <ul className="mt-1 list-disc pl-5">{String(event.error.details.authMethods)}</ul>
+            <ul className="mt-1 list-disc pl-5">
+              {(
+                event.error.details.authMethods as Array<{ id?: unknown; description?: unknown }>
+              ).map((method, index) => (
+                <li key={`${String(method.id ?? 'method')}-${index}`}>
+                  {String(method.id ?? '')}
+                  {method.description ? `: ${String(method.description)}` : ''}
+                </li>
+              ))}
+            </ul>
           ) : null}
         </div>
       ))}

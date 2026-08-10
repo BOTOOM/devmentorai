@@ -44,6 +44,19 @@ export const initialAcpChatState: AcpChatState = {
   errors: [],
 };
 
+export type AcpChatAction =
+  | { type: 'event'; sessionId: string; event: AcpEvent }
+  | { type: 'user_message'; message: Message }
+  | { type: 'reset' };
+
+export function reduceAcpChatState(state: AcpChatState, action: AcpChatAction): AcpChatState {
+  if (action.type === 'reset') return initialAcpChatState;
+  if (action.type === 'user_message') {
+    return { ...state, messages: [...state.messages, action.message], error: null };
+  }
+  return reduceAcpEvent(state, action.event, action.sessionId);
+}
+
 export function reduceAcpEvent(
   state: AcpChatState,
   event: AcpEvent,
@@ -103,6 +116,24 @@ export function reduceAcpEvent(
   const existing = state.messages.find((message) => message.id === event.messageId);
   const role = event.role === 'thought' ? 'assistant' : event.role;
   if (!existing) {
+    if (role === 'user') {
+      let echoed: Message | undefined;
+      for (let index = state.messages.length - 1; index >= 0; index -= 1) {
+        const message = state.messages[index];
+        if (message?.role === 'user' && message.content === content) {
+          echoed = message;
+          break;
+        }
+      }
+      if (echoed) {
+        return {
+          ...state,
+          messages: state.messages.map((message) =>
+            message.id === echoed.id ? { ...message, id: event.messageId } : message
+          ),
+        };
+      }
+    }
     return {
       ...state,
       messages: [

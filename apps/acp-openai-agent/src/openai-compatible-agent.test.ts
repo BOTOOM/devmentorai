@@ -5,6 +5,7 @@ import { type Server, createServer } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { Readable, Writable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 import * as acp from '@agentclientprotocol/sdk';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -76,8 +77,9 @@ async function connectAgent(
   allowTools = true,
   cwd = process.cwd()
 ) {
-  const child = spawn('node', ['dist/main.js'], {
-    cwd: process.cwd(),
+  const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const child = spawn(process.execPath, ['--import', 'tsx/esm', 'src/main.ts'], {
+    cwd: packageRoot,
     env: {
       ...process.env,
       OPENAI_COMPATIBLE_BASE_URL: baseUrl,

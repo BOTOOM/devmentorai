@@ -178,6 +178,7 @@ export class OpenAICompatibleAgent {
     const controller = new AbortController();
     session.controller = controller;
     session.messages.push(this.toMessage(params.prompt));
+    const initialMessageCount = session.messages.length - 1;
     try {
       for (let round = 0; round < 8; round += 1) {
         const result = await this.complete(session, params.sessionId, client);
@@ -211,8 +212,19 @@ export class OpenAICompatibleAgent {
         }
         if (controller.signal.aborted) return { stopReason: 'cancelled' };
       }
-      throw new Error('Tool-call loop exceeded its maximum number of rounds');
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: 'The maximum number of tool-call rounds was reached.',
+          },
+        },
+      });
+      return { stopReason: 'max_turn_requests' };
     } catch (error) {
+      session.messages.splice(initialMessageCount);
       if (controller.signal.aborted) return { stopReason: 'cancelled' };
       throw error;
     } finally {
@@ -259,8 +271,13 @@ export class OpenAICompatibleAgent {
       for (const line of lines) {
         if (!line.startsWith('data:')) continue;
         const payload = line.slice(5).trim();
-        if (payload === '[DONE]') continue;
-        const parsed: unknown = JSON.parse(payload);
+        if (payload === '' || payload === '[DONE]') continue;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(payload);
+        } catch {
+          continue;
+        }
         if (!isRecord(parsed) || !Array.isArray(parsed.choices)) continue;
         const choice = parsed.choices[0] as CompletionChoice | undefined;
         const delta = choice?.delta?.content;

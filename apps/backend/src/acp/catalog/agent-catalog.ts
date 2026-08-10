@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { devmentorHome } from './paths.js';
 import type {
   AgentCatalogEntry,
@@ -40,7 +41,13 @@ const BUILT_IN_AGENTS: Array<Record<string, unknown>> = [
     distribution: {
       command: {
         cmd: process.execPath,
-        args: [path.resolve(process.cwd(), 'apps/acp-openai-agent/dist/main.js')],
+        args: [
+          process.env.ACP_OPENAI_AGENT_PATH ??
+            path.resolve(
+              path.dirname(fileURLToPath(import.meta.url)),
+              '../../../../acp-openai-agent/dist/main.js'
+            ),
+        ],
       },
     },
   },
@@ -145,6 +152,15 @@ function availability(
 async function defaultInstallState(
   entry: Omit<AgentCatalogEntry, 'platformAvailability'>
 ): Promise<AgentCatalogEntry['installState']> {
+  if (entry.source === 'builtin' && entry.distribution.command) {
+    try {
+      const command = entry.distribution.command.args?.[0];
+      if (typeof command === 'string' && (await fs.stat(command)).isFile()) return 'installed';
+    } catch {
+      // The built-in bundle may be absent in source-only installations.
+    }
+    return 'unavailable';
+  }
   if (entry.distribution.npx || entry.distribution.uvx) return 'lazy';
   if (entry.distribution.binary) {
     const binary = entry.distribution.binary[platformKey()];

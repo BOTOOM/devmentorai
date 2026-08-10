@@ -354,9 +354,15 @@ export function SidePanel() {
   const handleStartAcpSession = useCallback(async () => {
     if (!selectedAcpProfile) return;
     await acpCatalogClient.connect();
-    await acpCatalogClient.createSession(selectedAcpProfile.id, selectedAcpProfile.defaultCwd);
+    const created = await acpCatalogClient.createSession(
+      selectedAcpProfile.id,
+      selectedAcpProfile.defaultCwd
+    );
+    await refreshSessions();
+    await selectSession(created.id);
+    acpCatalogClient.disconnect();
     setShowAcpAgents(false);
-  }, [acpCatalogClient, selectedAcpProfile]);
+  }, [acpCatalogClient, refreshSessions, selectSession, selectedAcpProfile]);
 
   // Model switching - now opens modal for SDK v0.2.x setModel with reasoning effort
   const canChangeSessionModel = true; // Allow changing model anytime with new SDK
@@ -513,6 +519,7 @@ export function SidePanel() {
             <AcpCatalogView
               client={acpCatalogClient}
               onProfileSelected={handleAcpProfileSelected}
+              selectedProfileId={selectedAcpProfile?.id}
             />
             <AcpProfileEditor
               client={acpCatalogClient}

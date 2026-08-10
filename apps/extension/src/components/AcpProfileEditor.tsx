@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AcpClient, AcpProfile } from '../services/acp-client';
 
 type AcpProfileEditorProps = {
@@ -16,6 +16,16 @@ export function AcpProfileEditor({ client, profile, onSaved }: Readonly<AcpProfi
   const [transport, setTransport] = useState<'stdio' | 'tcp'>(profile?.transport ?? 'stdio');
   const [host, setHost] = useState(profile?.host ?? '127.0.0.1');
   const [port, setPort] = useState(profile?.port?.toString() ?? '');
+  useEffect(() => {
+    setName(profile?.name ?? '');
+    setAgentId(profile?.agentId ?? '');
+    setCmd(profile?.cmd ?? '');
+    setArgs(profile?.args.join(' ') ?? '');
+    setCwd(profile?.defaultCwd ?? '');
+    setTransport(profile?.transport ?? 'stdio');
+    setHost(profile?.host ?? '127.0.0.1');
+    setPort(profile?.port?.toString() ?? '');
+  }, [profile]);
   const save = async () => {
     const input = {
       name,

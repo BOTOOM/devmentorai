@@ -3,14 +3,20 @@ import type { AcpCatalogEntry, AcpClient, AcpProfile } from '../services/acp-cli
 
 type AcpCatalogViewProps = {
   client: AcpClient;
+  selectedProfileId?: string;
   onProfileSelected?: (profile: AcpProfile) => void;
 };
 
-export function AcpCatalogView({ client, onProfileSelected }: Readonly<AcpCatalogViewProps>) {
+export function AcpCatalogView({
+  client,
+  selectedProfileId,
+  onProfileSelected,
+}: Readonly<AcpCatalogViewProps>) {
   const [entries, setEntries] = useState<AcpCatalogEntry[]>([]);
   const [profiles, setProfiles] = useState<AcpProfile[]>([]);
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const [nextEntries, nextProfiles] = await Promise.all([
@@ -19,7 +25,8 @@ export function AcpCatalogView({ client, onProfileSelected }: Readonly<AcpCatalo
     ]);
     setEntries(nextEntries);
     setProfiles(nextProfiles);
-  }, [client]);
+    if (nextProfiles[0] && !selectedProfileId) onProfileSelected?.(nextProfiles[0]);
+  }, [client, onProfileSelected, selectedProfileId]);
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -41,6 +48,7 @@ export function AcpCatalogView({ client, onProfileSelected }: Readonly<AcpCatalo
         value={query}
       />
       <div className="space-y-2">
+        {error ? <p className="text-sm text-red-700">{error}</p> : null}
         {filtered.map((entry) => (
           <article className="rounded border p-2" key={entry.id}>
             <div className="flex items-center justify-between">
@@ -53,14 +61,23 @@ export function AcpCatalogView({ client, onProfileSelected }: Readonly<AcpCatalo
                   disabled={busy === entry.id || entry.installState === 'installed'}
                   onClick={() => {
                     setBusy(entry.id);
-                    void client.installAgent(entry.id).then((installed) => {
-                      setEntries((current) =>
-                        current.map((candidate) =>
-                          candidate.id === installed.id ? installed : candidate
-                        )
-                      );
-                      setBusy(null);
-                    });
+                    setError(null);
+                    void client
+                      .installAgent(entry.id)
+                      .then((installed) => {
+                        setEntries((current) =>
+                          current.map((candidate) =>
+                            candidate.id === installed.id ? installed : candidate
+                          )
+                        );
+                      })
+                      .catch((error: unknown) => {
+                        console.error('[AcpCatalogView] Failed to install agent:', error);
+                        setError(
+                          error instanceof Error ? error.message : 'Failed to install agent'
+                        );
+                      })
+                      .finally(() => setBusy(null));
                   }}
                   type="button"
                 >
@@ -87,6 +104,7 @@ export function AcpCatalogView({ client, onProfileSelected }: Readonly<AcpCatalo
             const profile = profiles.find((candidate) => candidate.id === event.target.value);
             if (profile) onProfileSelected?.(profile);
           }}
+          value={selectedProfileId ?? profiles[0]?.id ?? ''}
         >
           {profiles.map((profile) => (
             <option key={profile.id} value={profile.id}>

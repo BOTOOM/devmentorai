@@ -281,6 +281,74 @@ describe('ACP gateway transport', () => {
     socket.close();
   }, 20_000);
 
+  it('remembers allow-always per durable agent and applies it in a new session', async () => {
+    const { app } = await createGateway();
+    const socket = await connect(app);
+    const create = (id: number) => {
+      socket.send(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id,
+          method: 'ui/session.create',
+          params: { cwd: process.cwd() },
+        })
+      );
+    };
+    create(1);
+    const first = await waitForMessage(socket, (message) => message.id === 1);
+    const firstSession = String(first.result?.id);
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'ui/session.prompt',
+        params: { sessionId: firstSession, prompt: 'grant' },
+      })
+    );
+    const permission = await waitForMessage(
+      socket,
+      (message) => message.method === 'ui/permission.request'
+    );
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: permission.id,
+        result: { outcome: { outcome: 'selected', optionId: 'always' } },
+      })
+    );
+    await waitForMessage(
+      socket,
+      (message) =>
+        message.method === 'ui/session.event' &&
+        (message.params?.event as { type?: string }).type === 'state' &&
+        (message.params?.event as { state?: string }).state === 'idle'
+    );
+    create(3);
+    const second = await waitForMessage(socket, (message) => message.id === 3);
+    const secondSession = String(second.result?.id);
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'ui/session.prompt',
+        params: { sessionId: secondSession, prompt: 'reuse' },
+      })
+    );
+    const secondIdle = await waitForMessage(
+      socket,
+      (message) =>
+        message.method === 'ui/session.event' &&
+        (message.params?.event as { type?: string }).type === 'state' &&
+        (message.params?.event as { state?: string }).state === 'idle'
+    );
+    expect(secondIdle.params?.event).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(inboxes.get(socket)?.some((message) => message.method === 'ui/permission.request')).toBe(
+      false
+    );
+    socket.close();
+  }, 20_000);
+
   it('seeds a Copilot CLI profile for profile-less session creation', async () => {
     const db = initDatabase({ path: ':memory:' });
     const service = createService(db);
@@ -288,5 +356,32 @@ describe('ACP gateway transport', () => {
     expect(profile.agentId).toBe('github-copilot-cli');
     expect(profile.transport).toBe('stdio');
     db.close();
+  });
+
+  it('preserves a capability-negative fixture without inventing commands or config', async () => {
+    const { app } = await createGateway({
+      ACP_FIXTURE_COMMANDS: '[]',
+      ACP_FIXTURE_NO_CONFIG: '1',
+      ACP_FIXTURE_CAPABILITIES: JSON.stringify({
+        promptCapabilities: { image: false, embeddedContext: false },
+      }),
+    });
+    const socket = await connect(app);
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'ui/session.create',
+        params: { cwd: process.cwd() },
+      })
+    );
+    const created = await waitForMessage(socket, (message) => message.id === 1);
+    const result = created.result as {
+      capabilities?: { agentCapabilities?: { promptCapabilities?: { image?: boolean } } };
+      configOptions?: unknown[];
+    };
+    expect(result.capabilities?.agentCapabilities?.promptCapabilities?.image).toBe(false);
+    expect(result.configOptions).toEqual([]);
+    socket.close();
   });
 });

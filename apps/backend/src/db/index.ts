@@ -87,6 +87,14 @@ export function initDatabase(options: DatabaseOptions = {}): Database.Database {
       auth_methods_json TEXT NOT NULL DEFAULT '[]',
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS acp_permission_grants (
+      agent_id TEXT NOT NULL,
+      tool TEXT NOT NULL,
+      option_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (agent_id, tool)
+    );
   `);
 
   // Migration: Add tone, explain_tradeoffs, reasoning_effort columns if they don't exist

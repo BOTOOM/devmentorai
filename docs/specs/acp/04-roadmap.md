@@ -54,6 +54,11 @@ R-050..R-052.
 Exit: Copilot ACP is fully usable — commands, images, page context, tools, permissions.
 `ACP_ENABLED` defaults to true. **This is the MVP.**
 
+Deferred acceptance details:
+- R-033 `resource_link` workspace file references move to Phase 5 with the catalog/workspace UI.
+- R-037 terminal-specific rendering moves to Phase 9 with `terminal_update`; Phase 4 retains a
+  generic event surface.
+
 ### Phase 5 — All agents: catalog UI, profiles, conformance probe
 
 Scope: registry-driven catalog UI for the **whole registry** (search/install/uninstall),

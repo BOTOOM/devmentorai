@@ -1,4 +1,5 @@
 import type {
+  AcpConfigOption,
   ContextPayload,
   ImagePayload,
   Message,
@@ -23,6 +24,9 @@ import { useAutoResizeTextarea } from '../hooks/useAutoResizeTextarea';
 import { useImageAttachments } from '../hooks/useImageAttachments';
 import { cn } from '../lib/utils';
 import type { AcpPermissionRequest } from '../services/acp-client';
+import type { AcpChatState } from '../services/acp-reducer';
+import { AcpCommandPalette } from './AcpCommandPalette';
+import { AcpSurfaces } from './AcpSurfaces';
 import { ImageAttachmentZone } from './ImageAttachmentZone';
 import { MessageBubble } from './MessageBubble';
 import { PermissionCard } from './PermissionCard';
@@ -53,6 +57,9 @@ interface ChatViewProps {
   permissionRequest?: AcpPermissionRequest | null;
   onPermissionRespond?: (optionId: string) => void;
   onPermissionDismiss?: () => void;
+  onPermissionRevoke?: () => void;
+  acpState?: AcpChatState;
+  onAcpConfigChange?: (option: AcpConfigOption, value: string | boolean) => void;
 }
 
 export function ChatView({
@@ -80,6 +87,9 @@ export function ChatView({
   permissionRequest,
   onPermissionRespond,
   onPermissionDismiss,
+  onPermissionRevoke,
+  acpState,
+  onAcpConfigChange,
 }: Readonly<ChatViewProps>) {
   const [input, setInput] = useState('');
   const [showContextPreview, setShowContextPreview] = useState(false);
@@ -89,6 +99,7 @@ export function ChatView({
   const formRef = useRef<HTMLFormElement>(null);
   const cursorSelectionRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const pendingCursorPositionRef = useRef<number | null>(null);
+  const [commandIndex, setCommandIndex] = useState(0);
 
   // Image attachments hook
   const {
@@ -183,6 +194,7 @@ export function ChatView({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+    setCommandIndex(0);
     updateCursorSelection(e.currentTarget);
   };
 
@@ -283,6 +295,16 @@ export function ChatView({
     // Allow sending with images even without text
     const hasContent = input.trim() || images.length > 0;
     if (!hasContent) return;
+    if (input.trim().startsWith('/') && acpState) {
+      const commandName = input.trim().slice(1).split(/\s+/, 1)[0];
+      const advertised = acpState.commands.some((command) => command.name === commandName);
+      if (
+        !advertised &&
+        !window.confirm('This command is not advertised and will be sent as plain text. Continue?')
+      ) {
+        return;
+      }
+    }
 
     // Get images for sending and clear them
     const imagesToSend = images.length > 0 ? getImagesForSend() : undefined;
@@ -292,7 +314,30 @@ export function ChatView({
     clearImages();
   };
 
+  const commandQuery = input.startsWith('/') ? (input.slice(1).split(/\s+/, 1)[0] ?? '') : '';
+  const commandPalette =
+    acpState && input.startsWith('/') && !input.includes(' ')
+      ? acpState.commands.filter((command) =>
+          command.name.toLowerCase().includes(commandQuery.toLowerCase())
+        )
+      : [];
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (commandPalette.length > 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      setCommandIndex((current) =>
+        e.key === 'ArrowDown'
+          ? (current + 1) % commandPalette.length
+          : (current - 1 + commandPalette.length) % commandPalette.length
+      );
+      return;
+    }
+    if (commandPalette.length > 0 && e.key === 'Tab') {
+      e.preventDefault();
+      const command = commandPalette[commandIndex];
+      if (command) setInput(`/${command.name} `);
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -345,6 +390,7 @@ export function ChatView({
         <PermissionCard
           onDismiss={onPermissionDismiss}
           onRespond={onPermissionRespond}
+          onRevoke={onPermissionRevoke}
           request={permissionRequest}
         />
       ) : null}
@@ -352,42 +398,47 @@ export function ChatView({
       <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center gap-2 text-sm">
           <span>{getSessionIcon(session.type)}</span>
-          <span className="font-medium text-gray-700 dark:text-gray-300">{session.name}</span>
+          <span className="font-medium text-gray-700 dark:text-gray-300">
+            {acpState?.sessionInfo?.title ?? session.name}
+          </span>
         </div>
 
         {/* Model selector - SDK v0.2.x allows switching anytime */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              if (canUseModelPicker && onChangeModel) {
-                // Open modal for model switching with reasoning effort
-                onChangeModel();
-              }
-            }}
-            disabled={!canUseModelPicker}
-            className={cn(
-              'flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors',
-              canUseModelPicker
-                ? 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
-                : 'text-gray-400 dark:text-gray-500 cursor-default'
-            )}
-            title="Click to switch model"
-          >
-            <Cpu className="w-3.5 h-3.5" />
-            <span>{session.model}</span>
-            {session.reasoningEffort && (
-              <span className="text-[10px] px-1 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                {session.reasoningEffort}
-              </span>
-            )}
-            {onChangeModel && <ChevronDown className="w-3 h-3" />}
-          </button>
-        </div>
+        {!acpState && (
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                if (canUseModelPicker && onChangeModel) {
+                  // Open modal for model switching with reasoning effort
+                  onChangeModel();
+                }
+              }}
+              disabled={!canUseModelPicker}
+              className={cn(
+                'flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors',
+                canUseModelPicker
+                  ? 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
+                  : 'text-gray-400 dark:text-gray-500 cursor-default'
+              )}
+              title="Click to switch model"
+            >
+              <Cpu className="w-3.5 h-3.5" />
+              <span>{session.model}</span>
+              {session.reasoningEffort && (
+                <span className="text-[10px] px-1 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                  {session.reasoningEffort}
+                </span>
+              )}
+              {onChangeModel && <ChevronDown className="w-3 h-3" />}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {acpState ? <AcpSurfaces onConfigChange={onAcpConfigChange} state={acpState} /> : null}
         {messages.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500 dark:text-gray-400">
@@ -437,6 +488,18 @@ export function ChatView({
         ) : (
           messages.map((message) => <MessageBubble key={message.id} message={message} />)
         )}
+
+        {commandPalette.length > 0 ? (
+          <div className="absolute bottom-20 left-4 right-4 z-20">
+            <AcpCommandPalette
+              commands={acpState?.commands ?? []}
+              onSelect={(command) => setInput(`/${command.name} `)}
+              onSelectedIndexChange={setCommandIndex}
+              query={commandQuery}
+              selectedIndex={commandIndex}
+            />
+          </div>
+        ) : null}
 
         {/* Sending indicator - shown when uploading images / initiating request */}
         {isSending && !isStreaming && (

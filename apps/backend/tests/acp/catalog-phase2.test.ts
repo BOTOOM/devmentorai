@@ -41,6 +41,7 @@ function createProfileTable(db: Database.Database): void {
       env_json TEXT NOT NULL,
       default_cwd TEXT NOT NULL,
       transport TEXT NOT NULL,
+      custom INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )

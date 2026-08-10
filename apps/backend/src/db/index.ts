@@ -72,6 +72,7 @@ export function initDatabase(): Database.Database {
       env_json TEXT NOT NULL DEFAULT '{}',
       default_cwd TEXT NOT NULL,
       transport TEXT NOT NULL DEFAULT 'stdio' CHECK (transport IN ('stdio', 'tcp')),
+      custom INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -110,6 +111,16 @@ export function initDatabase(): Database.Database {
     console.log('[DB] Migration: Added reasoning_effort column');
   } catch {
     // Column already exists
+  }
+
+  try {
+    db.exec(`
+      ALTER TABLE acp_profiles ADD COLUMN custom INTEGER NOT NULL DEFAULT 0;
+    `);
+    db.exec('UPDATE acp_profiles SET custom = 1 WHERE agent_id IS NULL');
+    console.log('[DB] Migration: Added custom profile column');
+  } catch {
+    // Column already exists.
   }
 
   return db;

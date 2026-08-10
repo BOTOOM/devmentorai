@@ -25,10 +25,11 @@ export async function healthRoutes(fastify: FastifyInstance) {
   fastify.get<{
     Reply: ApiResponse<HealthResponse>;
   }>('/health', async (_request, reply) => {
+    const acpConnected = fastify.acpGateway?.isAcpConnected() ?? false;
     const healthData: HealthResponse = {
-      status: 'healthy',
+      status: acpConnected ? 'healthy' : 'degraded',
       version: BACKEND_VERSION,
-      acpConnected: true,
+      acpConnected,
       uptime: Math.floor((Date.now() - startTime) / 1000),
       timestamp: new Date().toISOString(),
     };

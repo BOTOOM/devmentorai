@@ -119,7 +119,10 @@ export class AcpClient {
         resolve();
         void this.replayKnownSessions();
       };
-      socket.onerror = () => reject(new Error('ACP WebSocket connection failed'));
+      socket.onerror = () => {
+        if (this.socket === socket) this.socket = undefined;
+        reject(new Error('ACP WebSocket connection failed'));
+      };
       socket.onmessage = (message) => {
         void this.handleMessage(message.data);
       };
@@ -152,10 +155,10 @@ export class AcpClient {
     this.socket = undefined;
   }
 
-  async createSession(profileId: string | undefined, cwd: string): Promise<AcpSessionRecord> {
+  async createSession(profileId?: string, cwd?: string): Promise<AcpSessionRecord> {
     return this.request<AcpSessionRecord>('ui/session.create', {
       ...(profileId ? { profileId } : {}),
-      cwd,
+      ...(cwd ? { cwd } : {}),
     });
   }
 

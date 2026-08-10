@@ -48,7 +48,7 @@ export default defineConfig({
   // Run backend before tests
   webServer: {
     command:
-      'rm -rf .e2e-home || true; mkdir -p .e2e-home && HOME=$PWD/.e2e-home ACP_FIXTURE_AGENT=1 /home/ubuntu/.nvm/versions/node/v22.12.0/bin/node /home/ubuntu/repos/devmentorai/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/cli.mjs watch /home/ubuntu/repos/devmentorai/apps/backend/src/server.ts',
+      'rm -rf .e2e-home || true; mkdir -p .e2e-home && HOME=$PWD/.e2e-home ACP_FIXTURE_AGENT=1 pnpm --filter devmentorai-server dev',
     url: 'http://localhost:3847/api/health',
     reuseExistingServer: false,
     timeout: 30000,

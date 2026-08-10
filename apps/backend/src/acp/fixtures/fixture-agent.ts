@@ -280,7 +280,7 @@ const fixture = {
   },
 
   async listSessions(): Promise<{ sessions: Array<{ sessionId: string; cwd: string }> }> {
-    const ids = (process.env.ACP_FIXTURE_LIST_SESSIONS ?? replaySessionId)
+    const ids = (process.env.ACP_FIXTURE_LIST_SESSIONS ?? [...sessions.keys()].join(','))
       .split(',')
       .filter(Boolean);
     return {

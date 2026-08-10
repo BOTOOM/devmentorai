@@ -3,6 +3,7 @@ import type {
   AcpContentBlock,
   AcpEvent,
   AcpSessionRecord,
+  Session,
 } from '@devmentorai/shared';
 export type AcpCatalogEntry = {
   id: string;
@@ -68,7 +69,7 @@ type PendingRequest = {
 export class AcpClient {
   private readonly url: string;
   private reconnect: boolean;
-  private readonly permissionHandler: AcpPermissionHandler;
+  private permissionHandler: AcpPermissionHandler;
   private readonly reconnectDelayMs: number;
   private socket: WebSocket | undefined;
   private connectPromise: Promise<void> | undefined;
@@ -101,6 +102,10 @@ export class AcpClient {
   onPermissionRequest(handler: (request: AcpPermissionRequest) => void): () => void {
     this.permissionRequests.add(handler);
     return () => this.permissionRequests.delete(handler);
+  }
+
+  setPermissionHandler(handler: AcpPermissionHandler): void {
+    this.permissionHandler = handler;
   }
 
   connect(): Promise<void> {
@@ -152,6 +157,14 @@ export class AcpClient {
       ...(profileId ? { profileId } : {}),
       cwd,
     });
+  }
+
+  async loadSession(sessionId: string): Promise<{ supported: boolean }> {
+    return this.request<{ supported: boolean }>('ui/session.load', { sessionId });
+  }
+
+  async listAgentSessions(): Promise<Session[]> {
+    return this.request<Session[]>('ui/session.agent_list', {});
   }
 
   async prompt(sessionId: string, prompt: string | AcpContentBlock[]): Promise<void> {

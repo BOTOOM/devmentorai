@@ -272,6 +272,18 @@ export class AgentConnection {
     }
   }
 
+  async loadSession(sessionId: string, cwd: string): Promise<void> {
+    await this.requireConnection().agent.request('session/load', {
+      sessionId,
+      cwd,
+      mcpServers: [],
+    });
+  }
+
+  async listSessions(): Promise<unknown> {
+    return this.requireConnection().agent.request('session/list', {});
+  }
+
   async probeRequest(method: string, params: unknown): Promise<AcpProbeRequestResult> {
     try {
       const value = await this.requireConnection().agent.request(method, params);

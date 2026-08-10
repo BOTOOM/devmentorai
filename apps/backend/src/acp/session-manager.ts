@@ -6,6 +6,7 @@ import type {
   AcpSessionRecord,
   AcpStopReason,
 } from '@devmentorai/shared';
+import { supportsLoadSession } from './capabilities.js';
 import { AgentConnection } from './connection.js';
 import { AcpError } from './errors.js';
 import type { LaunchSpec } from './launcher.js';
@@ -121,6 +122,20 @@ export class AcpSessionManager {
       await this.emit(sessionId, { type: 'state', state: 'idle' });
       throw acpError;
     }
+  }
+
+  async loadSession(sessionId: string): Promise<{ supported: boolean }> {
+    const session = this.requireSession(sessionId);
+    if (!supportsLoadSession(session.capabilities)) return { supported: false };
+    await this.requireAgent(session.agentId).loadSession(session.acpSessionId, session.cwd);
+    await session.updateChain;
+    return { supported: true };
+  }
+
+  async listAgentSessions(agentId: string): Promise<unknown> {
+    const connection = await this.connectAndGetAgent(agentId);
+    if (!supportsLoadSession(connection.capabilities)) return { sessions: [], supported: false };
+    return { sessions: await connection.listSessions(), supported: true };
   }
 
   async cancelPrompt(sessionId: string): Promise<void> {

@@ -8,6 +8,7 @@ type FixtureSession = {
 };
 
 const sessions = new Map<string, FixtureSession>();
+const replaySessionId = process.env.ACP_FIXTURE_SESSION_ID ?? randomUUID();
 const configuredCapabilities = process.env.ACP_FIXTURE_CAPABILITIES
   ? (JSON.parse(process.env.ACP_FIXTURE_CAPABILITIES) as Record<string, unknown>)
   : {};
@@ -62,7 +63,7 @@ const fixture = {
   async authenticate(): Promise<void> {},
 
   async newSession(): Promise<{ sessionId: string; configOptions: SessionConfigOption[] }> {
-    const sessionId = process.env.ACP_FIXTURE_SESSION_ID ?? randomUUID();
+    const sessionId = replaySessionId;
     sessions.set(sessionId, {});
     return {
       sessionId,
@@ -244,6 +245,51 @@ const fixture = {
   async cancel(params: { sessionId: string }): Promise<void> {
     sessions.get(params.sessionId)?.controller?.abort();
   },
+
+  async loadSession(params: { sessionId: string }, client: acp.AgentContext): Promise<void> {
+    if (process.env.ACP_FIXTURE_LOAD_SESSION !== '1') {
+      throw new Error('session/load unsupported');
+    }
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
+        sessionUpdate: 'user_message_chunk',
+        content: { type: 'text', text: 'replayed prompt' },
+      },
+    });
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
+        sessionUpdate: 'tool_call',
+        toolCallId: 'replay-tool',
+        title: 'Replayed tool',
+        kind: 'execute',
+        status: 'completed',
+        rawInput: { command: 'replayed' },
+        rawOutput: { result: 'ok' },
+      },
+    });
+    await client.notify(acp.methods.client.session.update, {
+      sessionId: params.sessionId,
+      update: {
+        sessionUpdate: 'agent_message_chunk',
+        messageId: 'replay-assistant',
+        content: { type: 'text', text: 'replayed answer' },
+      },
+    });
+  },
+
+  async listSessions(): Promise<{ sessions: Array<{ sessionId: string; cwd: string }> }> {
+    const ids = (process.env.ACP_FIXTURE_LIST_SESSIONS ?? replaySessionId)
+      .split(',')
+      .filter(Boolean);
+    return {
+      sessions: ids.map((sessionId) => ({
+        sessionId,
+        cwd: process.cwd(),
+      })),
+    };
+  },
 };
 
 const stream = acp.ndJsonStream(
@@ -256,6 +302,8 @@ acp
   .onRequest('initialize', (ctx) => fixture.initialize())
   .onRequest('authenticate', (ctx) => fixture.authenticate())
   .onRequest('session/new', (ctx) => fixture.newSession())
+  .onRequest('session/load', (ctx) => fixture.loadSession(ctx.params, ctx.client))
+  .onRequest('session/list', () => fixture.listSessions())
   .onRequest('session/set_config_option', (ctx) => fixture.setConfigOption())
   .onRequest('session/prompt', (ctx) => fixture.prompt(ctx.params, ctx.client))
   .onNotification('session/cancel', (ctx) => fixture.cancel(ctx.params))

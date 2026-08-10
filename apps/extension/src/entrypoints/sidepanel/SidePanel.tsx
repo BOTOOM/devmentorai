@@ -98,7 +98,7 @@ export function SidePanel() {
   const promptCapabilities = (
     activeSession?.capabilities?.agentCapabilities as Record<string, unknown> | undefined
   )?.promptCapabilities as Record<string, unknown> | undefined;
-  const acpImageSupported = !acpEnabled() || promptCapabilities?.image !== false;
+  const acpImageSupported = !acpEnabled() || promptCapabilities?.image === true;
 
   useEffect(() => {
     if (connectionStatus !== 'connected') {

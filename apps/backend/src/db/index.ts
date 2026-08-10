@@ -62,6 +62,27 @@ export function initDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
     CREATE INDEX IF NOT EXISTS idx_session_contexts_session_id ON session_contexts(session_id);
     CREATE INDEX IF NOT EXISTS idx_session_contexts_extracted_at ON session_contexts(extracted_at);
+
+    CREATE TABLE IF NOT EXISTS acp_profiles (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      agent_id TEXT,
+      command TEXT,
+      args_json TEXT NOT NULL DEFAULT '[]',
+      env_json TEXT NOT NULL DEFAULT '{}',
+      default_cwd TEXT NOT NULL,
+      transport TEXT NOT NULL DEFAULT 'stdio' CHECK (transport IN ('stdio', 'tcp')),
+      custom INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS acp_agents (
+      id TEXT PRIMARY KEY,
+      auth_state TEXT NOT NULL DEFAULT 'unknown',
+      auth_methods_json TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
 
   // Migration: Add tone, explain_tradeoffs, reasoning_effort columns if they don't exist
@@ -90,6 +111,16 @@ export function initDatabase(): Database.Database {
     console.log('[DB] Migration: Added reasoning_effort column');
   } catch {
     // Column already exists
+  }
+
+  try {
+    db.exec(`
+      ALTER TABLE acp_profiles ADD COLUMN custom INTEGER NOT NULL DEFAULT 0;
+    `);
+    db.exec('UPDATE acp_profiles SET custom = 1 WHERE agent_id IS NULL');
+    console.log('[DB] Migration: Added custom profile column');
+  } catch {
+    // Column already exists.
   }
 
   return db;

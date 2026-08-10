@@ -49,6 +49,8 @@ export type AgentConnectionOptions = {
   clientVersion?: string;
 };
 
+const HANDSHAKE_TIMEOUT_MS = 10_000;
+
 function defaultPermissionPolicy(request: RequestPermissionRequest): PermissionDecision {
   const rejectOption = request.options.find(
     (option: PermissionOption) => option.kind === 'reject_once' || option.kind === 'reject_always'
@@ -91,6 +93,7 @@ export class AgentConnection {
   private cancelledSessions = new Set<string>();
   private configurableSessions = new Set<string>();
   private _capabilities: AcpConnectionCapabilities | undefined;
+  private connectPromise: Promise<AcpConnectionCapabilities> | undefined;
   private readonly clientName: string;
   private readonly clientVersion: string;
 
@@ -129,7 +132,18 @@ export class AgentConnection {
   }
 
   async connect(): Promise<AcpConnectionCapabilities> {
-    if (this.connection) return this.capabilities;
+    if (this._capabilities) return this._capabilities;
+    if (this.connectPromise) return this.connectPromise;
+    const promise = this.connectInternal();
+    this.connectPromise = promise;
+    try {
+      return await promise;
+    } finally {
+      if (this.connectPromise === promise) this.connectPromise = undefined;
+    }
+  }
+
+  private async connectInternal(): Promise<AcpConnectionCapabilities> {
     this.closing = false;
     try {
       this.process = this.launcher.launch(this.launchSpec);
@@ -177,7 +191,7 @@ export class AgentConnection {
 
     try {
       this.connection = app.connect(acp.ndJsonStream(this.process.stdin, this.process.stdout));
-      const response = await this.connection.agent.request('initialize', {
+      const initialize = this.connection.agent.request('initialize', {
         protocolVersion: acp.PROTOCOL_VERSION,
         clientCapabilities: {},
         clientInfo: {
@@ -185,6 +199,26 @@ export class AgentConnection {
           version: this.clientVersion,
         },
       });
+      const timeout = new Promise<never>((_, reject) => {
+        setTimeout(
+          () =>
+            reject(
+              new AcpError('agent_launch_failed', 'ACP initialization timed out', {
+                agentId: this.agentId,
+              })
+            ),
+          HANDSHAKE_TIMEOUT_MS
+        ).unref();
+      });
+      const exited = this.process.exited.then((exit) => {
+        throw new AcpError('agent_launch_failed', 'Agent exited before initialization', {
+          code: exit.code,
+          signal: exit.signal,
+          stderr: exit.stderr,
+          agentId: this.agentId,
+        });
+      });
+      const response = await Promise.race([initialize, timeout, exited]);
       if (response.protocolVersion !== acp.PROTOCOL_VERSION) {
         throw new AcpError(
           'protocol_version_unsupported',

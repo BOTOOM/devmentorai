@@ -33,6 +33,7 @@ type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
 
 export function SidePanel() {
   const apiClient = ApiClient.getInstance();
+  const acpClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
   const acpCatalogClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
 
   const [showNewSessionModal, setShowNewSessionModal] = useState(false);
@@ -73,7 +74,7 @@ export function SidePanel() {
     selectSession,
     deleteSession,
     refreshSessions,
-  } = useSessions({ connectionStatus });
+  } = useSessions({ acpClient, connectionStatus });
 
   const {
     messages,
@@ -87,7 +88,7 @@ export function SidePanel() {
     revokePermission,
     acpState,
     setAcpConfigOption,
-  } = useChat(activeSession?.id, activeSession?.capabilities);
+  } = useChat(activeSession?.id, activeSession?.capabilities, acpClient);
 
   // Context extraction hook
   const {

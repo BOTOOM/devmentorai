@@ -12,6 +12,7 @@ type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
 interface UseSessionsOptions {
   connectionStatus?: ConnectionStatus;
+  acpClient?: AcpClient;
 }
 
 export function useSessions(options?: UseSessionsOptions) {
@@ -22,7 +23,11 @@ export function useSessions(options?: UseSessionsOptions) {
   const prevConnectionStatus = useRef<ConnectionStatus | undefined>(options?.connectionStatus);
 
   const apiClient = useMemo(() => ApiClient.getInstance(), []);
-  const acpClient = useMemo(() => new AcpClient({ url: 'ws://localhost:3847/acp' }), []);
+  const acpClient = options?.acpClient;
+  const sessionsRef = useRef<Session[]>([]);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
@@ -30,11 +35,14 @@ export function useSessions(options?: UseSessionsOptions) {
       const response = await apiClient.listSessions();
       if (response.success && response.data) {
         let nextSessions = response.data.items;
-        if (acpEnabled()) {
+        const client = acpClient;
+        if (acpEnabled() && client) {
           try {
-            await acpClient.connect();
-            const acpSessions = await acpClient.listAgentSessions();
-            nextSessions = [...acpSessions, ...nextSessions];
+            await client.connect();
+            const acpSessions = await client.listAgentSessions();
+            const byId = new Map(nextSessions.map((session) => [session.id, session]));
+            for (const session of acpSessions) byId.set(session.id, session);
+            nextSessions = [...byId.values()];
           } catch {
             // Legacy sessions remain available when ACP history is unavailable.
           }
@@ -115,11 +123,12 @@ export function useSessions(options?: UseSessionsOptions) {
     async (sessionId: string) => {
       setActiveSessionId(sessionId);
 
-      const selected = sessions.find((session) => session.id === sessionId);
-      if (acpEnabled() && selected?.agentId && selected.replaySupported) {
+      const selected = sessionsRef.current.find((session) => session.id === sessionId);
+      const client = acpClient;
+      if (acpEnabled() && client && selected?.agentId && selected.replaySupported) {
         try {
-          await acpClient.connect();
-          await acpClient.loadSession(sessionId);
+          await client.connect();
+          await client.loadSession(sessionId);
           return;
         } catch (err) {
           console.warn('[useSessions] Failed to load ACP session history:', err);
@@ -134,7 +143,7 @@ export function useSessions(options?: UseSessionsOptions) {
         // Don't fail silently - the session is still selected but may not have full context
       }
     },
-    [acpClient, apiClient, sessions]
+    [acpClient, apiClient]
   );
 
   const deleteSession = useCallback(

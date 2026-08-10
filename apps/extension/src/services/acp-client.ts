@@ -69,7 +69,7 @@ type PendingRequest = {
 export class AcpClient {
   private readonly url: string;
   private reconnect: boolean;
-  private readonly permissionHandler: AcpPermissionHandler;
+  private permissionHandler: AcpPermissionHandler;
   private readonly reconnectDelayMs: number;
   private socket: WebSocket | undefined;
   private connectPromise: Promise<void> | undefined;
@@ -102,6 +102,10 @@ export class AcpClient {
   onPermissionRequest(handler: (request: AcpPermissionRequest) => void): () => void {
     this.permissionRequests.add(handler);
     return () => this.permissionRequests.delete(handler);
+  }
+
+  setPermissionHandler(handler: AcpPermissionHandler): void {
+    this.permissionHandler = handler;
   }
 
   connect(): Promise<void> {

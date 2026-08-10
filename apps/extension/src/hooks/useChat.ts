@@ -43,7 +43,11 @@ function isRecoverableSessionError(error: unknown): boolean {
   return isLikelySessionRecoveryError(message);
 }
 
-export function useChat(sessionId: string | undefined, acpCapabilities?: Record<string, unknown>) {
+export function useChat(
+  sessionId: string | undefined,
+  acpCapabilities?: Record<string, unknown>,
+  sharedClient?: AcpClient
+) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -72,19 +76,27 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
       }),
     []
   );
+  const client = sharedClient ?? acpClient;
 
   useEffect(() => {
     if (!acpEnabled()) return;
-    const unsubscribe = acpClient.onEvent((eventSessionId, _seq, event) => {
+    client.setPermissionHandler(
+      async (request) =>
+        new Promise((resolve) => {
+          setPermissionRequest(request);
+          permissionResolverRef.current = resolve;
+        })
+    );
+    const unsubscribe = client.onEvent((eventSessionId, _seq, event) => {
       if (eventSessionId === sessionId) {
         dispatchAcpEvent({ type: 'event', sessionId: eventSessionId, event });
       }
     });
-    void acpClient.connect().catch((connectError: unknown) => {
+    void client.connect().catch((connectError: unknown) => {
       setError(connectError instanceof Error ? connectError.message : 'ACP connection failed');
     });
     return unsubscribe;
-  }, [acpClient, sessionId]);
+  }, [client, sessionId]);
 
   const respondToPermission = useCallback((optionId: string) => {
     permissionResolverRef.current?.({ outcome: { outcome: 'selected', optionId } });
@@ -98,14 +110,14 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
       kind?: string;
       rawInput?: { tool?: string; name?: string };
     };
-    void acpClient.revokePermission(
+    void client.revokePermission(
       permissionRequest.sessionId,
       toolCall.kind ?? toolCall.rawInput?.tool ?? toolCall.rawInput?.name ?? 'unknown-tool'
     );
     permissionResolverRef.current?.({ outcome: { outcome: 'cancelled' } });
     permissionResolverRef.current = null;
     setPermissionRequest(null);
-  }, [acpClient, permissionRequest]);
+  }, [client, permissionRequest]);
 
   const dismissPermission = useCallback(() => {
     permissionResolverRef.current?.({ outcome: { outcome: 'cancelled' } });
@@ -116,14 +128,14 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
   const setAcpConfigOption = useCallback(
     async (option: AcpConfigOption, value: string | boolean) => {
       if (!sessionId) return;
-      const options = await acpClient.setConfigOption(sessionId, option.id, value);
+      const options = await client.setConfigOption(sessionId, option.id, value);
       dispatchAcpEvent({
         type: 'event',
         sessionId,
         event: { type: 'config', options: options as AcpConfigOption[] },
       });
     },
-    [acpClient, sessionId]
+    [client, sessionId]
   );
 
   const loadMessages = useCallback(
@@ -255,7 +267,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
               mode: 'replace',
             },
           });
-          await acpClient.prompt(sessionId, blocks);
+          await client.prompt(sessionId, blocks);
         } catch (sendError) {
           setError(sendError instanceof Error ? sendError.message : 'ACP prompt failed');
         } finally {
@@ -616,7 +628,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
         abortControllerRef.current = null;
       }
     },
-    [acpCapabilities, acpClient, apiClient, isSending, isStreaming, sessionId]
+    [acpCapabilities, apiClient, client, isSending, isStreaming, sessionId]
   );
 
   const abortMessage = useCallback(async () => {
@@ -626,7 +638,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
 
     if (sessionId && acpEnabled()) {
       try {
-        await acpClient.cancel(sessionId);
+        await client.cancel(sessionId);
       } catch (err) {
         console.error('[useChat] Failed to cancel ACP turn:', err);
       }
@@ -640,7 +652,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
 
     setIsStreaming(false);
     setIsSending(false);
-  }, [acpClient, apiClient, sessionId]);
+  }, [apiClient, client, sessionId]);
 
   return {
     messages: acpEnabled() ? acpState.messages : messages,

@@ -28,6 +28,7 @@ export type CreateSessionOptions = {
 
 type ManagedSession = AcpSessionRecord & {
   activeToolCalls: Set<string>;
+  terminatedToolCalls: Set<string>;
   messageIds: Partial<Record<AcpMessageRole, string>>;
   updateChain: Promise<void>;
 };
@@ -86,6 +87,7 @@ export class AcpSessionManager {
       capabilities: connection.capabilities,
       ...(created.configOptions ? { configOptions: created.configOptions } : {}),
       activeToolCalls: new Set(),
+      terminatedToolCalls: new Set(),
       messageIds: {},
       updateChain: Promise.resolve(),
     };
@@ -194,7 +196,11 @@ export class AcpSessionManager {
           event.status === 'cancelled'
         ) {
           session.activeToolCalls.delete(event.toolCallId);
-        } else if (session.protocolVersion >= 2 || event.status !== undefined) {
+          session.terminatedToolCalls.add(event.toolCallId);
+        } else if (
+          !session.terminatedToolCalls.has(event.toolCallId) &&
+          (session.protocolVersion >= 2 || event.status !== undefined)
+        ) {
           session.activeToolCalls.add(event.toolCallId);
         }
       }

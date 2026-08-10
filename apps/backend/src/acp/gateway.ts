@@ -479,7 +479,7 @@ export class AcpGateway {
         permissionPolicy: (request) =>
           this.permissionRequest(
             request.sessionId,
-            client,
+            this.clientsByAcpSession.get(request.sessionId) ?? client,
             request,
             resolution.profile.agentId ?? profileId
           ),
@@ -494,7 +494,7 @@ export class AcpGateway {
       connection.setPermissionPolicy((request) =>
         this.permissionRequest(
           request.sessionId,
-          client,
+          this.clientsByAcpSession.get(request.sessionId) ?? client,
           request,
           resolution.profile.agentId ?? profileId
         )

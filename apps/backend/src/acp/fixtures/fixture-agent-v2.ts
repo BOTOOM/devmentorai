@@ -3,6 +3,7 @@ import { Readable, Writable } from 'node:stream';
 import * as acp from '@agentclientprotocol/sdk/experimental/v2';
 
 const sessions = new Set<string>();
+const cancellationResolvers = new Map<string, () => void>();
 
 const stream = acp.ndJsonStream(
   Writable.toWeb(process.stdout) as WritableStream<Uint8Array>,
@@ -65,6 +66,27 @@ acp
       sessionId: params.sessionId,
       update: { sessionUpdate: 'state_update', state: 'running' },
     });
+    if (process.env.ACP_FIXTURE_PARTIAL_AFTER_COMPLETE === '1') {
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: 'tool_call_update',
+          toolCallId: 'fixture-v2-tool',
+          status: 'completed',
+        },
+      });
+      await client.notify(acp.methods.client.session.update, {
+        sessionId: params.sessionId,
+        update: {
+          sessionUpdate: 'tool_call_content_chunk',
+          toolCallId: 'fixture-v2-tool',
+          content: [{ type: 'content', content: { type: 'text', text: 'late' } }],
+        },
+      });
+      await new Promise<void>((resolve) => {
+        cancellationResolvers.set(params.sessionId, resolve);
+      });
+    }
     await client.notify(acp.methods.client.session.update, {
       sessionId: params.sessionId,
       update: {
@@ -104,5 +126,8 @@ acp
     });
     return {};
   })
-  .onNotification(acp.methods.agent.session.cancel, () => undefined)
+  .onNotification(acp.methods.agent.session.cancel, ({ params }) => {
+    cancellationResolvers.get(params.sessionId)?.();
+    cancellationResolvers.delete(params.sessionId);
+  })
   .connect(stream);

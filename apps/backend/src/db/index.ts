@@ -6,15 +6,19 @@ import Database from 'better-sqlite3';
 const DB_DIR = path.join(os.homedir(), '.devmentorai');
 const DB_PATH = path.join(DB_DIR, 'devmentorai.db');
 
-console.log(`Database path: ${DB_PATH}`);
+export type DatabaseOptions = {
+  path?: string;
+};
 
-export function initDatabase(): Database.Database {
+export function initDatabase(options: DatabaseOptions = {}): Database.Database {
+  const databasePath = options.path ?? DB_PATH;
+  const databaseDirectory = path.dirname(databasePath);
   // Ensure directory exists
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
+  if (databasePath !== ':memory:' && !fs.existsSync(databaseDirectory)) {
+    fs.mkdirSync(databaseDirectory, { recursive: true });
   }
 
-  const db = new Database(DB_PATH);
+  const db = new Database(databasePath);
 
   // Enable WAL mode for better performance
   db.pragma('journal_mode = WAL');
@@ -111,6 +115,32 @@ export function initDatabase(): Database.Database {
     console.log('[DB] Migration: Added reasoning_effort column');
   } catch {
     // Column already exists
+  }
+
+  const acpSessionColumns = [
+    'agent_id TEXT',
+    'acp_session_id TEXT',
+    'cwd TEXT',
+    'protocol_version INTEGER',
+    'capabilities_json TEXT',
+    'config_options_json TEXT',
+    "title_source TEXT CHECK (title_source IN ('agent', 'local'))",
+    'replay_supported INTEGER',
+    'imported_from TEXT',
+  ];
+  for (const column of acpSessionColumns) {
+    try {
+      db.exec(`ALTER TABLE sessions ADD COLUMN ${column}`);
+    } catch {
+      // Column already exists.
+    }
+  }
+  const migrationVersion = Number(db.pragma('user_version', { simple: true }));
+  if (migrationVersion < 1) {
+    db.exec(
+      "UPDATE sessions SET imported_from = 'copilot-sdk' WHERE imported_from IS NULL AND agent_id IS NULL"
+    );
+    db.pragma('user_version = 1');
   }
 
   try {

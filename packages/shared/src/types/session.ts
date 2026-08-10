@@ -28,6 +28,16 @@ export interface Session {
   updatedAt: string;
   messageCount: number;
   pageContext?: PageContext;
+  /** ACP identity and workspace metadata; absent for legacy sessions. */
+  agentId?: string;
+  acpSessionId?: string;
+  cwd?: string;
+  protocolVersion?: number;
+  capabilities?: Record<string, unknown>;
+  configOptions?: Array<Record<string, unknown>>;
+  titleSource?: 'agent' | 'local';
+  replaySupported?: boolean;
+  importedFrom?: 'copilot-sdk';
 }
 
 export interface PageContext {

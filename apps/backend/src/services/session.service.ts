@@ -31,6 +31,15 @@ interface DbSession {
   message_count: number;
   created_at: string;
   updated_at: string;
+  agent_id: string | null;
+  acp_session_id: string | null;
+  cwd: string | null;
+  protocol_version: number | null;
+  capabilities_json: string | null;
+  config_options_json: string | null;
+  title_source: 'agent' | 'local' | null;
+  replay_supported: number | null;
+  imported_from: 'copilot-sdk' | null;
 }
 
 interface DbMessage {
@@ -422,6 +431,19 @@ export class SessionService {
       messageCount: row.message_count,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      ...(row.agent_id ? { agentId: row.agent_id } : {}),
+      ...(row.acp_session_id ? { acpSessionId: row.acp_session_id } : {}),
+      ...(row.cwd ? { cwd: row.cwd } : {}),
+      ...(row.protocol_version !== null ? { protocolVersion: row.protocol_version } : {}),
+      ...(row.capabilities_json
+        ? { capabilities: JSON.parse(row.capabilities_json) as Record<string, unknown> }
+        : {}),
+      ...(row.config_options_json
+        ? { configOptions: JSON.parse(row.config_options_json) as Array<Record<string, unknown>> }
+        : {}),
+      ...(row.title_source ? { titleSource: row.title_source } : {}),
+      ...(row.replay_supported !== null ? { replaySupported: row.replay_supported === 1 } : {}),
+      ...(row.imported_from ? { importedFrom: row.imported_from } : {}),
     };
   }
 

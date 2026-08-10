@@ -118,6 +118,8 @@ export class AcpSessionManager {
       const acpError =
         error instanceof AcpError ? error : new AcpError('agent_error', String(error));
       await this.emit(sessionId, { type: 'error', error: acpError.toPayload() });
+      session.activeToolCalls.clear();
+      await this.emit(sessionId, { type: 'state', state: 'idle' });
       throw acpError;
     }
   }
@@ -156,11 +158,8 @@ export class AcpSessionManager {
 
   async closeSession(sessionId: string): Promise<void> {
     const session = this.requireSession(sessionId);
-    try {
-      await this.requireAgent(session.agentId).closeSession(session.acpSessionId);
-    } finally {
-      this.sessions.delete(sessionId);
-    }
+    await this.requireAgent(session.agentId).closeSession(session.acpSessionId);
+    this.sessions.delete(sessionId);
   }
 
   async shutdown(): Promise<void> {
@@ -190,7 +189,7 @@ export class AcpSessionManager {
           event.status === 'cancelled'
         ) {
           session.activeToolCalls.delete(event.toolCallId);
-        } else {
+        } else if (event.status !== undefined) {
           session.activeToolCalls.add(event.toolCallId);
         }
       }

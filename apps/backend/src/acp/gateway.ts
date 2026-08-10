@@ -1,3 +1,4 @@
+import net from 'node:net';
 import type { RequestPermissionRequest } from '@agentclientprotocol/sdk';
 import type { AcpContentBlock, AcpEvent, AcpSessionRecord, Session } from '@devmentorai/shared';
 import type { WebSocket } from '@fastify/websocket';
@@ -102,8 +103,16 @@ function asBlocks(value: unknown): AcpContentBlock[] {
   return value as AcpContentBlock[];
 }
 
+function isLoopbackHost(host: string): boolean {
+  return net.isIP(host) === 4 && host.startsWith('127.');
+}
+
 function permissionTool(request: RequestPermissionRequest): string {
-  return request.toolCall.title ?? request.toolCall.kind ?? 'unknown-tool';
+  const rawInput = request.toolCall.rawInput;
+  if (request.toolCall.kind) return request.toolCall.kind;
+  if (isRecord(rawInput) && typeof rawInput.tool === 'string') return rawInput.tool;
+  if (isRecord(rawInput) && typeof rawInput.name === 'string') return rawInput.name;
+  return 'unknown-tool';
 }
 
 export class AcpGateway {
@@ -120,6 +129,7 @@ export class AcpGateway {
   private readonly sequence = new Map<string, number>();
   private readonly connections = new Map<string, AgentConnection>();
   private readonly clientsByAcpSession = new Map<string, GatewayClient>();
+  private readonly externalSessionIds = new Map<string, string>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly timeoutRejects = new Map<string, (error: AcpError) => void>();
   private readonly pendingPermissions = new Map<string, PendingPermission>();
@@ -161,9 +171,12 @@ export class AcpGateway {
       '/acp',
       {
         websocket: true,
-        onRequest: async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+        onRequest: async (
+          request: FastifyRequest,
+          reply: FastifyReply
+        ): Promise<FastifyReply | void> => {
           if (!this.isOriginAllowed(request.headers.origin)) {
-            reply.code(403).send({ error: 'WebSocket origin is not allowed' });
+            return reply.code(403).send({ error: 'WebSocket origin is not allowed' });
           }
         },
       },
@@ -199,6 +212,7 @@ export class AcpGateway {
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
     await this.manager.shutdown();
+    await this.agentService.shutdown();
     for (const client of this.clients) client.socket.close();
     this.clients.clear();
   }
@@ -278,8 +292,11 @@ export class AcpGateway {
     switch (method) {
       case 'ui/session.create':
         return this.createSession(client, params);
-      case 'ui/session.prompt':
-        return this.prompt({ ...params, ...(sessionId ? { sessionId } : {}) });
+      case 'ui/session.prompt': {
+        const requestedSessionId = asString(params.sessionId, 'sessionId');
+        const resolvedSessionId = await this.ensureSession(client, requestedSessionId);
+        return this.prompt({ ...params, sessionId: resolvedSessionId });
+      }
       case 'ui/session.cancel':
         await this.manager.cancelPrompt(sessionId ?? asString(params.sessionId, 'sessionId'));
         return { cancelled: true };
@@ -350,8 +367,31 @@ export class AcpGateway {
         return { authenticated: true };
       case 'ui/agents.resolve_launch':
         return this.agentService.resolveLaunch(asString(params.profileId, 'profileId'));
-      case 'ui/agents.probe':
-        return this.agentService.probe(asString(params.profileId, 'profileId'));
+      case 'ui/agents.probe': {
+        const profileId = asString(params.profileId, 'profileId');
+        const profile = this.agentService.listProfiles().find((item) => item.id === profileId);
+        if (!profile || profile.custom) {
+          throw new AcpError(
+            'capability_unsupported',
+            'Only trusted catalog profiles can be probed'
+          );
+        }
+        if (
+          profile.transport === 'tcp' &&
+          (!profile.host ||
+            typeof profile.port !== 'number' ||
+            !Number.isInteger(profile.port) ||
+            profile.port < 1 ||
+            profile.port > 65535 ||
+            !isLoopbackHost(profile.host))
+        ) {
+          throw new AcpError(
+            'capability_unsupported',
+            'Only valid loopback TCP profiles can be probed'
+          );
+        }
+        return this.agentService.probe(profileId);
+      }
       default:
         throw new AcpError('capability_unsupported', `Unknown UI method ${method}`);
     }
@@ -359,10 +399,28 @@ export class AcpGateway {
 
   private resolveSessionId(value: string): string {
     if (this.sessions.has(value)) return value;
+    const mapped = [...this.externalSessionIds.entries()].find(
+      ([, external]) => external === value
+    );
+    if (mapped) return mapped[0];
     return (
       [...this.sessions.entries()].find(([, session]) => session.acpSessionId === value)?.[0] ??
       value
     );
+  }
+
+  private async ensureSession(client: GatewayClient, externalSessionId: string): Promise<string> {
+    const resolved = this.resolveSessionId(externalSessionId);
+    if (this.sessions.has(resolved)) return resolved;
+    const row = this.db.prepare('SELECT id FROM sessions WHERE id = ?').get(externalSessionId) as
+      | { id?: string }
+      | undefined;
+    if (!row?.id) {
+      throw new AcpError('agent_error', `Unknown DevMentorAI session ${externalSessionId}`);
+    }
+    const session = await this.createSession(client, {});
+    this.externalSessionIds.set(session.id, externalSessionId);
+    return session.id;
   }
 
   private async createSession(
@@ -495,7 +553,11 @@ export class AcpGateway {
       this.send(client, {
         jsonrpc: '2.0',
         method: 'ui/session.event',
-        params: { sessionId, seq: next, event },
+        params: {
+          sessionId: this.externalSessionIds.get(sessionId) ?? sessionId,
+          seq: next,
+          event,
+        },
       });
     }
   }

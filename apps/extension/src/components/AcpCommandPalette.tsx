@@ -5,11 +5,24 @@ import { cn } from '../lib/utils';
 type AcpCommandPaletteProps = {
   commands: AcpAvailableCommand[];
   query: string;
+  selectedIndex?: number;
+  onSelectedIndexChange?: (index: number) => void;
   onSelect: (command: AcpAvailableCommand) => void;
 };
 
-export function AcpCommandPalette({ commands, query, onSelect }: Readonly<AcpCommandPaletteProps>) {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+export function AcpCommandPalette({
+  commands,
+  query,
+  selectedIndex = 0,
+  onSelectedIndexChange,
+  onSelect,
+}: Readonly<AcpCommandPaletteProps>) {
+  const [uncontrolledIndex, setUncontrolledIndex] = useState(selectedIndex);
+  const activeIndex = onSelectedIndexChange ? selectedIndex : uncontrolledIndex;
+  const setIndex = (index: number) => {
+    if (onSelectedIndexChange) onSelectedIndexChange(index);
+    else setUncontrolledIndex(index);
+  };
   const filtered = commands.filter((command) =>
     command.name.toLowerCase().includes(query.toLowerCase())
   );
@@ -23,20 +36,20 @@ export function AcpCommandPalette({ commands, query, onSelect }: Readonly<AcpCom
         <button
           className={cn(
             'block w-full rounded px-2 py-1 text-left text-sm',
-            index === selectedIndex && 'bg-primary-100 dark:bg-primary-900/40'
+            index === activeIndex && 'bg-primary-100 dark:bg-primary-900/40'
           )}
           key={command.name}
           onClick={() => onSelect(command)}
           onKeyDown={(event) => {
             if (event.key === 'ArrowDown') {
               event.preventDefault();
-              setSelectedIndex((current) => (current + 1) % filtered.length);
+              setIndex((activeIndex + 1) % filtered.length);
             } else if (event.key === 'ArrowUp') {
               event.preventDefault();
-              setSelectedIndex((current) => (current - 1 + filtered.length) % filtered.length);
+              setIndex((activeIndex - 1 + filtered.length) % filtered.length);
             } else if (event.key === 'Enter') {
               event.preventDefault();
-              onSelect(filtered[selectedIndex] as AcpAvailableCommand);
+              onSelect(filtered[activeIndex] as AcpAvailableCommand);
             }
           }}
           type="button"

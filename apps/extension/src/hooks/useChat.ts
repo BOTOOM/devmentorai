@@ -11,7 +11,11 @@ import type {
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { AcpPermissionDecision, AcpPermissionRequest } from '../services/acp-client';
 import { AcpClient, acpEnabled } from '../services/acp-client';
-import { initialAcpChatState, reduceAcpEvent } from '../services/acp-reducer';
+import {
+  type AcpChatAction,
+  initialAcpChatState,
+  reduceAcpChatState,
+} from '../services/acp-reducer';
 import { ApiClient } from '../services/api-client';
 
 export interface SendMessageOptions {
@@ -48,10 +52,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
   const [permissionRequest, setPermissionRequest] = useState<AcpPermissionRequest | null>(null);
   const permissionResolverRef = useRef<((result: AcpPermissionDecision) => void) | null>(null);
   const [acpState, dispatchAcpEvent] = useReducer(
-    (
-      state: typeof initialAcpChatState,
-      action: { sessionId: string; event: Parameters<typeof reduceAcpEvent>[1] }
-    ) => reduceAcpEvent(state, action.event, action.sessionId),
+    (state: typeof initialAcpChatState, action: AcpChatAction) => reduceAcpChatState(state, action),
     initialAcpChatState
   );
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -75,7 +76,9 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
   useEffect(() => {
     if (!acpEnabled()) return;
     const unsubscribe = acpClient.onEvent((eventSessionId, _seq, event) => {
-      if (eventSessionId === sessionId) dispatchAcpEvent({ sessionId: eventSessionId, event });
+      if (eventSessionId === sessionId) {
+        dispatchAcpEvent({ type: 'event', sessionId: eventSessionId, event });
+      }
     });
     void acpClient.connect().catch((connectError: unknown) => {
       setError(connectError instanceof Error ? connectError.message : 'ACP connection failed');
@@ -91,11 +94,17 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
 
   const revokePermission = useCallback(() => {
     if (!permissionRequest) return;
-    const toolCall = permissionRequest.toolCall as { title?: string; kind?: string };
+    const toolCall = permissionRequest.toolCall as {
+      kind?: string;
+      rawInput?: { tool?: string; name?: string };
+    };
     void acpClient.revokePermission(
       permissionRequest.sessionId,
-      toolCall.title ?? toolCall.kind ?? 'unknown-tool'
+      toolCall.kind ?? toolCall.rawInput?.tool ?? toolCall.rawInput?.name ?? 'unknown-tool'
     );
+    permissionResolverRef.current?.({ outcome: { outcome: 'cancelled' } });
+    permissionResolverRef.current = null;
+    setPermissionRequest(null);
   }, [acpClient, permissionRequest]);
 
   const dismissPermission = useCallback(() => {
@@ -109,6 +118,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
       if (!sessionId) return;
       const options = await acpClient.setConfigOption(sessionId, option.id, value);
       dispatchAcpEvent({
+        type: 'event',
         sessionId,
         event: { type: 'config', options: options as AcpConfigOption[] },
       });
@@ -133,6 +143,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
   // Track session changes to prevent message mixup (A.4 fix)
   useEffect(() => {
     currentSessionRef.current = sessionId;
+    dispatchAcpEvent({ type: 'reset' });
   }, [sessionId]);
 
   // Load messages when session changes
@@ -175,12 +186,24 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
         : { context: options as MessageContext };
 
       if (acpEnabled()) {
+        const promptCapabilities = (
+          acpCapabilities?.agentCapabilities as Record<string, unknown> | undefined
+        )?.promptCapabilities as Record<string, unknown> | undefined;
+        if (sendOptions.images && promptCapabilities?.image !== true) {
+          setError('This agent does not support image attachments.');
+          return;
+        }
         setError(null);
         setIsSending(true);
+        const optimisticMessage: Message = {
+          id: generateMessageId(),
+          sessionId,
+          role: 'user',
+          content,
+          timestamp: formatDate(),
+        };
+        dispatchAcpEvent({ type: 'user_message', message: optimisticMessage });
         try {
-          const promptCapabilities = (
-            acpCapabilities?.agentCapabilities as Record<string, unknown> | undefined
-          )?.promptCapabilities as Record<string, unknown> | undefined;
           const blocks: AcpContentBlock[] = [{ type: 'text', text: content }];
           if (sendOptions.images && promptCapabilities?.image === true) {
             for (const image of sendOptions.images) {
@@ -222,6 +245,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
             }
           }
           dispatchAcpEvent({
+            type: 'event',
             sessionId,
             event: {
               type: 'message',

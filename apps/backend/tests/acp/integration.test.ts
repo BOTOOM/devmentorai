@@ -331,6 +331,119 @@ describe('ACP v1 fixture integration', () => {
     await manager.shutdown();
   });
 
+  it('emits idle and clears unfinished tools when a turn fails', async () => {
+    const events: string[] = [];
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) =>
+        events.push(event.type === 'state' ? event.state : event.type),
+    });
+    manager.registerAgent({
+      agentId: 'fixture',
+      launchSpec: launchSpec({ ACP_FIXTURE_CRASH: '1' }),
+      connection: new AgentConnection({
+        agentId: 'fixture',
+        launchSpec: launchSpec({ ACP_FIXTURE_CRASH: '1' }),
+        launcher,
+      }),
+    });
+    const session = await manager.createSession({ agentId: 'fixture', cwd });
+    await expect(manager.prompt(session.id, [{ type: 'text', text: 'crash' }])).rejects.toThrow();
+    expect(events).toEqual(expect.arrayContaining(['running', 'error', 'idle']));
+    await manager.shutdown();
+  });
+
+  it('does not reactivate a completed tool from a partial update', async () => {
+    const statuses: string[] = [];
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager({
+      onEvent: (_sessionId, event) => {
+        if (event.type === 'tool_call') statuses.push(event.status ?? '');
+      },
+    });
+    manager.registerAgent({
+      agentId: 'fixture',
+      launchSpec: launchSpec({ ACP_FIXTURE_PARTIAL_AFTER_COMPLETE: '1' }),
+      connection: new AgentConnection({
+        agentId: 'fixture',
+        launchSpec: launchSpec({ ACP_FIXTURE_PARTIAL_AFTER_COMPLETE: '1' }),
+        launcher,
+        permissionPolicy: () => ({ outcome: { outcome: 'selected', optionId: 'allow' } }),
+      }),
+    });
+    const session = await manager.createSession({ agentId: 'fixture', cwd });
+    const prompt = manager.prompt(session.id, [{ type: 'text', text: 'partial' }]);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await manager.cancelPrompt(session.id);
+    await expect(prompt).resolves.toBeUndefined();
+    expect(statuses).toContain('completed');
+    expect(statuses).not.toContain('cancelled');
+    await manager.shutdown();
+  });
+
+  it('retains local session state when the agent rejects close', async () => {
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const manager = new AcpSessionManager();
+    manager.registerAgent({
+      agentId: 'fixture',
+      launchSpec: launchSpec(),
+      connection: new AgentConnection({
+        agentId: 'fixture',
+        launchSpec: launchSpec(),
+        launcher,
+      }),
+    });
+    const session = await manager.createSession({ agentId: 'fixture', cwd });
+    await expect(manager.closeSession(session.id)).rejects.toMatchObject({
+      code: 'capability_unsupported',
+    });
+    expect(manager.getSession(session.id)).toBeDefined();
+    await manager.shutdown();
+  });
+
+  it('deduplicates concurrent connection handshakes', async () => {
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const connection = new AgentConnection({
+      agentId: 'fixture',
+      launchSpec: launchSpec(),
+      launcher,
+    });
+    const capabilities = await Promise.all([connection.connect(), connection.connect()]);
+    expect(capabilities[0]).toEqual(capabilities[1]);
+    expect(launcher.activeCount).toBe(1);
+    await connection.shutdown();
+  });
+
+  it('rejects a missing agent command instead of hanging during handshake', async () => {
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const connection = new AgentConnection({
+      agentId: 'missing',
+      launchSpec: { cmd: '/definitely/missing/devmentorai-agent', cwd },
+      launcher,
+    });
+    await expect(connection.connect()).rejects.toMatchObject({ code: 'agent_launch_failed' });
+    await connection.shutdown();
+  });
+
+  it('waits for a child to exit after escalating shutdown', async () => {
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const agentProcess = launcher.launch({
+      cmd: process.execPath,
+      args: ['-e', "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"],
+      cwd,
+    });
+    const exit = await agentProcess.shutdown(10);
+    expect(exit).toBeDefined();
+    expect(agentProcess.exitedAlready).toEqual(exit);
+    await launcher.shutdown();
+  });
+
   it('surfaces a crashed agent without crashing the host', async () => {
     const launcher = new AgentLauncher();
     launches.add(launcher);

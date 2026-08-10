@@ -116,7 +116,10 @@ export class AgentProcess {
         resolve(undefined);
       }, timeoutMs).unref();
     });
-    return (await Promise.race([this.exited, timeout])) ?? this.exitResult;
+    const result = await Promise.race([this.exited, timeout]);
+    if (result) return result;
+    this.kill('SIGKILL');
+    return this.exited;
   }
 }
 
@@ -125,8 +128,19 @@ export class AgentLauncher {
 
   launch(spec: LaunchSpec, stderrLimit = DEFAULT_STDERR_LIMIT): AgentProcess {
     if (spec.transport === 'tcp') {
-      if (!spec.port) throw new AcpError('agent_launch_failed', 'TCP profile requires a port');
-      const socket = net.createConnection({ host: spec.host ?? '127.0.0.1', port: spec.port });
+      const host = spec.host;
+      const port = spec.port;
+      if (
+        !host ||
+        typeof port !== 'number' ||
+        !Number.isInteger(port) ||
+        port < 1 ||
+        port > 65535 ||
+        (!net.isIP(host) && !/^[a-zA-Z0-9.-]+$/.test(host))
+      ) {
+        throw new AcpError('agent_launch_failed', 'TCP profile has an invalid host or port');
+      }
+      const socket = net.createConnection({ host, port });
       return this.track(new AgentProcess(socket, stderrLimit));
     }
     let child: ChildProcessWithoutNullStreams;

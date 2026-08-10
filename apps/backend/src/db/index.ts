@@ -134,9 +134,13 @@ export function initDatabase(options: DatabaseOptions = {}): Database.Database {
       // Column already exists.
     }
   }
-  db.exec(
-    "UPDATE sessions SET imported_from = 'copilot-sdk' WHERE imported_from IS NULL AND agent_id IS NULL"
-  );
+  const migrationVersion = Number(db.pragma('user_version', { simple: true }));
+  if (migrationVersion < 1) {
+    db.exec(
+      "UPDATE sessions SET imported_from = 'copilot-sdk' WHERE imported_from IS NULL AND agent_id IS NULL"
+    );
+    db.pragma('user_version = 1');
+  }
 
   return db;
 }

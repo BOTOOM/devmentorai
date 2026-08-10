@@ -9,7 +9,11 @@ import type {
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { AcpPermissionDecision, AcpPermissionRequest } from '../services/acp-client';
 import { AcpClient, acpEnabled } from '../services/acp-client';
-import { initialAcpChatState, reduceAcpEvent } from '../services/acp-reducer';
+import {
+  type AcpChatAction,
+  initialAcpChatState,
+  reduceAcpChatState,
+} from '../services/acp-reducer';
 import { ApiClient } from '../services/api-client';
 
 export interface SendMessageOptions {
@@ -45,10 +49,7 @@ export function useChat(sessionId: string | undefined) {
   const [permissionRequest, setPermissionRequest] = useState<AcpPermissionRequest | null>(null);
   const permissionResolverRef = useRef<((result: AcpPermissionDecision) => void) | null>(null);
   const [acpState, dispatchAcpEvent] = useReducer(
-    (
-      state: typeof initialAcpChatState,
-      action: { sessionId: string; event: Parameters<typeof reduceAcpEvent>[1] }
-    ) => reduceAcpEvent(state, action.event, action.sessionId),
+    (state: typeof initialAcpChatState, action: AcpChatAction) => reduceAcpChatState(state, action),
     initialAcpChatState
   );
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -72,7 +73,9 @@ export function useChat(sessionId: string | undefined) {
   useEffect(() => {
     if (!acpEnabled()) return;
     const unsubscribe = acpClient.onEvent((eventSessionId, _seq, event) => {
-      if (eventSessionId === sessionId) dispatchAcpEvent({ sessionId: eventSessionId, event });
+      if (eventSessionId === sessionId) {
+        dispatchAcpEvent({ type: 'event', sessionId: eventSessionId, event });
+      }
     });
     void acpClient.connect().catch((connectError: unknown) => {
       setError(connectError instanceof Error ? connectError.message : 'ACP connection failed');
@@ -109,6 +112,7 @@ export function useChat(sessionId: string | undefined) {
   // Track session changes to prevent message mixup (A.4 fix)
   useEffect(() => {
     currentSessionRef.current = sessionId;
+    dispatchAcpEvent({ type: 'reset' });
   }, [sessionId]);
 
   // Load messages when session changes
@@ -143,6 +147,14 @@ export function useChat(sessionId: string | undefined) {
       if (acpEnabled()) {
         setError(null);
         setIsSending(true);
+        const optimisticMessage: Message = {
+          id: generateMessageId(),
+          sessionId,
+          role: 'user',
+          content,
+          timestamp: formatDate(),
+        };
+        dispatchAcpEvent({ type: 'user_message', message: optimisticMessage });
         try {
           await acpClient.prompt(sessionId, content);
         } catch (sendError) {

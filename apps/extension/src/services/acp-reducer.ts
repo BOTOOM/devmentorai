@@ -14,6 +14,19 @@ export const initialAcpChatState: AcpChatState = {
   events: [],
 };
 
+export type AcpChatAction =
+  | { type: 'event'; sessionId: string; event: AcpEvent }
+  | { type: 'user_message'; message: Message }
+  | { type: 'reset' };
+
+export function reduceAcpChatState(state: AcpChatState, action: AcpChatAction): AcpChatState {
+  if (action.type === 'reset') return initialAcpChatState;
+  if (action.type === 'user_message') {
+    return { ...state, messages: [...state.messages, action.message], error: null };
+  }
+  return reduceAcpEvent(state, action.event, action.sessionId);
+}
+
 export function reduceAcpEvent(
   state: AcpChatState,
   event: AcpEvent,

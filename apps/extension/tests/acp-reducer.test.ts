@@ -1,6 +1,10 @@
 import type { AcpEvent } from '@devmentorai/shared';
 import { describe, expect, it } from 'vitest';
-import { initialAcpChatState, reduceAcpEvent } from '../src/services/acp-reducer';
+import {
+  initialAcpChatState,
+  reduceAcpChatState,
+  reduceAcpEvent,
+} from '../src/services/acp-reducer';
 
 describe('ACP chat reducer', () => {
   it('upserts and appends streamed message chunks by message id', () => {
@@ -50,5 +54,20 @@ describe('ACP chat reducer', () => {
     };
     const state = reduceAcpEvent(initialAcpChatState, toolCall, 'session-1');
     expect(state.events).toEqual([toolCall]);
+  });
+
+  it('shows optimistic user messages and resets when the session changes', () => {
+    const state = reduceAcpChatState(initialAcpChatState, {
+      type: 'user_message',
+      message: {
+        id: 'user-1',
+        sessionId: 'session-1',
+        role: 'user',
+        content: 'hello',
+        timestamp: '2024-01-01T00:00:00.000Z',
+      },
+    });
+    expect(state.messages).toHaveLength(1);
+    expect(reduceAcpChatState(state, { type: 'reset' })).toEqual(initialAcpChatState);
   });
 });

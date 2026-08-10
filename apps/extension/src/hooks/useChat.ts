@@ -186,6 +186,13 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
         : { context: options as MessageContext };
 
       if (acpEnabled()) {
+        const promptCapabilities = (
+          acpCapabilities?.agentCapabilities as Record<string, unknown> | undefined
+        )?.promptCapabilities as Record<string, unknown> | undefined;
+        if (sendOptions.images && promptCapabilities?.image !== true) {
+          setError('This agent does not support image attachments.');
+          return;
+        }
         setError(null);
         setIsSending(true);
         const optimisticMessage: Message = {
@@ -197,15 +204,7 @@ export function useChat(sessionId: string | undefined, acpCapabilities?: Record<
         };
         dispatchAcpEvent({ type: 'user_message', message: optimisticMessage });
         try {
-          const promptCapabilities = (
-            acpCapabilities?.agentCapabilities as Record<string, unknown> | undefined
-          )?.promptCapabilities as Record<string, unknown> | undefined;
           const blocks: AcpContentBlock[] = [{ type: 'text', text: content }];
-          if (sendOptions.images && promptCapabilities?.image !== true) {
-            setError('This agent does not support image attachments.');
-            setIsSending(false);
-            return;
-          }
           if (sendOptions.images && promptCapabilities?.image === true) {
             for (const image of sendOptions.images) {
               const separator = image.dataUrl.indexOf(',');

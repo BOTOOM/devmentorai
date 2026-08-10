@@ -20,7 +20,7 @@ Exit: the user approves scope, ADRs and requirement priorities.
 Scope: `acp/launcher.ts`, `acp/connection.ts`, `acp/normalize/v1.ts`, `acp/errors.ts`,
 `AcpEvent` in `packages/shared`, and the **fixture agent** test harness (an SDK-based
 agent that can emit every update variant, request permissions, stall, and crash).
-Requirements: R-001..R-007, R-012, R-060.
+Requirements: R-001..R-007, R-012, R-060, R-061, R-063.
 Exit: integration tests drive a full turn (text, tool call, permission, cancel, crash)
 against the fixture agent and the golden-file normalisation tests pass. No UI change.
 
@@ -49,7 +49,8 @@ Scope: slash-command palette, config-option selectors (model/mode/reasoning), to
 cards with kinds/status/diffs, plan checklist, permission prompt with remembered
 `allow_always`, generic renderer for unknown content, usage/context indicator, error cards
 with actions.
-Requirements: R-021, R-025..R-027, R-035, R-036, R-038, R-039, R-030..R-032.
+Requirements: R-021, R-025..R-027, R-035, R-036, R-038, R-039, R-030..R-032,
+R-050..R-052.
 Exit: Copilot ACP is fully usable — commands, images, page context, tools, permissions.
 `ACP_ENABLED` defaults to true. **This is the MVP.**
 
@@ -84,7 +85,7 @@ OpenAI-compatible endpoint (LM Studio, Ollama, vLLM, OpenRouter), reusing the
 `openai-compatible.provider.ts` logic from `feat/acp`: streaming, tool calling, and
 capability advertisement. Registered as a built-in catalog entry with an endpoint/model
 config.
-Requirements: R-010 AC3 (as a built-in), plus the A/C/F sets applied to this agent.
+Requirements: R-010 AC6, plus the A/C/F sets applied to this agent.
 Exit: an LM Studio model runs through the identical ACP path — the host contains zero
 special-casing for it.
 

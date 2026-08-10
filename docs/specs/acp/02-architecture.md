@@ -112,8 +112,6 @@ Normalisation rules that hide the v1/v2 split:
 
 - v1 `tool_call` and `tool_call_update` both become `tool_call` with `mode: 'replace'`;
   v2 `tool_call_content_chunk` becomes `mode: 'append'`.
-  Consumers merge tool-call events field-wise: absent fields are unchanged, present `content`
-  replaces the previous array, and `mode: 'append'` appends to it.
 - v1 has no `state_update`: the host **synthesises** `state: running` when it sends
   `session/prompt` and `state: idle` with the `stopReason` from the prompt *response*.
   In v2 the notifications are passed through and the prompt response is ignored.

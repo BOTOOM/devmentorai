@@ -25,6 +25,11 @@ files or run commands.
 3. Permission requests are answered by the user. `allow_always` decisions are remembered per
    agent+tool and are revocable; blanket auto-approve is an explicit per-agent opt-in, off by
    default, and shown in the session header.
+4. The OpenAI-compatible built-in agent may expose a shell tool because it is intended for
+   coding workflows, but it is not a sandbox. The command is proposed by a potentially remote
+   model endpoint and the user's ACP permission decision is the control before execution.
+   Shell processes run in the session workspace with a minimal non-secret environment; provider
+   credentials and other `KEY`/`TOKEN`/`SECRET`/`PASSWORD` variables are never inherited.
 
 ## Consequences
 

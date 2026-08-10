@@ -397,28 +397,14 @@ export class OpenAICompatibleAgent {
     }
     if (call.name === 'run_shell') {
       const command = stringValue(input.command);
-      if (!/^[a-z0-9_./ -]+$/i.test(command)) {
-        throw new Error('Shell command contains unsupported syntax');
-      }
-      const parts = command.trim().split(/\s+/);
-      const executable = parts.shift() ?? '';
-      const allowed = new Set(['cat', 'echo', 'ls', 'pwd', 'sleep']);
-      if (!allowed.has(executable) || parts.length > 8) {
-        throw new Error('Shell command is not permitted');
-      }
-      if (executable === 'sleep') {
-        const seconds = Number(parts[0]);
-        if (parts.length !== 1 || !Number.isFinite(seconds) || seconds < 0 || seconds > 30) {
-          throw new Error('Sleep duration is not permitted');
-        }
-      } else if (executable === 'pwd' && parts.length > 0) {
-        throw new Error('Arguments are not permitted for pwd');
-      } else if (executable === 'cat' || executable === 'ls') {
-        for (const requested of parts) await this.safePath(session.cwd, requested);
-      }
-      const result = await execFileAsync(`/bin/${executable}`, parts, {
+      const env = Object.fromEntries(
+        ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'TERM', 'USER', 'SHELL']
+          .filter((name) => process.env[name] !== undefined)
+          .map((name) => [name, process.env[name] as string])
+      );
+      const result = await execFileAsync('/bin/sh', ['-c', command], {
         cwd: session.cwd,
-        env: { PATH: process.env.PATH ?? '' },
+        env,
         maxBuffer: 1024 * 1024,
         ...(session.controller ? { signal: session.controller.signal } : {}),
       });

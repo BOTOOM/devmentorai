@@ -406,6 +406,57 @@ describe('OpenAI-compatible ACP agent', () => {
     }
   });
 
+  it('runs shell commands in the session cwd without exposing provider credentials', async () => {
+    const cwd = await mkdtemp(path.join(os.tmpdir(), 'acp-openai-agent-'));
+    const requests: string[] = [];
+    const previousKey = process.env.OPENAI_COMPATIBLE_API_KEY;
+    process.env.OPENAI_COMPATIBLE_API_KEY = 'must-not-leak';
+    try {
+      const baseUrl = await fakeServer({
+        chunks: [],
+        requests,
+        completionSequences: [
+          [
+            {
+              choices: [
+                {
+                  delta: {
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: 'shell-env-1',
+                        function: {
+                          name: 'run_shell',
+                          arguments:
+                            '{"command":"printf \\"%s|%s\\" \\"$OPENAI_COMPATIBLE_API_KEY\\" \\"$PWD\\""}',
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          ],
+          [{ choices: [{ delta: { content: 'done' } }] }],
+        ],
+      });
+      const result = await connectAgent(baseUrl, false, true, cwd);
+      await result.connection.agent.request('session/prompt', {
+        sessionId: result.session.sessionId,
+        prompt: [{ type: 'text', text: 'inspect the shell environment' }],
+      });
+      const secondRequest = JSON.parse(requests[1] ?? '{}') as {
+        messages?: Array<{ role?: string; content?: string }>;
+      };
+      const toolMessage = secondRequest.messages?.find((message) => message.role === 'tool');
+      expect(toolMessage?.content).toBe(`|${cwd}`);
+    } finally {
+      if (previousKey === undefined) process.env.OPENAI_COMPATIBLE_API_KEY = undefined;
+      else process.env.OPENAI_COMPATIBLE_API_KEY = previousKey;
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   it('preserves resource context and discovers models with a fallback', async () => {
     const requests: string[] = [];
     const baseUrl = await fakeServer({ chunks: ['ok'], models: ['alpha', 'beta'], requests });

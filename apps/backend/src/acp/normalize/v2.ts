@@ -25,6 +25,10 @@ function content(value: unknown): AcpContentBlock {
     : { type: 'unknown', data: item };
 }
 
+function contents(value: unknown): AcpContentBlock[] {
+  return Array.isArray(value) ? value.map((entry) => content(entry)) : [content(value)];
+}
+
 function extensions(value: RecordValue): Record<string, unknown> | undefined {
   const result = Object.fromEntries(Object.entries(value).filter(([key]) => key.startsWith('_')));
   return Object.keys(result).length ? result : undefined;
@@ -43,7 +47,7 @@ function message(
     type: 'message',
     role,
     messageId,
-    content: [content(update.content)],
+    content: contents(update.content),
     mode,
     ...(extensions(update) ? { extensions: extensions(update) } : {}),
   };
@@ -102,7 +106,10 @@ export function normalizeV2Update(value: unknown, options: NormalizeV2Options = 
     case 'agent_thought':
       return message(update, 'thought', 'replace', options);
     case 'tool_call_content_chunk':
-      return tool(update, 'append');
+      return {
+        ...tool(update, 'append'),
+        ...(update.content !== undefined ? { content: toolContent(update.content) } : {}),
+      };
     case 'tool_call_update':
       return tool(update, 'replace');
     case 'state_update': {

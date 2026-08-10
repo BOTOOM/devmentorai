@@ -82,7 +82,7 @@ function capabilitiesFromResponse(response: InitializeResponse): AcpConnectionCa
   const agentCapabilities =
     response.protocolVersion >= 2
       ? {
-          loadSession: Boolean(v2Session),
+          loadSession: Boolean(v2Session?.resume || v2Session?.replay),
           promptCapabilities: {
             image: Boolean(v2Prompt?.image),
             audio: Boolean(v2Prompt?.audio),
@@ -98,7 +98,16 @@ function capabilitiesFromResponse(response: InitializeResponse): AcpConnectionCa
     protocolVersion: response.protocolVersion,
     agentCapabilities: {
       ...agentCapabilities,
-      ...(process.env.ACP_V2 === '1' ? { elicitation: true } : {}),
+      ...(response.protocolVersion >= 2 &&
+      Boolean(
+        v2Capabilities?.elicitation ||
+          v2Session?.elicitation ||
+          (raw.agentCapabilities &&
+            typeof raw.agentCapabilities === 'object' &&
+            (raw.agentCapabilities as Record<string, unknown>).elicitation)
+      )
+        ? { elicitation: true }
+        : {}),
     },
     authMethods,
     ...(response.agentInfo
@@ -249,9 +258,9 @@ export class AgentConnection {
       );
       const response = (await this.connection.agent.request('initialize', {
         protocolVersion: v2Enabled ? 2 : acp.PROTOCOL_VERSION,
-        clientCapabilities: v2Enabled
-          ? ({ elicitation: { form: {} } } as unknown as Record<string, unknown>)
-          : {},
+        ...(v2Enabled
+          ? { capabilities: { elicitation: { form: {} } } }
+          : { clientCapabilities: {} }),
         ...(v2Enabled
           ? { info: { name: this.clientName, version: this.clientVersion } }
           : { clientInfo: { name: this.clientName, version: this.clientVersion } }),

@@ -194,7 +194,7 @@ export class AcpSessionManager {
           event.status === 'cancelled'
         ) {
           session.activeToolCalls.delete(event.toolCallId);
-        } else if (event.status !== undefined) {
+        } else if (session.protocolVersion >= 2 || event.status !== undefined) {
           session.activeToolCalls.add(event.toolCallId);
         }
       }

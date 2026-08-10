@@ -19,6 +19,27 @@ describe('ACP v2 normalization', () => {
       },
     ],
     [
+      'complete message blocks',
+      {
+        sessionUpdate: 'agent_message',
+        messageId: 'a',
+        content: [
+          { type: 'text', text: 'hello' },
+          { type: 'text', text: ' world' },
+        ],
+      },
+      {
+        type: 'message',
+        role: 'assistant',
+        messageId: 'a',
+        content: [
+          { type: 'text', text: 'hello' },
+          { type: 'text', text: ' world' },
+        ],
+        mode: 'replace',
+      },
+    ],
+    [
       'state update',
       { sessionUpdate: 'state_update', state: 'idle', stopReason: 'end_turn' },
       { type: 'state', state: 'idle', stopReason: 'end_turn' },

@@ -15,7 +15,9 @@ acp
     protocolVersion: 2,
     info: { name: 'devmentorai-fixture-v2', version: '1.0.0' },
     capabilities: {
+      elicitation: { form: {} },
       session: {
+        elicitation: { form: {} },
         prompt: {
           image: {},
           embeddedContext: {},

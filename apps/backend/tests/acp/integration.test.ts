@@ -560,7 +560,7 @@ describe('ACP v1 fixture integration', () => {
     });
     manager.registerAgent({ agentId: 'fixture-v2', launchSpec: launchSpec(), connection });
     await expect(connection.connect()).resolves.toMatchObject({ protocolVersion: 2 });
-    expect(connection.capabilities.agentCapabilities.elicitation).toBe(true);
+    expect(connection.capabilities.agentCapabilities.elicitation).toBeUndefined();
     const session = await manager.createSession({ agentId: 'fixture-v2', cwd });
     await manager.prompt(session.id, [{ type: 'text', text: 'v2 turn' }]);
     await connection.loadSession(session.acpSessionId, cwd);

@@ -38,6 +38,9 @@ importers:
 
   apps/backend:
     dependencies:
+      '@agentclientprotocol/sdk':
+        specifier: 1.3.0
+        version: 1.3.0(zod@3.25.76)
       '@fastify/cors':
         specifier: ^10.0.2
         version: 10.1.0
@@ -298,6 +301,11 @@ packages:
 
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
+
+  '@agentclientprotocol/sdk@1.3.0':
+    resolution: {integrity: sha512-i3h/efaeuMUFAO1HSfo97QZQnnvMd7wWBYtBsdL6UMZg3a78sk3Ffya5Xu7C7tYsXomXoDXJBAzQF2PcFKAhIQ==}
+    peerDependencies:
+      zod: ^3.25.0 || ^4.0.0
 
   '@aklinker1/rollup-plugin-visualizer@5.12.0':
     resolution: {integrity: sha512-X24LvEGw6UFmy0lpGJDmXsMyBD58XmX1bbwsaMLhNoM+UMQfQ3b2RtC+nz4b/NoRK5r6QJSKJHBNVeUdwqybaQ==}
@@ -6105,6 +6113,10 @@ snapshots:
       undici: 6.27.0
 
   '@actions/io@3.0.2': {}
+
+  '@agentclientprotocol/sdk@1.3.0(zod@3.25.76)':
+    dependencies:
+      zod: 3.25.76
 
   '@aklinker1/rollup-plugin-visualizer@5.12.0(rollup@4.57.0)':
     dependencies:

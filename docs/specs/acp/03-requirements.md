@@ -84,6 +84,8 @@ without a DevMentorAI release.
 - AC4 Given a registry containing an agent unknown to our code, then it is listed and
   launchable with no code change. `integration`
 - AC5 `npx`, `uvx` and `binary` distributions are all resolvable. `unit`
+- AC6 `apps/acp-openai-agent` is registered as a built-in catalog entry and can be
+  launched and used end-to-end with its endpoint/model configuration. `integration`
 
 **R-016 (P0)** Agents are configured as **profiles**: a named `{ agentId | custom cmd, args,
 env, cwd default, transport }` tuple, so the same agent can exist several times with

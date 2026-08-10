@@ -52,6 +52,33 @@ function validateArchiveEntries(entries: string[]): void {
   }
 }
 
+function validateArchiveLinks(listing: string): void {
+  if (
+    listing
+      .split(/\r?\n/)
+      .some((line) => /^[lh]/.test(line.trimStart()) || /\b(symbolic link|hard link)\b/i.test(line))
+  ) {
+    throw new AcpError(
+      'agent_launch_failed',
+      'Archive contains symbolic or hard links, which are not supported'
+    );
+  }
+}
+
+async function rejectExtractedLinks(directory: string): Promise<void> {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isSymbolicLink()) {
+      throw new AcpError(
+        'agent_launch_failed',
+        'Archive contains symbolic links, which are not supported'
+      );
+    }
+    if (entry.isDirectory()) await rejectExtractedLinks(fullPath);
+  }
+}
+
 export class AgentInstaller {
   private readonly root: string;
   private readonly fetcher: (url: string) => Promise<Uint8Array>;
@@ -113,11 +140,16 @@ export class AgentInstaller {
         ? await runCapture(extractor, ['-Z1', archive], temporary)
         : await runCapture(extractor, ['-tf', archive], temporary);
       validateArchiveEntries(listed.split(/\r?\n/).filter(Boolean));
+      const detailedListing = isZip
+        ? await runCapture(extractor, ['-Z', '-v', archive], temporary)
+        : await runCapture(extractor, ['-tvf', archive], temporary);
+      validateArchiveLinks(detailedListing);
       if (isZip) {
         await run(extractor, ['-q', archive, '-d', temporary], temporary);
       } else {
-        await run(extractor, ['--no-absolute-names', '-xf', archive, '-C', temporary], temporary);
+        await run(extractor, ['-xf', archive, '-C', temporary], temporary);
       }
+      await rejectExtractedLinks(temporary);
       const command = path.resolve(temporary, binary.cmd);
       if (!isWithin(temporary, command)) {
         throw new AcpError('agent_launch_failed', 'Agent command escapes the install directory');

@@ -494,7 +494,9 @@ export function ChatView({
             <AcpCommandPalette
               commands={acpState?.commands ?? []}
               onSelect={(command) => setInput(`/${command.name} `)}
+              onSelectedIndexChange={setCommandIndex}
               query={commandQuery}
+              selectedIndex={commandIndex}
             />
           </div>
         ) : null}

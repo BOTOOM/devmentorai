@@ -116,7 +116,10 @@ export class AgentProcess {
         resolve(undefined);
       }, timeoutMs).unref();
     });
-    return (await Promise.race([this.exited, timeout])) ?? this.exitResult;
+    const result = await Promise.race([this.exited, timeout]);
+    if (result) return result;
+    this.kill('SIGKILL');
+    return this.exited;
   }
 }
 

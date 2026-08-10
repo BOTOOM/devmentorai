@@ -78,6 +78,7 @@ export function initDatabase(options: DatabaseOptions = {}): Database.Database {
       transport TEXT NOT NULL DEFAULT 'stdio' CHECK (transport IN ('stdio', 'tcp')),
       host TEXT,
       port INTEGER,
+      custom INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -155,9 +156,23 @@ export function initDatabase(options: DatabaseOptions = {}): Database.Database {
       // Column already exists.
     }
   }
-  db.exec(
-    "UPDATE sessions SET imported_from = 'copilot-sdk' WHERE imported_from IS NULL AND agent_id IS NULL"
-  );
+  const migrationVersion = Number(db.pragma('user_version', { simple: true }));
+  if (migrationVersion < 1) {
+    db.exec(
+      "UPDATE sessions SET imported_from = 'copilot-sdk' WHERE imported_from IS NULL AND agent_id IS NULL"
+    );
+    db.pragma('user_version = 1');
+  }
+
+  try {
+    db.exec(`
+      ALTER TABLE acp_profiles ADD COLUMN custom INTEGER NOT NULL DEFAULT 0;
+    `);
+    db.exec('UPDATE acp_profiles SET custom = 1 WHERE agent_id IS NULL');
+    console.log('[DB] Migration: Added custom profile column');
+  } catch {
+    // Column already exists.
+  }
 
   return db;
 }

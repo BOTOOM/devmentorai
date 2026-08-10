@@ -12,6 +12,7 @@ type ProfileRow = {
   transport: AgentTransport;
   host: string | null;
   port: number | null;
+  custom: number;
 };
 
 function parseJson<T>(value: string, fallback: T): T {
@@ -26,7 +27,8 @@ function toProfile(row: ProfileRow): AgentProfile {
   return {
     id: row.id,
     name: row.name,
-    ...(row.agent_id ? { agentId: row.agent_id } : { custom: true }),
+    ...(row.agent_id ? { agentId: row.agent_id } : {}),
+    ...(row.custom === 1 ? { custom: true } : {}),
     ...(row.command ? { cmd: row.command } : {}),
     args: parseJson<string[]>(row.args_json, []),
     env: parseJson<Record<string, string>>(row.env_json, {}),
@@ -69,8 +71,8 @@ export class AgentProfileStore {
     this.db
       .prepare(
         `INSERT INTO acp_profiles
-          (id, name, agent_id, command, args_json, env_json, default_cwd, transport, host, port, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (id, name, agent_id, command, args_json, env_json, default_cwd, transport, host, port, custom, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            name = excluded.name,
            agent_id = excluded.agent_id,
@@ -81,6 +83,7 @@ export class AgentProfileStore {
            transport = excluded.transport,
            host = excluded.host,
            port = excluded.port,
+           custom = excluded.custom,
            updated_at = excluded.updated_at`
       )
       .run(
@@ -94,6 +97,7 @@ export class AgentProfileStore {
         profile.transport,
         profile.host ?? null,
         profile.port ?? null,
+        profile.custom ? 1 : 0,
         now,
         now
       );

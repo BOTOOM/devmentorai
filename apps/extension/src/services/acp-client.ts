@@ -71,6 +71,7 @@ export class AcpClient {
   private readonly permissionHandler: AcpPermissionHandler;
   private readonly reconnectDelayMs: number;
   private socket: WebSocket | undefined;
+  private connectPromise: Promise<void> | undefined;
   private nextId = 1;
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   private pending = new Map<JsonRpcId, PendingRequest>();
@@ -104,7 +105,8 @@ export class AcpClient {
 
   connect(): Promise<void> {
     if (this.socket?.readyState === WebSocket.OPEN) return Promise.resolve();
-    return new Promise((resolve, reject) => {
+    if (this.connectPromise) return this.connectPromise;
+    const promise = new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(this.url);
       this.socket = socket;
       socket.onopen = () => {
@@ -117,6 +119,7 @@ export class AcpClient {
         void this.handleMessage(message.data);
       };
       socket.onclose = () => {
+        if (this.connectPromise === promise) this.connectPromise = undefined;
         for (const pending of this.pending.values())
           pending.reject(new Error('ACP WebSocket closed'));
         this.pending.clear();
@@ -124,6 +127,16 @@ export class AcpClient {
         if (this.reconnect) this.scheduleReconnect();
       };
     });
+    this.connectPromise = promise;
+    void promise.then(
+      () => {
+        if (this.connectPromise === promise) this.connectPromise = undefined;
+      },
+      () => {
+        if (this.connectPromise === promise) this.connectPromise = undefined;
+      }
+    );
+    return promise;
   }
 
   disconnect(): void {

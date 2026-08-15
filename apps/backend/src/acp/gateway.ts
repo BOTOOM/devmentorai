@@ -17,6 +17,7 @@ import {
   reconcileSessionsByAgent,
   reconcileToolCalls,
 } from './history-reconciliation.js';
+import { AcpPairingStore, type PairingRecord } from './pairing.js';
 import { AcpPermissionStore } from './permission-store.js';
 import { AcpSessionManager } from './session-manager.js';
 
@@ -49,6 +50,7 @@ type GatewayOptions = {
   extensionOrigin?: string;
   idleTimeoutMs?: number;
   bufferLimit?: number;
+  pairing?: AcpPairingStore;
 };
 
 type GatewayClient = {
@@ -64,6 +66,7 @@ type PendingPermission = {
   tool: string;
 };
 
+const PAIRING_PROTOCOL_PREFIX = 'devmentorai-pairing.';
 const DEFAULT_IDLE_TIMEOUT_MS = 60_000;
 const DEFAULT_BUFFER_LIMIT = 1_000;
 
@@ -113,6 +116,20 @@ function isLoopbackHost(host: string): boolean {
   return net.isIP(host) === 4 && host.startsWith('127.');
 }
 
+function pairingToken(request: FastifyRequest): string | undefined {
+  const header = request.headers['sec-websocket-protocol'];
+  const protocols = (Array.isArray(header) ? header.join(',') : (header ?? ''))
+    .split(',')
+    .map((value) => value.trim());
+  const fromProtocol = protocols
+    .find((value) => value.startsWith(PAIRING_PROTOCOL_PREFIX))
+    ?.slice(PAIRING_PROTOCOL_PREFIX.length);
+  if (fromProtocol) return fromProtocol;
+  const query = request.query;
+  if (isRecord(query) && typeof query.token === 'string') return query.token;
+  return undefined;
+}
+
 function permissionTool(request: RequestPermissionRequest): string {
   const rawInput = request.toolCall.rawInput;
   if (request.toolCall.kind) return request.toolCall.kind;
@@ -145,6 +162,7 @@ export class AcpGateway {
   private readonly replayingSessions = new Set<string>();
   private readonly manager: AcpSessionManager;
   private readonly permissions: AcpPermissionStore;
+  private readonly pairing: AcpPairingStore;
 
   constructor(options: GatewayOptions) {
     this.db = options.db;
@@ -165,13 +183,28 @@ export class AcpGateway {
       onEvent: (sessionId, event) => this.handleEvent(sessionId, event),
     });
     this.permissions = new AcpPermissionStore(this.db);
+    this.pairing = options.pairing ?? new AcpPairingStore();
     this.agentService.ensureDefaultProfile();
   }
 
+  /** Origins configured out of band, which need no pairing token. */
   isOriginAllowed(origin: string | undefined): boolean {
     if (!origin) return false;
     if (origin === this.extensionOrigin || this.allowedOrigins.has(origin)) return true;
     return origin === process.env.ACP_FIXTURE_EXTENSION_ORIGIN;
+  }
+
+  isConnectionAllowed(origin: string | undefined, token: string | undefined): boolean {
+    return this.isOriginAllowed(origin) || this.pairing.verify(origin, token);
+  }
+
+  pairExtension(origin: string | undefined): PairingRecord {
+    if (this.isOriginAllowed(origin) && !AcpPairingStore.isExtensionOrigin(origin)) {
+      throw new AcpError('pairing_rejected', 'Configured origins do not need a pairing token', {
+        origin,
+      });
+    }
+    return this.pairing.pair(origin ?? '');
   }
 
   isAcpConnected(): boolean {
@@ -186,7 +219,25 @@ export class AcpGateway {
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
-    await fastify.register(websocket);
+    await fastify.register(websocket, {
+      options: {
+        // Echo the pairing subprotocol so the browser can send the token without
+        // putting it in the URL, where request logs would capture it.
+        handleProtocols: (protocols: Set<string>): string | false =>
+          [...protocols].find((protocol) => protocol.startsWith(PAIRING_PROTOCOL_PREFIX)) ?? false,
+      },
+    });
+    fastify.post('/acp/pair', async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const record = this.pairExtension(request.headers.origin);
+        return { origin: record.origin, token: record.token, pairedAt: record.pairedAt };
+      } catch (error) {
+        const payload = isAcpError(error)
+          ? error.toPayload()
+          : { code: 'pairing_rejected' as const, message: 'Pairing failed' };
+        return reply.code(payload.code === 'pairing_conflict' ? 409 : 403).send({ error: payload });
+      }
+    });
     fastify.get(
       '/acp',
       {
@@ -195,13 +246,13 @@ export class AcpGateway {
           request: FastifyRequest,
           reply: FastifyReply
         ): Promise<FastifyReply | void> => {
-          if (!this.isOriginAllowed(request.headers.origin)) {
+          if (!this.isConnectionAllowed(request.headers.origin, pairingToken(request))) {
             return reply.code(403).send({ error: 'WebSocket origin is not allowed' });
           }
         },
       },
       (socket: WebSocket, request: FastifyRequest) => {
-        if (!this.isOriginAllowed(request.headers.origin)) {
+        if (!this.isConnectionAllowed(request.headers.origin, pairingToken(request))) {
           socket.close(1008, 'Origin not allowed');
           return;
         }

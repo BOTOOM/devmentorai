@@ -5,6 +5,20 @@ provider-specific model branches. Agents are selected from the catalog or config
 GitHub Copilot is launched through its ACP interface, and OpenAI-compatible endpoints use the
 bundled `apps/acp-openai-agent` ACP agent.
 
+## Extension pairing
+
+The extension origin (`chrome-extension://<id>`) is only known once the extension is loaded, so
+the backend pairs on first use: the first extension that calls `POST /acp/pair` is stored in
+`~/.devmentorai/pairing.json` (mode `0600`) together with a random token, and the WebSocket at
+`/acp` then requires that origin plus the token, sent as the `devmentorai-pairing.<token>`
+subprotocol so it never reaches request logs. Any other extension gets `409 pairing_conflict`
+and the UI shows how to recover; page origins get `403 pairing_rejected`.
+
+Run `pnpm acp:unpair` to forget the pairing (for example after reinstalling the extension with a
+new ID). `ACP_EXTENSION_ORIGIN` and `ACP_ALLOWED_ORIGINS` remain explicit overrides and skip
+pairing entirely. REST is restricted to extension origins, loopback origins and those overrides,
+so the WebSocket policy is no longer stricter than the HTTP one.
+
 The extension derives controls from advertised capabilities. Images and embedded resources are
 sent only when supported. Tool calls are permission-gated, remembered grants are backend-owned,
 and the agent enforces its workspace boundary.

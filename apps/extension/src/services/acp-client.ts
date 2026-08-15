@@ -59,7 +59,27 @@ export type AcpClientOptions = {
   reconnect?: boolean;
   permissionHandler?: AcpPermissionHandler;
   reconnectDelayMs?: number;
+  /** Overrides the derived `http(s)://host/acp/pair` endpoint. */
+  pairUrl?: string;
+  origin?: string;
 };
+
+const PAIRING_PROTOCOL_PREFIX = 'devmentorai-pairing.';
+
+function pairUrlFromSocketUrl(url: string): string {
+  return url.replace(/^ws/, 'http').replace(/\/acp\/?$/, '/acp/pair');
+}
+
+/** Thrown when the backend refuses this extension; the message is user-facing. */
+export class AcpPairingError extends Error {
+  readonly code: string;
+
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = 'AcpPairingError';
+    this.code = code;
+  }
+}
 
 type PendingRequest = {
   resolve: (value: unknown) => void;
@@ -68,6 +88,9 @@ type PendingRequest = {
 
 export class AcpClient {
   private readonly url: string;
+  private readonly pairUrl: string;
+  private readonly clientOrigin: string | undefined;
+  private pairingToken: string | undefined;
   private reconnect: boolean;
   private permissionHandler: AcpPermissionHandler;
   private readonly reconnectDelayMs: number;
@@ -83,6 +106,8 @@ export class AcpClient {
 
   constructor(options: AcpClientOptions) {
     this.url = options.url;
+    this.pairUrl = options.pairUrl ?? pairUrlFromSocketUrl(options.url);
+    this.clientOrigin = options.origin ?? globalThis.location?.origin;
     this.reconnect = options.reconnect ?? true;
     this.permissionHandler =
       options.permissionHandler ?? (async () => ({ outcome: { outcome: 'cancelled' } }));
@@ -108,11 +133,65 @@ export class AcpClient {
     this.permissionHandler = handler;
   }
 
+  /**
+   * Pairs with the local backend (trust on first use) and returns the token the
+   * WebSocket has to present. Resolves to `undefined` when the backend does not
+   * require pairing (origin configured through `ACP_EXTENSION_ORIGIN`).
+   */
+  private async ensurePairingToken(): Promise<string | undefined> {
+    if (this.pairingToken) return this.pairingToken;
+    let response: Response;
+    try {
+      response = await fetch(this.pairUrl, { method: 'POST' });
+    } catch {
+      // The backend may be down or predate pairing: let the WebSocket decide.
+      return undefined;
+    }
+    if (response.status === 409) {
+      const origin = this.clientOrigin ?? 'this extension';
+      throw new AcpPairingError(
+        'pairing_conflict',
+        `The backend is paired with a different extension. Run "pnpm acp:unpair" in the backend, or start it with ACP_EXTENSION_ORIGIN=${origin}.`
+      );
+    }
+    if (response.status === 403) {
+      throw new AcpPairingError(
+        'pairing_rejected',
+        'The backend rejected this extension. Start it with ACP_EXTENSION_ORIGIN set to this extension origin.'
+      );
+    }
+    if (!response.ok) return undefined;
+    const payload: unknown = await response.json();
+    const token =
+      typeof payload === 'object' && payload !== null
+        ? (payload as { token?: unknown }).token
+        : undefined;
+    if (typeof token !== 'string') return undefined;
+    this.pairingToken = token;
+    return token;
+  }
+
   connect(): Promise<void> {
     if (this.socket?.readyState === WebSocket.OPEN) return Promise.resolve();
     if (this.connectPromise) return this.connectPromise;
+    const promise = this.ensurePairingToken().then((token) => this.openSocket(token));
+    this.connectPromise = promise;
+    void promise.then(
+      () => {
+        if (this.connectPromise === promise) this.connectPromise = undefined;
+      },
+      () => {
+        if (this.connectPromise === promise) this.connectPromise = undefined;
+      }
+    );
+    return promise;
+  }
+
+  private openSocket(token: string | undefined): Promise<void> {
     const promise = new Promise<void>((resolve, reject) => {
-      const socket = new WebSocket(this.url);
+      const socket = token
+        ? new WebSocket(this.url, [`${PAIRING_PROTOCOL_PREFIX}${token}`])
+        : new WebSocket(this.url);
       this.socket = socket;
       socket.onopen = () => {
         for (const handler of this.connectionHandlers) handler(true);
@@ -126,24 +205,16 @@ export class AcpClient {
       socket.onmessage = (message) => {
         void this.handleMessage(message.data);
       };
-      socket.onclose = () => {
-        if (this.connectPromise === promise) this.connectPromise = undefined;
+      socket.onclose = (event) => {
         for (const pending of this.pending.values())
           pending.reject(new Error('ACP WebSocket closed'));
         this.pending.clear();
         for (const handler of this.connectionHandlers) handler(false);
+        // A rejected pairing token has to be re-negotiated, not retried as is.
+        if (event.code === 1008) this.pairingToken = undefined;
         if (this.reconnect) this.scheduleReconnect();
       };
     });
-    this.connectPromise = promise;
-    void promise.then(
-      () => {
-        if (this.connectPromise === promise) this.connectPromise = undefined;
-      },
-      () => {
-        if (this.connectPromise === promise) this.connectPromise = undefined;
-      }
-    );
     return promise;
   }
 
@@ -241,8 +312,13 @@ export class AcpClient {
     await this.connect();
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
+      const socket = this.socket;
+      if (!socket) {
+        reject(new Error('ACP WebSocket is not connected'));
+        return;
+      }
       this.pending.set(id, { resolve: (value) => resolve(value as T), reject });
-      this.socket?.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
+      socket.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
     });
   }
 

@@ -123,7 +123,9 @@ export type AcpErrorCode =
   | 'capability_unsupported'
   | 'permission_denied'
   | 'cancelled'
-  | 'agent_error';
+  | 'agent_error'
+  | 'pairing_rejected'
+  | 'pairing_conflict';
 
 export type AcpErrorPayload = {
   code: AcpErrorCode;

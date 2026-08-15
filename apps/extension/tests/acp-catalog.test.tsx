@@ -6,7 +6,7 @@ import { AcpProfileEditor } from '../src/components/AcpProfileEditor';
 afterEach(cleanup);
 
 describe('ACP catalog and profiles', () => {
-  it('lists and installs an unknown registry entry without agent-specific code', async () => {
+  it('lists and enables an unknown registry entry without agent-specific code', async () => {
     const client = {
       listAgents: vi.fn().mockResolvedValue([
         {
@@ -20,21 +20,27 @@ describe('ACP catalog and profiles', () => {
         },
       ]),
       listProfiles: vi.fn().mockResolvedValue([]),
-      installAgent: vi.fn().mockResolvedValue({
-        id: 'future-agent',
-        name: 'Future Agent',
-        source: 'registry',
-        installState: 'installed',
-        authState: 'unknown',
-        authMethods: [],
-        platformAvailability: { available: true, key: 'linux-x86_64' },
+      enableAgent: vi.fn().mockImplementation(async () => {
+        client.listAgents.mockResolvedValue([
+          {
+            id: 'future-agent',
+            name: 'Future Agent',
+            source: 'registry',
+            installState: 'lazy',
+            authState: 'unknown',
+            authMethods: [],
+            enabled: true,
+            platformAvailability: { available: true, key: 'linux-x86_64' },
+          },
+        ]);
+        return { entry: { id: 'future-agent' }, profile: { id: 'profile' } };
       }),
     };
     render(<AcpCatalogView client={client as never} />);
     expect(await screen.findByText('Future Agent')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Install' }));
-    await waitFor(() => expect(client.installAgent).toHaveBeenCalledWith('future-agent'));
-    expect(await screen.findByRole('button', { name: 'Installed' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Enable' }));
+    await waitFor(() => expect(client.enableAgent).toHaveBeenCalledWith('future-agent'));
+    expect(await screen.findByRole('button', { name: 'Enabled' })).toBeTruthy();
   });
 
   it('submits a custom profile without exposing credential values', async () => {

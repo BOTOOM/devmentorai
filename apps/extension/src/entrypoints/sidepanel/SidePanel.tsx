@@ -7,7 +7,6 @@ import type {
 } from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AcpCatalogView } from '../../components/AcpCatalogView';
-import { AcpProfileEditor } from '../../components/AcpProfileEditor';
 import { ChatView } from '../../components/ChatView';
 import { Header } from '../../components/Header';
 import { HelpModal } from '../../components/HelpModal';
@@ -66,6 +65,12 @@ export function SidePanel() {
     deleteSession,
     refreshSessions,
   } = useSessions({ acpClient, connectionStatus });
+
+  // HTTP health alone would report "connected" while the ACP WebSocket is refused.
+  const [acpConnected, setAcpConnected] = useState<boolean | undefined>(undefined);
+  useEffect(() => acpClient.onConnectionChange(setAcpConnected), [acpClient]);
+  const headerStatus =
+    connectionStatus === 'connected' && acpConnected === false ? 'disconnected' : connectionStatus;
 
   const {
     messages,
@@ -353,7 +358,7 @@ export function SidePanel() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       <Header
-        connectionStatus={connectionStatus}
+        connectionStatus={headerStatus}
         onNewSession={() => setShowNewSessionModal(true)}
         onOpenSettings={() => chrome.runtime.openOptionsPage()}
         onOpenHelp={() => setShowHelpModal(true)}
@@ -431,21 +436,17 @@ export function SidePanel() {
       {showAcpAgents ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 p-4">
           <div className="mx-auto max-w-lg rounded-lg bg-white shadow-xl dark:bg-gray-800">
-            <div className="flex items-center justify-between border-b p-3 dark:border-gray-700">
-              <h2 className="font-semibold">ACP agents and profiles</h2>
+            <div className="flex items-center justify-between border-b border-gray-200 p-3 dark:border-gray-700">
+              <h2 className="font-semibold text-gray-900 dark:text-white">ACP agents</h2>
               <button onClick={() => setShowAcpAgents(false)} type="button">
                 Close
               </button>
             </div>
             <AcpCatalogView
               client={acpCatalogClient}
+              onManageAgents={() => chrome.runtime.openOptionsPage()}
               onProfileSelected={handleAcpProfileSelected}
               selectedProfileId={selectedAcpProfile?.id}
-            />
-            <AcpProfileEditor
-              client={acpCatalogClient}
-              onSaved={handleAcpProfileSelected}
-              profile={selectedAcpProfile}
             />
             <div className="flex justify-end border-t p-3 dark:border-gray-700">
               <button

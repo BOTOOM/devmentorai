@@ -1,7 +1,10 @@
 # Plan: agentes ACP "de un clic" y UI presentable (Fase 10)
 
-Estado: **aprobado**. La Fase 10A está implementada (emparejamiento + token de WebSocket + error
-accionable); las fases 10B–10E siguen pendientes.
+Estado: **aprobado**. Las fases 10A–10D están implementadas (emparejamiento + token de WebSocket +
+error accionable; Enable/default por agente; overlay de autenticación declarativa; UI de agentes en
+opciones y selector compacto en el side panel).
+
+Queda pendiente la Fase 10E (verificación E2E de la nueva UI).
 
 Objetivo: que la experiencia de agentes sea la de Devin Desktop — una lista precargada de
 todos los agentes con un botón *Enable*, un agente por defecto, y la autenticación resuelta

@@ -137,6 +137,91 @@ describe('ACP gateway security', () => {
   });
 });
 
+async function createEnablementGateway(): Promise<ReturnType<typeof Fastify>> {
+  const db = initDatabase({ path: ':memory:' });
+  const service = new AcpAgentService({
+    db,
+    workspace: new WorkspaceService({ root: process.cwd() }),
+    catalog: new AgentCatalog({
+      fetcher: async () => ({ agents: [] }),
+      builtIns: [
+        {
+          id: 'fixture-agent',
+          name: 'Fixture Agent',
+          distribution: { command: { cmd: tsx, args: [fixture] } },
+        },
+      ],
+    }),
+  });
+  const app = Fastify();
+  const gateway = new AcpGateway({
+    db,
+    agentService: service,
+    workspaceRoot: process.cwd(),
+    extensionOrigin: 'http://localhost:5173',
+    pairing: new AcpPairingStore({
+      file: path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'devmentorai-gw-')), 'pairing.json'),
+    }),
+    idleTimeoutMs: 250,
+    bufferLimit: 100,
+  });
+  await gateway.register(app);
+  await app.listen({ host: '127.0.0.1', port: 0 });
+  resources.push({ db, gateway, app });
+  return app;
+}
+
+describe('ACP gateway agent enablement', () => {
+  it('enables an agent over RPC and uses the default agent for new sessions', async () => {
+    const app = await createEnablementGateway();
+    const socket = await connect(app);
+
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'ui/agents.enable',
+        params: { agentId: 'fixture-agent' },
+      })
+    );
+    const enabled = await waitForMessage(socket, (message) => message.id === 1);
+    const profile = enabled.result?.profile as { id: string; agentId: string } | undefined;
+    expect(profile?.agentId).toBe('fixture-agent');
+
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'ui/agents.set_default',
+        params: { agentId: 'fixture-agent' },
+      })
+    );
+    const defaulted = await waitForMessage(socket, (message) => message.id === 2);
+    expect(defaulted.result?.defaultAgentId).toBe('fixture-agent');
+
+    socket.send(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'ui/session.create', params: {} }));
+    const created = await waitForMessage(socket, (message) => message.id === 3);
+    expect(created.result?.agentId).toBe(profile?.id);
+
+    socket.send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 4,
+        method: 'ui/agents.disable',
+        params: { agentId: 'fixture-agent' },
+      })
+    );
+    const disabled = await waitForMessage(socket, (message) => message.id === 4);
+    expect(disabled.result?.disabled).toBe(true);
+
+    socket.send(JSON.stringify({ jsonrpc: '2.0', id: 5, method: 'ui/agents.list', params: {} }));
+    const listed = await waitForMessage(socket, (message) => message.id === 5);
+    const entries = listed.result as unknown as Array<{ id: string; enabled?: boolean }>;
+    expect(entries.find((entry) => entry.id === 'fixture-agent')?.enabled).toBe(false);
+    socket.close();
+  });
+});
+
 describe('ACP gateway transport', () => {
   it('streams a full turn, answers permission, and replays missing events exactly', async () => {
     const { app } = await createGateway();

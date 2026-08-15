@@ -498,6 +498,26 @@ export class AcpGateway {
         return this.agentService.list();
       case 'ui/agents.profiles.list':
         return this.agentService.listProfiles();
+      case 'ui/agents.enable':
+        return this.agentService.enable(asString(params.agentId, 'agentId'));
+      case 'ui/agents.disable':
+        await this.disableAgent(asString(params.agentId, 'agentId'));
+        return { disabled: true };
+      case 'ui/agents.set_default':
+        this.agentService.setDefault(asString(params.agentId, 'agentId'));
+        return { defaultAgentId: this.agentService.defaultAgentId() };
+      case 'ui/agents.set_token':
+        return this.agentService.setAuthToken(
+          asString(params.agentId, 'agentId'),
+          asString(params.token, 'token'),
+          typeof params.envVar === 'string' ? params.envVar : undefined
+        );
+      case 'ui/agents.clear_token':
+        this.agentService.clearAuthToken(
+          asString(params.agentId, 'agentId'),
+          asString(params.envVar, 'envVar')
+        );
+        return { cleared: true };
       case 'ui/agents.install':
         return this.agentService.install(asString(params.agentId, 'agentId'));
       case 'ui/agents.uninstall':
@@ -577,6 +597,22 @@ export class AcpGateway {
     return session.id;
   }
 
+  /** Disabling an agent must also drop the live connections the gateway owns. */
+  private async disableAgent(agentId: string): Promise<void> {
+    const profileIds = this.agentService
+      .listProfiles()
+      .filter((profile) => (profile.agentId ?? profile.id) === agentId)
+      .map((profile) => profile.id);
+    await this.agentService.disable(agentId);
+    await Promise.all(
+      profileIds.map(async (profileId) => {
+        const connection = this.connections.get(profileId);
+        this.connections.delete(profileId);
+        await connection?.shutdown();
+      })
+    );
+  }
+
   private async createSession(
     client: GatewayClient | undefined,
     params: Record<string, unknown>
@@ -584,7 +620,7 @@ export class AcpGateway {
     const profileId =
       typeof params.profileId === 'string' && params.profileId.length > 0
         ? params.profileId
-        : this.agentService.ensureDefaultProfile().id;
+        : (this.agentService.defaultProfileId() ?? this.agentService.ensureDefaultProfile().id);
     const resolution = await this.agentService.resolveLaunch(profileId);
     let connection = this.connections.get(profileId);
     if (!connection) {

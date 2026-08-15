@@ -5,6 +5,35 @@ provider-specific model branches. Agents are selected from the catalog or config
 GitHub Copilot is launched through its ACP interface, and OpenAI-compatible endpoints use the
 bundled `apps/acp-openai-agent` ACP agent.
 
+## Enabling agents
+
+Every catalog agent is listed in the extension options page under *Agents*. `Enable` is the whole
+flow: the backend records the agent as enabled and creates an implicit profile (name and agent id
+from the catalog, empty arguments, the default workspace as cwd, stdio transport), so nothing has
+to be configured by hand. Agents distributed through `npx`/`uvx` stay lazy and are fetched by the
+first session. One enabled agent is the default (star icon) and is used by new sessions and quick
+actions when no profile is chosen explicitly. Disabling stops using the agent and closes its live
+connections, but keeps its profile, credentials and history, so re-enabling restores the same
+setup. Advanced profile fields (command, arguments, TCP host/port, working directory), the
+conformance probe and uninstall stay available behind the per-agent menu.
+
+RPCs: `ui/agents.enable`, `ui/agents.disable`, `ui/agents.set_default`, `ui/agents.set_token`,
+`ui/agents.clear_token`.
+
+## Agent authentication
+
+Authentication is data, not code: `apps/backend/src/acp/catalog/auth-overlay.ts` declares, per
+agent id, which environment variables it reads, whether it has a local login command, where the
+token is created and which permissions it needs. Agents missing from the overlay still work
+through the generic path — connect, read `authMethods`, and if `session/new` answers
+`auth_required` show those methods.
+
+Tokens are stored encrypted in `~/.devmentorai/credentials` and the profile only keeps a
+`credential:<agent>:<VAR>` reference, which is resolved when the agent process is launched. Tokens
+are never written to extension storage and never logged. GitHub Copilot CLI accepts
+`COPILOT_GITHUB_TOKEN`, `GH_TOKEN` or `GITHUB_TOKEN` (a fine-grained PAT with the *Copilot
+Requests* permission), so it can be used without running `copilot login` locally.
+
 ## Extension pairing
 
 The extension origin (`chrome-extension://<id>`) is only known once the extension is loaded, so

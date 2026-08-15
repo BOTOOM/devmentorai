@@ -496,6 +496,38 @@ describe('ACP v1 fixture integration', () => {
     await connection.shutdown();
   });
 
+  it('times out instead of hanging when the agent never answers initialize', async () => {
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const connection = new AgentConnection({
+      agentId: 'silent',
+      launchSpec: {
+        cmd: process.execPath,
+        args: ['-e', 'process.stdin.resume(); setInterval(() => {}, 1000);'],
+        cwd,
+      },
+      launcher,
+      handshakeTimeoutMs: 100,
+    });
+    await expect(connection.connect()).rejects.toMatchObject({
+      code: 'agent_launch_failed',
+      message: 'ACP initialization timed out',
+    });
+    await connection.shutdown();
+  });
+
+  it('fails the handshake when the agent exits before initializing', async () => {
+    const launcher = new AgentLauncher();
+    launches.add(launcher);
+    const connection = new AgentConnection({
+      agentId: 'exits-early',
+      launchSpec: { cmd: process.execPath, args: ['-e', 'process.exit(3)'], cwd },
+      launcher,
+    });
+    await expect(connection.connect()).rejects.toMatchObject({ code: 'agent_launch_failed' });
+    await connection.shutdown();
+  });
+
   it('waits for a child to exit after escalating shutdown', async () => {
     const launcher = new AgentLauncher();
     launches.add(launcher);

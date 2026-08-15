@@ -6,6 +6,7 @@ services:
     container_name: devmentorai-backend
     environment:
       DEVMENTORAI_PORT: ${BACKEND_PORT:-3847}
+      ACP_HOST: ${ACP_HOST:-0.0.0.0}
       NODE_ENV: production
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}

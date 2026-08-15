@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 const DEFAULT_BASE_URL = 'https://devmentorai.edwardiaz.dev';
-const SITE_TITLE = 'DevMentorAI — Your Browser Companion for GitHub Copilot';
+const SITE_TITLE = 'DevMentorAI — Your ACP Browser Companion';
 const SITE_DESCRIPTION =
-  'Bring GitHub Copilot-style help into your browser workflow with a context-aware assistant for web pages, cloud dashboards, debugging, and writing.';
+  'Bring provider-agnostic ACP agents into your browser workflow with context-aware help for web pages, cloud dashboards, debugging, and writing.';
 
 async function getRequestBaseUrl() {
   const requestHeaders = await headers();

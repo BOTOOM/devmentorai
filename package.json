@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "DevOps mentoring and writing assistant powered by GitHub Copilot",
+  "description": "DevOps mentoring and writing assistant powered by ACP agents",
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @devmentorai/extension dev",

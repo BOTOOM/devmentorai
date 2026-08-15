@@ -49,7 +49,7 @@ export default function TrustPage() {
         <div className="relative overflow-hidden rounded-2xl border border-[var(--card-border)] bg-[var(--card)] p-5 shadow-lg backdrop-blur-xl sm:p-8 md:p-12">
           <div className="absolute inset-0 -z-10 bg-primary/5" />
 
-          {/* 4-node flow: Extension → Server → Copilot CLI → LLM */}
+          {/* 4-node flow: Extension → Server → ACP agent → LLM */}
           <div className="grid grid-cols-1 items-center gap-6 text-center md:grid-cols-7">
             {/* 1. Extension */}
             <div className="flex flex-col items-center gap-4">
@@ -88,7 +88,7 @@ export default function TrustPage() {
               <div className="h-px w-full bg-gradient-to-r from-primary/30 to-amber-500/50" />
             </div>
 
-            {/* 3. Copilot CLI — central secure boundary */}
+            {/* 3. ACP agent — central secure boundary */}
             <div className="relative flex flex-col items-center gap-4 rounded-2xl border-2 border-primary/40 bg-primary-light p-5 shadow-xl shadow-primary/10 sm:p-6">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded bg-primary px-2 py-0.5 text-[10px] font-black uppercase text-white">
                 Secure Boundary
@@ -97,7 +97,7 @@ export default function TrustPage() {
                 <Terminal className="h-8 w-8" />
               </div>
               <div>
-                <h3 className="font-bold">Copilot CLI</h3>
+                <h3 className="font-bold">ACP agent</h3>
                 <p className="text-xs font-medium text-primary/80">Auth & Processing</p>
               </div>
             </div>
@@ -115,7 +115,7 @@ export default function TrustPage() {
               </div>
               <div>
                 <h3 className="font-bold">LLM Provider</h3>
-                <p className="text-xs text-[var(--muted)]">GitHub Copilot</p>
+                <p className="text-xs text-[var(--muted)]">Configured agent</p>
               </div>
             </div>
           </div>
@@ -126,7 +126,7 @@ export default function TrustPage() {
             <span className="text-primary">→</span>
             <span>Server</span>
             <span className="text-primary">→</span>
-            <span>Copilot CLI</span>
+            <span>ACP agent</span>
             <span className="text-primary">→</span>
             <span>LLM</span>
           </div>
@@ -141,7 +141,7 @@ export default function TrustPage() {
             </div>
             <p className="max-w-lg text-center text-sm text-[var(--muted)]">
               We never receive your source code, environment variables, or secrets. Everything runs
-              locally on your machine. The Copilot CLI communicates directly with GitHub&apos;s LLM
+              locally on your machine. The ACP agent communicates directly with its configured model
               via encrypted channels.
             </p>
           </div>
@@ -152,7 +152,7 @@ export default function TrustPage() {
       <section className="mx-auto grid max-w-6xl grid-cols-1 gap-5 px-4 pb-20 sm:px-6 md:grid-cols-2 md:gap-6 md:pb-24">
         <TrustCard
           icon={<Cpu className="h-6 w-6" />}
-          title="Powered by your local Copilot CLI"
+          title="Powered by your configured ACP agent"
           description="No data leaves your machine to reach our servers. All heavy lifting, parsing, and context generation happens within your own local runtime environment."
         />
         <TrustCard
@@ -178,7 +178,7 @@ export default function TrustPage() {
           <h2 className="mb-6 text-2xl font-bold sm:text-3xl">Engineered for Transparency</h2>
           <p className="mb-6 leading-relaxed text-[var(--muted)]">
             We believe trust is earned through transparency. That&apos;s why the DevMentorAI core
-            bridge is built on top of the open-source Copilot CLI infrastructure.
+            bridge is built on the open ACP standard and explicit permission boundaries.
           </p>
           <ul className="space-y-4">
             <li className="flex items-start gap-3">

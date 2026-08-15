@@ -32,7 +32,7 @@ export default async function InstallationPage() {
           <StepCard
             step={1}
             title="Install the Backend"
-            description="This starts the local server that connects to your GitHub Copilot CLI."
+            description="This starts the local server that launches your configured ACP agents."
           >
             <CodeBlock code="npx devmentorai-server" language="bash" />
             <div className="mt-4 rounded-xl border border-amber-300/40 bg-amber-100/40 p-4 sm:p-5">
@@ -40,14 +40,14 @@ export default async function InstallationPage() {
                 Before you run this command
               </p>
               <p className="mt-2 text-sm leading-relaxed text-[var(--foreground)] sm:text-base">
-                The backend command works after Copilot CLI is installed and logged in.
+                The backend command works after an ACP-compatible agent profile is configured.
               </p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Link
                   href="/docs/get-started/copilot-cli"
                   className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
                 >
-                  Install &amp; Login Copilot CLI
+                  Configure ACP Agent
                 </Link>
                 <a
                   href="https://docs.github.com/en/copilot/managing-copilot/configure-personal-settings/installing-github-copilot-in-the-cli"
@@ -55,7 +55,7 @@ export default async function InstallationPage() {
                   rel="noopener noreferrer"
                   className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[var(--card-border)] bg-[var(--card)] px-4 py-2.5 text-sm font-semibold text-[var(--muted)] transition-colors hover:text-primary"
                 >
-                  Official Copilot CLI docs
+                  ACP agent configuration guide
                 </a>
               </div>
             </div>

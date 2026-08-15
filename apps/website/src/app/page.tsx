@@ -9,9 +9,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'DevMentorAI — Copilot in Your Browser for Real Web Work',
+    title: 'DevMentorAI — ACP agents in your browser for real web work',
   description:
-    'See how DevMentorAI brings GitHub Copilot-style help into your browser for cloud dashboards, documentation, debugging, and real web workflows.',
+    'See how DevMentorAI brings ACP agents into your browser for cloud dashboards, documentation, debugging, and real web workflows.',
 };
 
 export default function Home() {
@@ -42,7 +42,7 @@ export default function Home() {
 
       {/* Hero */}
       <HeroSection
-        badge={<PulseBadge>Powered by GitHub Copilot</PulseBadge>}
+        badge={<PulseBadge>Powered by ACP agents</PulseBadge>}
         title={
           <>
             Copilot for your <span className="text-primary">browser workflow</span>

@@ -170,7 +170,19 @@ export class AcpGateway {
 
   isOriginAllowed(origin: string | undefined): boolean {
     if (!origin) return false;
-    return origin === this.extensionOrigin || this.allowedOrigins.has(origin);
+    if (origin === this.extensionOrigin || this.allowedOrigins.has(origin)) return true;
+    return origin === process.env.ACP_FIXTURE_EXTENSION_ORIGIN;
+  }
+
+  isAcpConnected(): boolean {
+    return [...this.connections.values()].some((connection) => {
+      try {
+        connection.capabilities;
+        return true;
+      } catch {
+        return false;
+      }
+    });
   }
 
   async register(fastify: FastifyInstance): Promise<void> {
@@ -214,6 +226,87 @@ export class AcpGateway {
         if (current === client) this.clientsByAcpSession.delete(sessionId);
       }
     });
+  }
+
+  async nativePrompt(params: {
+    profileId?: string;
+    cwd?: string;
+    prompt: string | AcpContentBlock[];
+  }): Promise<{
+    sessionId: string;
+    events: Array<{ sessionId: string; seq: number; event: AcpEvent }>;
+  }> {
+    const messages: Array<Record<string, unknown>> = [];
+    const socket = {
+      readyState: 1,
+      send: (value: string) => {
+        const parsed: unknown = JSON.parse(value);
+        if (isRecord(parsed)) messages.push(parsed);
+      },
+    } as unknown as WebSocket;
+    const client: GatewayClient = { socket, pending: new Map(), nextId: 1 };
+    const session = await this.createSession(client, {
+      ...(params.profileId ? { profileId: params.profileId } : {}),
+      ...(params.cwd ? { cwd: params.cwd } : {}),
+    });
+    await this.prompt({ sessionId: session.id, prompt: params.prompt });
+    const events = messages.flatMap((message) => {
+      if (message.method !== 'ui/session.event' || !isRecord(message.params)) return [];
+      const eventParams = message.params;
+      if (typeof eventParams.sessionId !== 'string' || typeof eventParams.seq !== 'number')
+        return [];
+      return isRecord(eventParams.event)
+        ? [
+            {
+              sessionId: eventParams.sessionId,
+              seq: eventParams.seq,
+              event: eventParams.event as AcpEvent,
+            },
+          ]
+        : [];
+    });
+    return { sessionId: session.id, events };
+  }
+
+  async nativeCreateSession(params: {
+    profileId?: string;
+    cwd?: string;
+    name?: string;
+    type?: string;
+    model?: string;
+  }): Promise<Session> {
+    const record = await this.createSession(undefined, params);
+    return {
+      id: record.id,
+      name: params.name ?? 'ACP session',
+      type: (params.type as Session['type']) ?? 'general',
+      status: 'active',
+      model: params.model ?? 'configured',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messageCount: 0,
+      agentId: record.agentId,
+      acpSessionId: record.acpSessionId,
+      cwd: record.cwd,
+      protocolVersion: record.protocolVersion,
+      capabilities: record.capabilities,
+      configOptions: record.configOptions,
+      replaySupported: record.capabilities.agentCapabilities.loadSession === true,
+    };
+  }
+
+  async nativeDeleteSession(sessionId: string): Promise<boolean> {
+    const resolved = this.resolveSessionId(sessionId);
+    const session = this.sessions.get(resolved);
+    if (!session) return false;
+    try {
+      await this.manager.closeSession(resolved);
+    } catch {
+      // Cache deletion remains authoritative when the agent cannot close.
+    }
+    this.sessions.delete(resolved);
+    this.db.prepare('DELETE FROM sessions WHERE id = ?').run(resolved);
+    return true;
   }
 
   async shutdown(): Promise<void> {
@@ -303,6 +396,8 @@ export class AcpGateway {
       case 'ui/session.prompt': {
         const requestedSessionId = asString(params.sessionId, 'sessionId');
         const resolvedSessionId = await this.ensureSession(client, requestedSessionId);
+        const resolved = this.sessions.get(resolvedSessionId);
+        if (resolved) this.clientsByAcpSession.set(resolved.acpSessionId, client);
         return this.prompt({ ...params, sessionId: resolvedSessionId });
       }
       case 'ui/session.cancel':
@@ -432,7 +527,7 @@ export class AcpGateway {
   }
 
   private async createSession(
-    client: GatewayClient,
+    client: GatewayClient | undefined,
     params: Record<string, unknown>
   ): Promise<AcpSessionRecord> {
     const profileId =
@@ -475,8 +570,15 @@ export class AcpGateway {
     const session = await this.manager.createSession({ agentId: profileId, cwd });
     this.sessions.set(session.id, session);
     this.sessionAgentIds.set(session.id, resolution.profile.agentId ?? profileId);
-    this.clientsByAcpSession.set(session.acpSessionId, client);
+    if (client) this.clientsByAcpSession.set(session.acpSessionId, client);
     this.persistAcpSession(session, resolution);
+    if (typeof params.name === 'string' || typeof params.type === 'string') {
+      this.db
+        .prepare(
+          'UPDATE sessions SET name = COALESCE(?, name), type = COALESCE(?, type), model = COALESCE(?, model) WHERE id = ?'
+        )
+        .run(params.name ?? null, params.type ?? null, params.model ?? null, session.id);
+    }
     return session;
   }
 
@@ -699,7 +801,7 @@ export class AcpGateway {
 
   private permissionRequest(
     acpSessionId: string,
-    client: GatewayClient,
+    client: GatewayClient | undefined,
     request: RequestPermissionRequest,
     agentId: string
   ): Promise<PermissionDecision> {
@@ -710,10 +812,15 @@ export class AcpGateway {
         outcome: { outcome: 'selected', optionId: remembered.optionId },
       });
     }
-    this.clientsByAcpSession.set(
-      acpSessionId,
-      this.clientsByAcpSession.get(acpSessionId) ?? client
-    );
+    if (client) {
+      this.clientsByAcpSession.set(
+        acpSessionId,
+        this.clientsByAcpSession.get(acpSessionId) ?? client
+      );
+    }
+    if (!client && !this.clientsByAcpSession.has(acpSessionId)) {
+      return Promise.resolve({ outcome: { outcome: 'cancelled' } });
+    }
     return new Promise((resolve) => {
       this.pendingPermissions.set(acpSessionId, { request, resolve, agentId, tool });
       this.sendPendingPermission(acpSessionId);
@@ -936,10 +1043,6 @@ export class AcpGateway {
   }
 }
 
-export function acpEnabled(): boolean {
-  return process.env.ACP_ENABLED === 'true' || process.env.ACP_ENABLED === '1';
-}
-
 export type AcpGatewayRegistrationOptions = Omit<GatewayOptions, 'db'> & {
   db: Database;
 };
@@ -947,8 +1050,7 @@ export type AcpGatewayRegistrationOptions = Omit<GatewayOptions, 'db'> & {
 export async function registerAcpGateway(
   fastify: FastifyInstance,
   options: AcpGatewayRegistrationOptions
-): Promise<AcpGateway | undefined> {
-  if (!acpEnabled()) return undefined;
+): Promise<AcpGateway> {
   const gateway = new AcpGateway(options);
   await gateway.register(fastify);
   return gateway;

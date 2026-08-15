@@ -63,7 +63,7 @@ const fixture = {
   async authenticate(): Promise<void> {},
 
   async newSession(): Promise<{ sessionId: string; configOptions: SessionConfigOption[] }> {
-    const sessionId = replaySessionId;
+    const sessionId = process.env.ACP_FIXTURE_SESSION_ID ?? randomUUID();
     sessions.set(sessionId, {});
     return {
       sessionId,
@@ -280,7 +280,7 @@ const fixture = {
   },
 
   async listSessions(): Promise<{ sessions: Array<{ sessionId: string; cwd: string }> }> {
-    const ids = (process.env.ACP_FIXTURE_LIST_SESSIONS ?? replaySessionId)
+    const ids = (process.env.ACP_FIXTURE_LIST_SESSIONS ?? [...sessions.keys()].join(','))
       .split(',')
       .filter(Boolean);
     return {

@@ -1,10 +1,10 @@
 # DevMentorAI
 
-> DevMentorAI is a Chrome/Firefox browser extension powered by GitHub Copilot CLI that provides AI-powered DevOps mentoring, writing assistance, and development help directly in your browser. It captures page context (DOM, errors, network logs) and works on authenticated/private pages with a privacy-first local architecture.
+> DevMentorAI is a Chrome/Firefox browser extension powered by Agent Client Protocol (ACP) agents that provides AI-powered DevOps mentoring, writing assistance, and development help directly in your browser. It captures page context (DOM, errors, network logs) with a privacy-first local architecture.
 
 - Backend installable via: `npx devmentorai-server`
 - Extension available for Chrome and Firefox on [GitHub Releases](https://github.com/BOTOOM/devmentorai/releases)
-- Powered by GitHub Copilot SDK (local CLI, no cloud storage)
+- ACP host with catalog agents, profiles, capability-driven permissions and workspace controls
 - MIT Licensed open source project
 
 ## Docs

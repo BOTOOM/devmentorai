@@ -25,53 +25,11 @@ export interface PaginatedResponse<T> {
 export interface HealthResponse {
   status: 'healthy' | 'degraded' | 'unhealthy';
   version: string;
-  copilotConnected: boolean;
+  acpConnected: boolean;
   uptime: number;
   timestamp: string;
   /** Latest available version (if update check has run) */
   latestVersion?: string;
   /** Whether a newer version is available */
   updateAvailable?: boolean;
-}
-
-export type ModelPricingTier = 'free' | 'cheap' | 'standard' | 'premium';
-
-export type ModelAccessProvider = 'github-copilot' | 'devin' | 'gemini' | string;
-
-export interface ModelInfo {
-  id: string;
-  name: string;
-  /** Model vendor/family provider, e.g. openai, anthropic, google. */
-  provider: string;
-  /** Access provider used to reach the model, e.g. github-copilot. */
-  accessProvider?: ModelAccessProvider;
-  /** Explicit model vendor when provider is reserved for backwards compatibility. */
-  modelProvider?: string;
-  available: boolean;
-  description?: string;
-  isDefault?: boolean;
-  isRecommendedForQuickActions?: boolean;
-  deprecated?: boolean;
-  replacementModelId?: string;
-  aliases?: string[];
-  pricingTier?: ModelPricingTier;
-  pricingMultiplier?: number;
-  supportedReasoningEfforts?: string[];
-}
-
-export interface CopilotAuthStatus {
-  isAuthenticated: boolean;
-  login?: string | null;
-  reason?: string;
-}
-
-export interface CopilotQuotaStatus {
-  used?: number | null;
-  included?: number | null;
-  remaining?: number | null;
-  percentageUsed?: number | null;
-  percentageRemaining?: number | null;
-  periodStart?: string | null;
-  periodEnd?: string | null;
-  raw?: Record<string, unknown>;
 }

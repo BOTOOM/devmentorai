@@ -5,12 +5,9 @@
 
 import type {
   ApiResponse,
-  CopilotAuthStatus,
-  CopilotQuotaStatus,
   CreateSessionRequest,
   HealthResponse,
   Message,
-  ModelInfo,
   PaginatedResponse,
   SendMessageRequest,
   Session,
@@ -37,13 +34,6 @@ export const API_ENDPOINTS = {
 
   // Image upload (pre-upload before sending chat)
   IMAGE_UPLOAD: (sessionId: string) => `/api/sessions/${sessionId}/images/upload`,
-
-  // Models
-  MODELS: '/api/models',
-
-  // Account
-  ACCOUNT_AUTH: '/api/account/auth',
-  ACCOUNT_QUOTA: '/api/account/quota',
 } as const;
 
 /**
@@ -129,21 +119,6 @@ export interface ApiEndpoints {
         fullImagePath: string;
       }>;
     }>;
-  };
-
-  // GET /api/models
-  'GET /api/models': {
-    response: ApiResponse<{ models: ModelInfo[]; default: string }>;
-  };
-
-  // GET /api/account/auth
-  'GET /api/account/auth': {
-    response: ApiResponse<CopilotAuthStatus>;
-  };
-
-  // GET /api/account/quota
-  'GET /api/account/quota': {
-    response: ApiResponse<CopilotQuotaStatus>;
   };
 }
 

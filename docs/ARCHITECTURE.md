@@ -2,7 +2,14 @@
 
 ## Overview
 
-DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, writing assistance, and development help. It uses GitHub Copilot CLI via the official Copilot SDK for Node.js.
+DevMentorAI is a Chrome extension and provider-agnostic ACP host. It launches ACP agents through
+catalog distributions or user profiles and renders only the capabilities each agent advertises.
+GitHub Copilot is one catalog entry, not a backend integration.
+
+The WebSocket gateway is the product boundary. Sessions, streamed messages, thoughts, tool calls,
+plans, permissions, configuration, cancellation, replay and diagnostics are represented through
+ACP. SQLite stores a display cache and preserves imported pre-ACP history; it is not the source
+of truth for agents that support replay.
 
 ## System Architecture
 
@@ -42,7 +49,7 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
 │  ┌─────────────────────┼────────────┼──────────────┼─────────┐  │
 │  │                     Services Layer                        │  │
 │  │  ┌──────────────────┐ ┌────────────────────────────────┐ │  │
-│  │  │  SessionService  │ │       CopilotService           │ │  │
+│  │  │  SessionService  │ │          ACP Gateway            │ │  │
 │  │  │ - CRUD ops       │ │ - SDK client wrapper           │ │  │
 │  │  │ - Message history│ │ - Tool execution               │ │  │
 │  │  │ - Persistence    │ │ - MCP server integration       │ │  │
@@ -51,7 +58,7 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
 │  └───────────┼────────────────────────┼─────────────────────┘  │
 │              │                        │                        │
 │  ┌───────────┴──────────┐  ┌─────────┴────────────────────┐   │
-│  │     SQLite DB        │  │   @github/copilot-sdk        │   │
+│  │     SQLite DB        │  │       ACP client/host         │   │
 │  │  ~/.devmentorai/     │  │   - CopilotClient            │   │
 │  │  - sessions table    │  │   - createSession()          │   │
 │  │  - messages table    │  │   - Custom agents + Tools    │   │
@@ -68,7 +75,7 @@ DevMentorAI is a Chrome extension that provides AI-powered DevOps mentoring, wri
                │ JSON-RPC
                ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     GitHub Copilot CLI                           │
+│                     Configured ACP agent                         │
 │  - Pre-installed by user                                         │
 │  - Authenticated via GitHub                                      │
 │  - Handles LLM communication                                     │
@@ -145,11 +152,11 @@ await service.initialize(); // Auto-detects available mode
                 ↓
 3. CommunicationService routes to appropriate adapter
                 ↓
-4. POST /api/sessions/:id/chat/stream
+4. ui/session.prompt over the ACP WebSocket gateway
                 ↓
 5. Backend saves user message to SQLite
                 ↓
-6. CopilotService.streamMessage() called
+6. ACP session manager streams session/update events
                 ↓
 7. SDK emits events (message_delta, tool_start, etc.)
                 ↓
@@ -208,7 +215,7 @@ await service.initialize(); // Auto-detects available mode
 
 1. **No Credential Storage**
    - Extension never stores GitHub tokens
-   - Relies on Copilot CLI's existing authentication
+   - Agents own their authentication and credential lifecycle
 
 2. **Local-Only Communication**
    - Backend only listens on localhost
@@ -239,7 +246,7 @@ await service.initialize(); // Auto-detects available mode
                                        └────────┬─────────┘
                                                 │
                                        ┌────────┴─────────┐
-                                       │  Copilot SDK     │
+                                       │  ACP transport   │
                                        └──────────────────┘
 ```
 

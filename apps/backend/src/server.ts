@@ -1,21 +1,16 @@
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
-import { acpEnabled, registerAcpGateway } from './acp/gateway.js';
+import { registerAcpGateway } from './acp/gateway.js';
 import { initDatabase } from './db/index.js';
-import { accountRoutes } from './routes/account.js';
-import { chatRoutes } from './routes/chat.js';
 import { healthRoutes } from './routes/health.js';
 import { imagesRoutes } from './routes/images.js';
-import { modelsRoutes } from './routes/models.js';
 import { sessionRoutes } from './routes/sessions.js';
-import { registerToolsRoutes } from './routes/tools.js';
 import { updatesRoutes } from './routes/updates.js';
-import { CopilotService } from './services/copilot.service.js';
 import { SessionService } from './services/session.service.js';
 
 const PORT = Number.parseInt(process.env.DEVMENTORAI_PORT || '', 10) || DEFAULT_CONFIG.DEFAULT_PORT;
-const HOST = acpEnabled() ? process.env.ACP_HOST || '127.0.0.1' : '0.0.0.0';
+const HOST = process.env.ACP_HOST || '127.0.0.1';
 
 // Observability mode - enable with DEVMENTORAI_DEBUG=true
 const DEBUG_MODE = true;
@@ -106,7 +101,6 @@ export async function createServer() {
 
   // Initialize services
   const sessionService = new SessionService(db);
-  const copilotService = new CopilotService(sessionService);
   const acpGateway = await registerAcpGateway(fastify, {
     db,
     workspaceRoot: process.env.ACP_WORKSPACE_ROOT,
@@ -121,17 +115,8 @@ export async function createServer() {
     fastify.decorate('acpGateway', acpGateway);
   }
 
-  try {
-    await copilotService.initialize();
-    fastify.log.info('CopilotService initialized');
-  } catch (err) {
-    fastify.log.error({ err }, 'Failed to initialize CopilotService');
-    fastify.log.warn('Running in mock mode - Copilot features will be simulated');
-  }
-
   // Decorate fastify with services
   fastify.decorate('sessionService', sessionService);
-  fastify.decorate('copilotService', copilotService);
 
   // Register plugins
   await fastify.register(cors, {
@@ -143,14 +128,8 @@ export async function createServer() {
   // Register routes
   await fastify.register(healthRoutes, { prefix: '/api' });
   await fastify.register(sessionRoutes, { prefix: '/api' });
-  await fastify.register(chatRoutes, { prefix: '/api' });
-  await fastify.register(modelsRoutes, { prefix: '/api' });
-  await fastify.register(accountRoutes, { prefix: '/api' });
   await fastify.register(updatesRoutes, { prefix: '/api' });
   await fastify.register(imagesRoutes, { prefix: '/api/images' });
-
-  // Register tools routes (not prefixed - has /api in route definitions)
-  registerToolsRoutes(fastify, copilotService);
 
   return fastify;
 }
@@ -171,7 +150,6 @@ async function main() {
 
     let exitCode = 0;
     try {
-      await fastify.copilotService.shutdown();
       await fastify.acpGateway?.shutdown();
       await fastify.close();
     } catch (err) {
@@ -221,7 +199,6 @@ try {
 declare module 'fastify' {
   interface FastifyInstance {
     sessionService: SessionService;
-    copilotService: CopilotService;
     acpGateway?: Awaited<ReturnType<typeof registerAcpGateway>>;
   }
 }

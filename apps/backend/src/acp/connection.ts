@@ -24,6 +24,8 @@ import {
 import { AcpError, toAcpError } from './errors.js';
 import { AgentLauncher, type AgentProcess, type LaunchSpec } from './launcher.js';
 
+const HANDSHAKE_TIMEOUT_MS = 10_000;
+
 export type AcpRawSessionNotification = {
   sessionId: string;
   update: Record<string, unknown>;
@@ -47,6 +49,7 @@ export type AgentConnectionOptions = {
   onAgentCrash?: (error: AcpError) => void | Promise<void>;
   clientName?: string;
   clientVersion?: string;
+  handshakeTimeoutMs?: number;
 };
 
 export type AcpProbeRequestResult = {
@@ -54,8 +57,6 @@ export type AcpProbeRequestResult = {
   value?: unknown;
   error?: { code?: number; message: string };
 };
-
-const HANDSHAKE_TIMEOUT_MS = 10_000;
 
 function defaultPermissionPolicy(request: RequestPermissionRequest): PermissionDecision {
   const rejectOption = request.options.find(
@@ -102,6 +103,7 @@ export class AgentConnection {
   private connectPromise: Promise<AcpConnectionCapabilities> | undefined;
   private readonly clientName: string;
   private readonly clientVersion: string;
+  private readonly handshakeTimeoutMs: number;
 
   constructor(options: AgentConnectionOptions) {
     this.agentId = options.agentId;
@@ -112,6 +114,7 @@ export class AgentConnection {
     this.onAgentCrash = options.onAgentCrash;
     this.clientName = options.clientName ?? 'devmentorai';
     this.clientVersion = options.clientVersion ?? '0.1.0';
+    this.handshakeTimeoutMs = options.handshakeTimeoutMs ?? HANDSHAKE_TIMEOUT_MS;
   }
 
   get capabilities(): AcpConnectionCapabilities {
@@ -154,6 +157,7 @@ export class AgentConnection {
   }
 
   private async connectInternal(): Promise<AcpConnectionCapabilities> {
+    if (this.connection) return this.capabilities;
     this.closing = false;
     try {
       this.process = this.launcher.launch(this.launchSpec);
@@ -217,7 +221,7 @@ export class AgentConnection {
                 agentId: this.agentId,
               })
             ),
-          HANDSHAKE_TIMEOUT_MS
+          this.handshakeTimeoutMs
         ).unref();
       });
       const exited = this.process.exited.then((exit) => {

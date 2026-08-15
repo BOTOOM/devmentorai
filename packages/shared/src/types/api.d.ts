@@ -21,7 +21,7 @@ export interface PaginatedResponse<T> {
 export interface HealthResponse {
     status: 'healthy' | 'degraded' | 'unhealthy';
     version: string;
-    copilotConnected: boolean;
+    acpConnected: boolean;
     uptime: number;
     timestamp: string;
     /** Latest available version (if update check has run) */

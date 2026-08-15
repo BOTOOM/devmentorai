@@ -37,10 +37,8 @@ export async function statusCommand(): Promise<void> {
     if (data.uptime) {
       console.log(`  Uptime:  ${formatUptime(data.uptime as number)}`);
     }
-    if (data.copilotConnected !== undefined) {
-      console.log(
-        `  Copilot: ${data.copilotConnected ? '✓ connected' : '⊘ disconnected (mock mode)'}`
-      );
+    if (data.acpConnected !== undefined) {
+      console.log(`  ACP:     ${data.acpConnected ? '✓ connected' : '⊘ disconnected'}`);
     }
   }
 

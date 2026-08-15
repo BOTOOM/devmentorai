@@ -5,7 +5,7 @@
  * and the backend, supporting both HTTP and Native Messaging protocols.
  */
 
-import type { ApiResponse, ModelInfo, Session } from '@devmentorai/shared';
+import type { ApiResponse, Session } from '@devmentorai/shared';
 import { storageGet, storageSet } from '../lib/browser-utils';
 
 /** Chat message sent to the backend */
@@ -53,9 +53,6 @@ export interface CommunicationAdapter {
     onEvent: (event: SessionEvent) => void,
     signal?: AbortSignal
   ): Promise<void>;
-
-  // Models
-  listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>>;
 }
 
 /**
@@ -169,11 +166,6 @@ export class HttpAdapter implements CommunicationAdapter {
         }
       }
     }
-  }
-
-  async listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>> {
-    const response = await fetch(`${this.baseUrl}/api/models`);
-    return response.json();
   }
 }
 
@@ -357,15 +349,6 @@ export class NativeMessagingAdapter implements CommunicationAdapter {
     );
   }
 
-  async listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>> {
-    return this.sendNativeMessage({
-      id: this.nextId(),
-      type: 'request',
-      method: 'GET',
-      path: '/api/models',
-    });
-  }
-
   disconnect(): void {
     if (this.port) {
       this.port.disconnect();
@@ -464,7 +447,6 @@ export class CommunicationService {
     this.adapter.sendMessage(...args);
   streamMessage = (...args: Parameters<CommunicationAdapter['streamMessage']>) =>
     this.adapter.streamMessage(...args);
-  listModels = () => this.adapter.listModels();
 }
 
 // Singleton instance

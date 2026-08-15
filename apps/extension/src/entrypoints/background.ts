@@ -3,9 +3,7 @@
  */
 
 import type { SelectionContext, TextReplacementBehavior } from '@devmentorai/shared';
-import { normalizeQuickActionModel } from '../constants/models';
 import { getBestActiveTab, storageGet, storageRemove, storageSet } from '../lib/browser-utils';
-import { getEffectiveQuickActionModel } from '../services/model-catalog';
 import {
   dismissUpdateBadge,
   forceUpdateCheck,
@@ -379,7 +377,6 @@ async function handleMessage(
         'defaultSessionType',
         'language',
         'textReplacementBehavior',
-        'quickActionModel',
       ]);
       sendResponse(settings);
       break;
@@ -479,26 +476,12 @@ async function handleStreamingQuickAction(
 
   // Get settings
   const settings = await storageGet<{
-    quickActionModel?: string;
     translationLanguage?: string;
     targetTranslationLanguage?: string;
   }>([
-    'quickActionModel',
     'translationLanguage', // Native language (for reading)
     'targetTranslationLanguage', // Target language (for writing)
   ]);
-  const requestedModel = normalizeQuickActionModel(settings.quickActionModel);
-  const effectiveModel = await getEffectiveQuickActionModel(requestedModel);
-  const model = effectiveModel.modelId;
-
-  if (effectiveModel.wasFallback) {
-    console.warn('[DevMentorAI] Quick action model unavailable, using fallback:', {
-      requestedModel,
-      model,
-      reason: effectiveModel.reason,
-    });
-  }
-
   // Smart translation: use target language for editable fields, native for reading
   let targetLanguage: string | undefined;
   if (action === 'translate') {
@@ -527,7 +510,7 @@ async function handleStreamingQuickAction(
   // Stream the response
   try {
     console.log('[DevMentorAI] Starting streamQuickAction...');
-    await streamQuickAction(prompt, model, async (event) => {
+    await streamQuickAction(prompt, async (event) => {
       try {
         console.log('[DevMentorAI] Stream event:', event.type, {
           contentLength: event.content?.length,

@@ -1,96 +1,30 @@
-import type { ModelInfo, ReasoningEffort, SessionType } from '@devmentorai/shared';
-import { DEFAULT_CONFIG, SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
-import { ChevronDown, X } from 'lucide-react';
+import type { SessionType } from '@devmentorai/shared';
+import { SESSION_TYPE_CONFIGS } from '@devmentorai/shared';
+import { X } from 'lucide-react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/utils';
-import { ApiClient } from '../services/api-client';
-import { ReasoningEffortSelector } from './ReasoningEffortSelector';
-
-// D.5 - Pricing tier display
-const PRICING_BADGES: Record<string, { label: string; color: string }> = {
-  free: {
-    label: 'Free',
-    color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-  },
-  cheap: {
-    label: 'Cheap',
-    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  },
-  standard: {
-    label: 'Standard',
-    color: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-  },
-  premium: {
-    label: 'Premium',
-    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  },
-};
 
 interface NewSessionModalProps {
   onClose: () => void;
-  onSubmit: (
-    name: string,
-    type: SessionType,
-    model?: string,
-    reasoningEffort?: ReasoningEffort
-  ) => Promise<void> | void;
+  onSubmit: (name: string, type: SessionType) => Promise<void> | void;
 }
 
 export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalProps>) {
   const [name, setName] = useState('');
   const [type, setType] = useState<SessionType>('devops');
-  const [model, setModel] = useState<string>('gpt-5-mini');
-  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>('medium');
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [showModelPicker, setShowModelPicker] = useState(false);
-  const [modelSearch, setModelSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
-
-  // Fetch available models
-  useEffect(() => {
-    const fetchModels = async () => {
-      try {
-        const apiClient = new ApiClient(`http://localhost:${DEFAULT_CONFIG.DEFAULT_PORT}`);
-        const response = await apiClient.getModels();
-        if (response.success && response.data) {
-          setModels(response.data.models);
-          setModel(response.data.default);
-        }
-      } catch (error) {
-        console.error('Failed to fetch models:', error);
-      }
-    };
-    fetchModels();
-  }, []);
-
-  const selectedModel = models.find((m) => m.id === model);
-
-  useEffect(() => {
-    if (!selectedModel?.supportedReasoningEfforts?.length) {
-      return;
-    }
-
-    if (!selectedModel.supportedReasoningEfforts.includes(reasoningEffort)) {
-      setReasoningEffort(selectedModel.supportedReasoningEfforts[0] as ReasoningEffort);
-    }
-  }, [selectedModel, reasoningEffort]);
 
   useEffect(() => {
     nameInputRef.current?.focus();
   }, []);
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!name.trim() || isSubmitting) return;
-
     setIsSubmitting(true);
     try {
-      const selectedModelInfo = models.find((m) => m.id === model);
-      const supportsReasoning =
-        selectedModelInfo?.supportedReasoningEfforts &&
-        selectedModelInfo.supportedReasoningEfforts.length > 0;
-      await onSubmit(name.trim(), type, model, supportsReasoning ? reasoningEffort : undefined);
+      await onSubmit(name.trim(), type);
     } finally {
       setIsSubmitting(false);
     }
@@ -100,56 +34,32 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
     SessionType,
     (typeof SESSION_TYPE_CONFIGS)[SessionType],
   ][];
-  const supportsReasoning =
-    selectedModel?.supportedReasoningEfforts && selectedModel.supportedReasoningEfforts.length > 0;
-  const supportedReasoningEfforts = (selectedModel?.supportedReasoningEfforts ||
-    []) as ReasoningEffort[];
-  const normalizedQuery = modelSearch.trim().toLowerCase();
-  const filteredModels = normalizedQuery
-    ? models.filter((modelItem) => {
-        const searchSource = [
-          modelItem.id,
-          modelItem.name,
-          modelItem.provider,
-          modelItem.description || '',
-        ]
-          .join(' ')
-          .toLowerCase();
-        return searchSource.includes(normalizedQuery);
-      })
-    : models;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <button
         type="button"
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
         aria-label="Close modal"
       />
-
-      {/* Modal */}
-      <div className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="relative w-full max-w-md overflow-y-auto rounded-xl bg-white shadow-xl dark:bg-gray-800">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">New Session</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
+            className="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            aria-label="Close new session"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Session name */}
+        <form onSubmit={handleSubmit} className="space-y-6 p-6">
           <div>
             <label
               htmlFor="session-name"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Session Name
             </label>
@@ -158,15 +68,13 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
               id="session-name"
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               placeholder="e.g., AWS Migration, Email Draft"
               className="input"
             />
           </div>
-
-          {/* Session type */}
           <div>
-            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <p className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Session Type
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -176,167 +84,38 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                   type="button"
                   onClick={() => setType(typeKey)}
                   className={cn(
-                    'flex items-center gap-3 p-3 rounded-lg border-2 transition-colors text-left',
+                    'flex items-center gap-3 rounded-lg border-2 p-3 text-left transition-colors',
                     type === typeKey
                       ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
                   )}
                 >
                   <span className="text-2xl">{config.icon}</span>
-                  <div>
-                    <p
-                      className={cn(
-                        'font-medium text-sm',
-                        type === typeKey
-                          ? 'text-primary-700 dark:text-primary-300'
-                          : 'text-gray-900 dark:text-white'
-                      )}
-                    >
-                      {config.name}
-                    </p>
-                  </div>
+                  <span
+                    className={cn(
+                      'text-sm font-medium',
+                      type === typeKey
+                        ? 'text-primary-700 dark:text-primary-300'
+                        : 'text-gray-900 dark:text-white'
+                    )}
+                  >
+                    {config.name}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Model selector */}
-          <div>
-            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              AI Model
-            </p>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowModelPicker(!showModelPicker)}
-                className="w-full flex items-center justify-between px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-left hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
-              >
-                <div>
-                  <p className="font-medium text-sm text-gray-900 dark:text-white">
-                    {selectedModel?.name || model}
-                  </p>
-                  {selectedModel && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {selectedModel.description}
-                    </p>
-                  )}
-                </div>
-                <ChevronDown
-                  className={cn(
-                    'w-5 h-5 text-gray-400 transition-transform',
-                    showModelPicker && 'rotate-180'
-                  )}
-                />
-              </button>
-
-              {showModelPicker && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10 max-h-72 overflow-y-auto">
-                  <div className="sticky top-0 px-3 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                    <input
-                      type="text"
-                      value={modelSearch}
-                      onChange={(event) => setModelSearch(event.target.value)}
-                      placeholder="Search models..."
-                      className="w-full px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                    />
-                  </div>
-
-                  {filteredModels.length === 0 && (
-                    <p className="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">
-                      No models found
-                    </p>
-                  )}
-
-                  {/* D.5 - Group models by pricing tier */}
-                  {['free', 'cheap', 'standard', 'premium'].map((tier) => {
-                    const tierModels = filteredModels.filter(
-                      (m) => m.pricingTier === tier || (!m.pricingTier && tier === 'standard')
-                    );
-                    if (tierModels.length === 0) return null;
-
-                    return (
-                      <div key={tier}>
-                        <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-                          <span
-                            className={cn(
-                              'text-xs font-medium px-2 py-0.5 rounded-full',
-                              PRICING_BADGES[tier]?.color || PRICING_BADGES.standard.color
-                            )}
-                          >
-                            {PRICING_BADGES[tier]?.label || 'Standard'}
-                          </span>
-                        </div>
-                        {tierModels.map((m) => (
-                          <button
-                            key={m.id}
-                            type="button"
-                            onClick={() => {
-                              setModel(m.id);
-                              setShowModelPicker(false);
-                              setModelSearch('');
-                            }}
-                            className={cn(
-                              'w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors',
-                              model === m.id && 'bg-primary-50 dark:bg-primary-900/20'
-                            )}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-sm text-gray-900 dark:text-white">
-                                  {m.name}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  {m.description}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                {m.isDefault && (
-                                  <span className="text-xs px-2 py-0.5 bg-primary-100 dark:bg-primary-900/50 text-primary-700 dark:text-primary-300 rounded-full">
-                                    Default
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Reasoning Effort - only for supported models */}
-          {supportsReasoning && (
-            <ReasoningEffortSelector
-              value={reasoningEffort}
-              supportedEfforts={supportedReasoningEfforts}
-              onChange={setReasoningEffort}
-            />
-          )}
-
-          {/* Description */}
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {SESSION_TYPE_CONFIGS[type].description}
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Agent model and runtime settings are selected from ACP configuration options after the
+            session starts.
           </p>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 btn-secondary">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!name.trim() || isSubmitting}
-              className={cn(
-                'flex-1 btn-primary',
-                (!name.trim() || isSubmitting) && 'opacity-50 cursor-not-allowed'
-              )}
-            >
-              {isSubmitting ? 'Creating...' : 'Create Session'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={!name.trim() || isSubmitting}
+            className="w-full rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {isSubmitting ? 'Creating…' : 'Create Session'}
+          </button>
         </form>
       </div>
     </div>

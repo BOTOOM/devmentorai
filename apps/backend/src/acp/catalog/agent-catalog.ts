@@ -215,6 +215,9 @@ export class AgentCatalog {
       merged.set(String(entry.id), sourceEntry(entry, 'registry'));
     const profiles = (await this.getProfiles?.()) ?? [];
     for (const profile of profiles) {
+      // The implicit profile Enable creates is represented by its catalog agent;
+      // surfacing it again would duplicate the card under the same name.
+      if (!profile.custom && profile.agentId && merged.has(profile.agentId)) continue;
       const raw = profile.agentId
         ? merged.get(profile.agentId)
         : sourceEntry(

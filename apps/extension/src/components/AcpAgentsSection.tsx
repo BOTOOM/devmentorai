@@ -60,17 +60,17 @@ function AgentAuthForm({
   client,
   entry,
   onDone,
-  onError,
 }: Readonly<{
   client: AcpClient;
   entry: AcpCatalogEntry;
   onDone: () => void;
-  onError: (message: string) => void;
 }>) {
   const envVars = entry.auth?.envVars ?? [];
   const [envVar, setEnvVar] = useState(envVars[0] ?? '');
   const [token, setToken] = useState('');
   const [saving, setSaving] = useState(false);
+  // Rendered next to the field that caused it; the section-level alert is too far away.
+  const [formError, setFormError] = useState<string | null>(null);
   const inputId = `acp-token-${entry.id}`;
   const selectId = `acp-token-env-${entry.id}`;
 
@@ -80,6 +80,7 @@ function AgentAuthForm({
       onSubmit={(event) => {
         event.preventDefault();
         setSaving(true);
+        setFormError(null);
         void client
           .setAgentToken(entry.id, token, envVar || undefined)
           .then(() => {
@@ -87,7 +88,7 @@ function AgentAuthForm({
             onDone();
           })
           .catch((error: unknown) => {
-            onError(error instanceof Error ? error.message : 'Failed to store the token');
+            setFormError(error instanceof Error ? error.message : 'Failed to store the token');
           })
           .finally(() => setSaving(false));
       }}
@@ -143,6 +144,11 @@ function AgentAuthForm({
       {entry.auth?.notes ? (
         <p className="text-xs text-gray-500 dark:text-gray-400">{entry.auth.notes}</p>
       ) : null}
+      {formError ? (
+        <p className="text-xs font-medium text-red-700 dark:text-red-300" role="alert">
+          {formError}
+        </p>
+      ) : null}
       <div className="flex items-center gap-3">
         <button
           className={`rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${FOCUS_RING}`}
@@ -168,9 +174,7 @@ function AgentAuthForm({
               void client
                 .clearAgentToken(entry.id, envVar)
                 .then(onDone)
-                .catch(() => {
-                  onError('Failed to remove the token');
-                });
+                .catch(() => setFormError('Failed to remove the token'));
             }}
             type="button"
           >
@@ -192,14 +196,16 @@ function AgentAuthForm({
                 onClick={() => {
                   const profileId = entry.profileId;
                   if (!profileId) {
-                    onError('Enable the agent before authenticating');
+                    setFormError('Enable the agent before authenticating');
                     return;
                   }
                   void client
                     .authenticateAgent(profileId, method.id)
                     .then(onDone)
                     .catch((error: unknown) => {
-                      onError(error instanceof Error ? error.message : 'Authentication failed');
+                      setFormError(
+                        error instanceof Error ? error.message : 'Authentication failed'
+                      );
                     });
                 }}
                 type="button"
@@ -306,7 +312,7 @@ export function AcpAgentsSection({ client, compact = false }: Readonly<AcpAgents
 
       {loading ? <p className="text-sm text-gray-500 dark:text-gray-400">Loading agents…</p> : null}
 
-      {!loading && filtered.length === 0 ? (
+      {!loading && !error && filtered.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">No agent matches “{query}”.</p>
       ) : null}
 
@@ -404,12 +410,7 @@ export function AcpAgentsSection({ client, compact = false }: Readonly<AcpAgents
               {expanded === entry.id ? (
                 <div className="mt-3 space-y-3 border-t border-gray-200 pt-3 dark:border-gray-700">
                   {entry.auth || entry.authState === 'required' || entry.authMethods.length > 0 ? (
-                    <AgentAuthForm
-                      client={client}
-                      entry={entry}
-                      onDone={reload}
-                      onError={setError}
-                    />
+                    <AgentAuthForm client={client} entry={entry} onDone={reload} />
                   ) : null}
                   <details>
                     <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-200">

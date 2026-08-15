@@ -82,8 +82,10 @@ export class AcpAgentService {
         ...(entry.platformAvailability.reason ? { reason: entry.platformAvailability.reason } : {}),
       });
     }
+    // An entry derived from a hand-written profile is already its own launch spec.
+    const existing = this.implicitProfile(agentId) ?? this.profiles.get(agentId);
     const profile = this.profiles.save({
-      ...(this.implicitProfile(agentId) ?? {
+      ...(existing ?? {
         id: randomUUID(),
         name: entry.name,
         agentId,

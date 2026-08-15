@@ -112,6 +112,33 @@ describe('ACP agent enablement', () => {
     db.close();
   });
 
+  it('does not list the implicit profile as a second catalog card', async () => {
+    const { service, db } = await createService();
+    await service.enable('github-copilot-cli');
+    const listed = await service.list();
+    expect(listed.filter((entry) => entry.name === 'GitHub Copilot CLI')).toHaveLength(1);
+    expect(listed.map((entry) => entry.id)).toEqual(['github-copilot-cli', 'other-agent']);
+    db.close();
+  });
+
+  it('reuses a hand-written profile when its derived entry is enabled', async () => {
+    const { service, db } = await createService();
+    const custom = service.createProfile({
+      id: 'custom-profile',
+      name: 'Hand-written',
+      custom: true,
+      cmd: 'agent',
+      args: [],
+      env: {},
+      defaultCwd: process.cwd(),
+      transport: 'stdio',
+    });
+    const enabled = await service.enable(custom.id);
+    expect(enabled.profile.id).toBe(custom.id);
+    expect(service.listProfiles()).toHaveLength(1);
+    db.close();
+  });
+
   it('keeps the profile and credentials when disabling, and drops the default', async () => {
     const { service, db, credentials } = await createService();
     const { profile } = await service.enable('github-copilot-cli');

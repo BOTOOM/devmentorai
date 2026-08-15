@@ -66,6 +66,12 @@ export function SidePanel() {
     refreshSessions,
   } = useSessions({ acpClient, connectionStatus });
 
+  // HTTP health alone would report "connected" while the ACP WebSocket is refused.
+  const [acpConnected, setAcpConnected] = useState<boolean | undefined>(undefined);
+  useEffect(() => acpClient.onConnectionChange(setAcpConnected), [acpClient]);
+  const headerStatus =
+    connectionStatus === 'connected' && acpConnected === false ? 'disconnected' : connectionStatus;
+
   const {
     messages,
     isStreaming,
@@ -352,7 +358,7 @@ export function SidePanel() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       <Header
-        connectionStatus={connectionStatus}
+        connectionStatus={headerStatus}
         onNewSession={() => setShowNewSessionModal(true)}
         onOpenSettings={() => chrome.runtime.openOptionsPage()}
         onOpenHelp={() => setShowHelpModal(true)}

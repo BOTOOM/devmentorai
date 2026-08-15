@@ -23,12 +23,17 @@ export function AcpCatalogView({
       client.listAgents(),
       client.listProfiles(),
     ]);
+    setError(null);
     setEntries(nextEntries);
     setProfiles(nextProfiles);
     if (nextProfiles[0] && !selectedProfileId) onProfileSelected?.(nextProfiles[0]);
   }, [client, onProfileSelected, selectedProfileId]);
   useEffect(() => {
-    void refresh();
+    void refresh().catch((refreshError: unknown) => {
+      setError(
+        refreshError instanceof Error ? refreshError.message : 'Failed to load the agent catalog'
+      );
+    });
   }, [refresh]);
 
   const filtered = useMemo(

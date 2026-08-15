@@ -1,5 +1,7 @@
 import { once } from 'node:events';
+import fs from 'node:fs';
 import type { AddressInfo } from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -8,6 +10,7 @@ import { AgentCatalog } from '../../src/acp/catalog/agent-catalog.js';
 import { AcpAgentService } from '../../src/acp/catalog/agent-service.js';
 import { WorkspaceService } from '../../src/acp/catalog/workspace.js';
 import { AcpGateway } from '../../src/acp/gateway.js';
+import { AcpPairingStore } from '../../src/acp/pairing.js';
 import { initDatabase } from '../../src/db/index.js';
 
 type RpcMessage = {
@@ -55,6 +58,9 @@ async function createGateway(env: Record<string, string> = {}): Promise<{
     agentService: service,
     workspaceRoot: process.cwd(),
     extensionOrigin: 'http://localhost:5173',
+    pairing: new AcpPairingStore({
+      file: path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'devmentorai-gw-')), 'pairing.json'),
+    }),
     idleTimeoutMs: 250,
     bufferLimit: 100,
   });

@@ -25,6 +25,7 @@
     "release:dry-run:backend": "cd apps/backend && GITHUB_TOKEN=$(gh auth token) LOCAL_RELEASE_TEST=true pnpm exec semantic-release --dry-run --no-ci",
     "release:dry-run:extension": "cd apps/extension && GITHUB_TOKEN=$(gh auth token) pnpm exec semantic-release --dry-run --no-ci",
     "release:dry-run:all": "pnpm run release:dry-run:backend && pnpm run release:dry-run:extension",
+    "acp:unpair": "node -e \"const fs=require('node:fs'),os=require('node:os'),path=require('node:path');const file=path.join(os.homedir(),'.devmentorai','pairing.json');fs.rmSync(file,{force:true});console.log('[acp] pairing reset:',file)\"",
     "lint": "biome check .",
     "lint:fix": "biome check . --write",
     "lint:extension": "pnpm --filter @devmentorai/extension lint",

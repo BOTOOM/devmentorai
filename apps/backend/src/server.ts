@@ -2,6 +2,7 @@ import { DEFAULT_CONFIG } from '@devmentorai/shared';
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
 import { registerAcpGateway } from './acp/gateway.js';
+import { AcpPairingStore } from './acp/pairing.js';
 import { initDatabase } from './db/index.js';
 import { healthRoutes } from './routes/health.js';
 import { imagesRoutes } from './routes/images.js';
@@ -22,6 +23,19 @@ function truncate(str: string | undefined | null, maxLen = 500): string {
   if (!str) return '';
   if (str.length <= maxLen) return str;
   return `${str.slice(0, maxLen)}... [truncated ${str.length - maxLen} chars]`;
+}
+
+const LOCAL_ORIGIN = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
+
+function isAllowedRestOrigin(origin: string | undefined): boolean {
+  // Native clients and same-origin requests send no Origin header.
+  if (!origin) return true;
+  if (AcpPairingStore.isExtensionOrigin(origin) || LOCAL_ORIGIN.test(origin)) return true;
+  const configured = [
+    process.env.ACP_EXTENSION_ORIGIN,
+    ...(process.env.ACP_ALLOWED_ORIGINS ?? '').split(',').map((value) => value.trim()),
+  ].filter(Boolean);
+  return configured.includes(origin);
 }
 
 export async function createServer() {
@@ -120,7 +134,9 @@ export async function createServer() {
 
   // Register plugins
   await fastify.register(cors, {
-    origin: true, // Allow all origins in development
+    // The backend is a local ACP host: only browser extensions and local tooling
+    // may call it from a browser context.
+    origin: (origin, callback) => callback(null, isAllowedRestOrigin(origin)),
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });

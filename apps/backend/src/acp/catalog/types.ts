@@ -32,6 +32,22 @@ export type AgentDistribution = {
   [key: string]: unknown;
 };
 
+/**
+ * Data-only authentication metadata. It documents how an agent takes credentials
+ * so the UI can offer the right field; it never adds provider-specific code paths.
+ */
+export type AgentAuthOverlay = {
+  /** Environment variables the agent reads, in precedence order. */
+  envVars: string[];
+  /** Command that performs an interactive local login, when the agent has one. */
+  localLogin?: string;
+  /** Page where the user creates the token. */
+  tokenUrl?: string;
+  /** Scopes or permissions the token needs. */
+  scopes?: string[];
+  notes?: string;
+};
+
 export type AgentCatalogEntry = {
   id: string;
   name: string;
@@ -43,6 +59,11 @@ export type AgentCatalogEntry = {
   installState: AgentInstallState;
   authState: AgentAuthState;
   authMethods: Array<{ id: string; description: string }>;
+  /** Set by the agent service, not by the catalog sources. */
+  enabled?: boolean;
+  default?: boolean;
+  profileId?: string;
+  auth?: AgentAuthOverlay;
   platformAvailability: {
     available: boolean;
     key: string;

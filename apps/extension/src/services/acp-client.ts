@@ -15,7 +15,19 @@ export type AcpCatalogEntry = {
   installState: string;
   authState: string;
   authMethods: Array<{ id: string; description: string }>;
+  enabled?: boolean;
+  default?: boolean;
+  profileId?: string;
+  auth?: AcpAuthOverlay;
   platformAvailability: { available: boolean; key: string; reason?: string };
+};
+
+export type AcpAuthOverlay = {
+  envVars: string[];
+  localLogin?: string;
+  tokenUrl?: string;
+  scopes?: string[];
+  notes?: string;
 };
 
 export type AcpProfile = {
@@ -283,6 +295,33 @@ export class AcpClient {
 
   async deleteProfile(id: string): Promise<void> {
     await this.request('ui/agents.delete_profile', { id });
+  }
+
+  async authenticateAgent(profileId: string, methodId: string): Promise<void> {
+    await this.request('ui/agents.authenticate', { profileId, methodId });
+  }
+
+  async enableAgent(agentId: string): Promise<{ entry: AcpCatalogEntry; profile: AcpProfile }> {
+    return this.request<{ entry: AcpCatalogEntry; profile: AcpProfile }>('ui/agents.enable', {
+      agentId,
+    });
+  }
+
+  async disableAgent(agentId: string): Promise<void> {
+    await this.request('ui/agents.disable', { agentId });
+  }
+
+  async setDefaultAgent(agentId: string): Promise<void> {
+    await this.request('ui/agents.set_default', { agentId });
+  }
+
+  /** The token is stored encrypted by the backend; it never touches extension storage. */
+  async setAgentToken(agentId: string, token: string, envVar?: string): Promise<AcpProfile> {
+    return this.request<AcpProfile>('ui/agents.set_token', { agentId, token, envVar });
+  }
+
+  async clearAgentToken(agentId: string, envVar: string): Promise<void> {
+    await this.request('ui/agents.clear_token', { agentId, envVar });
   }
 
   async installAgent(agentId: string): Promise<AcpCatalogEntry> {

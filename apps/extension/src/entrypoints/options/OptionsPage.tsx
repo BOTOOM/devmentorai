@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AcpAgentsSection } from '../../components/AcpAgentsSection';
 import {
   AVAILABLE_LANGUAGES,
   DEFAULT_SETTINGS,
@@ -6,6 +7,7 @@ import {
   useSettings,
 } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
+import { AcpClient } from '../../services/acp-client';
 import { EXTENSION_VERSION } from '../../version.js';
 
 export function OptionsPage() {
@@ -66,6 +68,14 @@ export function OptionsPage() {
       void checkBackendConnection();
     }
   }, [checkBackendConnection, isLoaded]);
+
+  const acpClient = useMemo(
+    () =>
+      new AcpClient({
+        url: `${localSettings.backendUrl.replace(/^http/, 'ws').replace(/\/$/, '')}/acp`,
+      }),
+    [localSettings.backendUrl]
+  );
 
   const saveSettings = async () => {
     await saveAllSettings(localSettings);
@@ -157,6 +167,16 @@ export function OptionsPage() {
               placeholder="http://localhost:3847"
             />
           </div>
+        </div>
+
+        {/* ACP agents */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Agents</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            Enable an agent to use it right away. Authentication is only needed for agents that ask
+            for it, and tokens are stored encrypted by the backend.
+          </p>
+          <AcpAgentsSection client={acpClient} />
         </div>
 
         {/* Appearance */}

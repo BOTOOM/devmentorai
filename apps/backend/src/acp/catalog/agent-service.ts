@@ -8,6 +8,7 @@ import { AcpError } from '../errors.js';
 import { type AcpProbeReport, runConformanceProbe } from '../probe.js';
 import { AgentCatalog } from './agent-catalog.js';
 import { AgentInstaller } from './agent-installer.js';
+import { authOverlayFor } from './auth-overlay.js';
 import { CredentialStore } from './credentials.js';
 import { AgentLaunchResolver } from './launch-resolver.js';
 import { AgentProfileStore } from './profile-store.js';
@@ -51,6 +52,7 @@ export class AcpAgentService {
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
+    this.migrateEnablement();
     this.profiles = options.profiles ?? new AgentProfileStore(options.db);
     this.credentials = options.credentials ?? new CredentialStore();
     this.installer = options.installer ?? new AgentInstaller();
@@ -66,8 +68,141 @@ export class AcpAgentService {
     });
   }
 
+  /**
+   * Enabling an agent is the one-click path: it records the agent as enabled and
+   * creates the implicit profile so no field has to be filled in by hand. Agents
+   * distributed through npx/uvx stay lazy — the first session installs them.
+   */
+  async enable(agentId: string): Promise<{ entry: AgentCatalogEntry; profile: AgentProfile }> {
+    const entry = await this.requireEntry(agentId);
+    if (!entry.platformAvailability.available) {
+      throw new AcpError('agent_not_installed', `${entry.name} is not available on this platform`, {
+        agentId,
+        platform: entry.platformAvailability.key,
+        ...(entry.platformAvailability.reason ? { reason: entry.platformAvailability.reason } : {}),
+      });
+    }
+    const profile = this.profiles.save({
+      ...(this.implicitProfile(agentId) ?? {
+        id: randomUUID(),
+        name: entry.name,
+        agentId,
+        args: [],
+        env: {},
+        defaultCwd: this.workspace.defaultCwd,
+        transport: 'stdio' as const,
+      }),
+    });
+    this.writeEnablement(agentId, { enabled: true, profileId: profile.id });
+    if (!this.defaultAgentId()) this.setDefault(agentId);
+    return {
+      entry: { ...entry, enabled: true, default: this.defaultAgentId() === agentId },
+      profile,
+    };
+  }
+
+  /** Keeps profiles, credentials and history; only stops using the agent. */
+  async disable(agentId: string): Promise<void> {
+    const state = this.readEnablement(agentId);
+    this.writeEnablement(agentId, { enabled: false, isDefault: false });
+    const profileIds = new Set(
+      [
+        state?.profileId,
+        ...this.profiles
+          .list()
+          .filter((profile) => profile.agentId === agentId)
+          .map((profile) => profile.id),
+      ].filter((id): id is string => typeof id === 'string')
+    );
+    await Promise.all(
+      [...profileIds].map(async (profileId) => {
+        const connection = this.connections.get(profileId);
+        this.connections.delete(profileId);
+        await connection?.shutdown();
+      })
+    );
+  }
+
+  /**
+   * Stores the token encrypted in the backend and injects it into the agent
+   * process through the environment variable the agent reads. The value never
+   * reaches the profile row: the profile only keeps a `credential:` reference.
+   */
+  setAuthToken(agentId: string, token: string, envVar?: string): AgentProfile {
+    if (!token) throw new AcpError('agent_error', 'A token value is required');
+    const overlay = authOverlayFor(agentId);
+    const variable = envVar ?? overlay?.envVars[0];
+    if (!variable) {
+      throw new AcpError(
+        'agent_error',
+        `No environment variable is known for ${agentId}; pass envVar explicitly`,
+        { agentId }
+      );
+    }
+    if (overlay && envVar && !overlay.envVars.includes(envVar)) {
+      throw new AcpError('agent_error', `${agentId} does not read ${envVar}`, {
+        agentId,
+        accepted: overlay.envVars,
+      });
+    }
+    const credentialId = `${agentId}:${variable}`;
+    this.credentials.set(credentialId, token);
+    const profile = this.implicitProfile(agentId);
+    if (!profile) {
+      throw new AcpError('agent_error', `Enable ${agentId} before storing a token`, { agentId });
+    }
+    const saved = this.profiles.save({
+      ...profile,
+      env: { ...profile.env, [variable]: `credential:${credentialId}` },
+    });
+    this.writeAuthState(agentId, 'authenticated', this.authMethods.get(agentId) ?? []);
+    return saved;
+  }
+
+  clearAuthToken(agentId: string, envVar: string): void {
+    this.credentials.delete(`${agentId}:${envVar}`);
+    const profile = this.implicitProfile(agentId);
+    if (!profile) return;
+    const { [envVar]: _removed, ...env } = profile.env;
+    this.profiles.save({ ...profile, env });
+    this.writeAuthState(agentId, 'required', this.authMethods.get(agentId) ?? []);
+  }
+
+  setDefault(agentId: string): void {
+    this.db.prepare('UPDATE acp_agents SET is_default = 0 WHERE is_default = 1').run();
+    this.writeEnablement(agentId, { enabled: true, isDefault: true });
+  }
+
+  defaultAgentId(): string | undefined {
+    const row = this.db
+      .prepare('SELECT id FROM acp_agents WHERE is_default = 1 AND enabled = 1')
+      .get() as { id: string } | undefined;
+    return row?.id;
+  }
+
+  /** Profile used by new sessions and quick actions, when an agent is the default. */
+  defaultProfileId(): string | undefined {
+    const agentId = this.defaultAgentId();
+    if (!agentId) return undefined;
+    const state = this.readEnablement(agentId);
+    if (state?.profileId && this.profiles.get(state.profileId)) return state.profileId;
+    return this.implicitProfile(agentId)?.id;
+  }
+
+  isEnabled(agentId: string): boolean {
+    return this.readEnablement(agentId)?.enabled ?? false;
+  }
+
+  enabledProfileIds(): string[] {
+    return this.profiles
+      .list()
+      .filter((profile) => profile.agentId && this.isEnabled(profile.agentId))
+      .map((profile) => profile.id);
+  }
+
   async list(): Promise<AgentCatalogEntry[]> {
     const entries = await this.catalog.list();
+    const defaultAgentId = this.defaultAgentId();
     return Promise.all(
       entries.map(async (entry) => {
         const installState = entry.distribution.binary
@@ -82,8 +217,13 @@ export class AcpAgentService {
             ? 'lazy'
             : entry.installState;
         const auth = this.readAuthState(entry.id);
+        const enablement = this.readEnablement(entry.id);
         return {
           ...entry,
+          enabled: enablement?.enabled ?? false,
+          ...(authOverlayFor(entry.id) ? { auth: authOverlayFor(entry.id) } : {}),
+          default: defaultAgentId === entry.id,
+          ...(enablement?.profileId ? { profileId: enablement.profileId } : {}),
           installState,
           authState: auth?.authState ?? this.authStates.get(entry.id) ?? entry.authState,
           authMethods: auth?.authMethods ?? this.authMethods.get(entry.id) ?? entry.authMethods,
@@ -222,6 +362,69 @@ export class AcpAgentService {
     const profile = this.profiles.get(id);
     if (!profile) throw new AcpError('agent_error', `Unknown ACP profile ${id}`);
     return profile;
+  }
+
+  private migrateEnablement(): void {
+    const columns = this.db.prepare('PRAGMA table_info(acp_agents)').all() as Array<{
+      name: string;
+    }>;
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has('enabled')) {
+      this.db.exec('ALTER TABLE acp_agents ADD COLUMN enabled INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!names.has('is_default')) {
+      this.db.exec('ALTER TABLE acp_agents ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!names.has('profile_id')) {
+      this.db.exec('ALTER TABLE acp_agents ADD COLUMN profile_id TEXT');
+    }
+  }
+
+  /** The profile Enable creates: bound to the catalog agent and not hand-written. */
+  private implicitProfile(agentId: string): AgentProfile | undefined {
+    const state = this.readEnablement(agentId);
+    const byState = state?.profileId ? this.profiles.get(state.profileId) : undefined;
+    if (byState) return byState;
+    return this.profiles.list().find((profile) => profile.agentId === agentId && !profile.custom);
+  }
+
+  private readEnablement(
+    id: string
+  ): { enabled: boolean; isDefault: boolean; profileId?: string } | undefined {
+    const row = this.db
+      .prepare('SELECT enabled, is_default, profile_id FROM acp_agents WHERE id = ?')
+      .get(id) as { enabled: number; is_default: number; profile_id: string | null } | undefined;
+    if (!row) return undefined;
+    return {
+      enabled: row.enabled === 1,
+      isDefault: row.is_default === 1,
+      ...(row.profile_id ? { profileId: row.profile_id } : {}),
+    };
+  }
+
+  private writeEnablement(
+    id: string,
+    patch: { enabled?: boolean; isDefault?: boolean; profileId?: string }
+  ): void {
+    this.db
+      .prepare(
+        `INSERT INTO acp_agents (id, enabled, is_default, profile_id, updated_at)
+         VALUES (?, ?, ?, ?, datetime('now'))
+         ON CONFLICT(id) DO UPDATE SET
+           enabled = COALESCE(?, enabled),
+           is_default = COALESCE(?, is_default),
+           profile_id = COALESCE(?, profile_id),
+           updated_at = excluded.updated_at`
+      )
+      .run(
+        id,
+        patch.enabled === true ? 1 : 0,
+        patch.isDefault === true ? 1 : 0,
+        patch.profileId ?? null,
+        patch.enabled === undefined ? null : patch.enabled ? 1 : 0,
+        patch.isDefault === undefined ? null : patch.isDefault ? 1 : 0,
+        patch.profileId ?? null
+      );
   }
 
   private readAuthState(id: string):

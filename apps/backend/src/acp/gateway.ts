@@ -1,3 +1,4 @@
+import net from 'node:net';
 import type { RequestPermissionRequest } from '@agentclientprotocol/sdk';
 import type { AcpContentBlock, AcpEvent, AcpSessionRecord, Session } from '@devmentorai/shared';
 import type { WebSocket } from '@fastify/websocket';
@@ -9,7 +10,13 @@ import type { LaunchResolution } from './catalog/types.js';
 import { WorkspaceService } from './catalog/workspace.js';
 import { AgentConnection, type PermissionDecision } from './connection.js';
 import { AcpError, isAcpError } from './errors.js';
-import { reconcileSessionsByAgent } from './history-reconciliation.js';
+import {
+  type CachedHistoryMessage,
+  type CachedToolCall,
+  reconcileMessages,
+  reconcileSessionsByAgent,
+  reconcileToolCalls,
+} from './history-reconciliation.js';
 import { AcpPermissionStore } from './permission-store.js';
 import { AcpSessionManager } from './session-manager.js';
 
@@ -102,8 +109,16 @@ function asBlocks(value: unknown): AcpContentBlock[] {
   return value as AcpContentBlock[];
 }
 
+function isLoopbackHost(host: string): boolean {
+  return net.isIP(host) === 4 && host.startsWith('127.');
+}
+
 function permissionTool(request: RequestPermissionRequest): string {
-  return request.toolCall.title ?? request.toolCall.kind ?? 'unknown-tool';
+  const rawInput = request.toolCall.rawInput;
+  if (request.toolCall.kind) return request.toolCall.kind;
+  if (isRecord(rawInput) && typeof rawInput.tool === 'string') return rawInput.tool;
+  if (isRecord(rawInput) && typeof rawInput.name === 'string') return rawInput.name;
+  return 'unknown-tool';
 }
 
 export class AcpGateway {
@@ -120,11 +135,14 @@ export class AcpGateway {
   private readonly sequence = new Map<string, number>();
   private readonly connections = new Map<string, AgentConnection>();
   private readonly clientsByAcpSession = new Map<string, GatewayClient>();
+  private readonly externalSessionIds = new Map<string, string>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly timeoutRejects = new Map<string, (error: AcpError) => void>();
   private readonly pendingPermissions = new Map<string, PendingPermission>();
   private readonly sessionAgentIds = new Map<string, string>();
   private readonly replayMessageIds = new Map<string, Set<string>>();
+  private readonly replaySeenMessageIds = new Map<string, Set<string>>();
+  private readonly replayingSessions = new Set<string>();
   private readonly manager: AcpSessionManager;
   private readonly permissions: AcpPermissionStore;
 
@@ -173,9 +191,12 @@ export class AcpGateway {
       '/acp',
       {
         websocket: true,
-        onRequest: async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+        onRequest: async (
+          request: FastifyRequest,
+          reply: FastifyReply
+        ): Promise<FastifyReply | void> => {
           if (!this.isOriginAllowed(request.headers.origin)) {
-            reply.code(403).send({ error: 'WebSocket origin is not allowed' });
+            return reply.code(403).send({ error: 'WebSocket origin is not allowed' });
           }
         },
       },
@@ -292,6 +313,7 @@ export class AcpGateway {
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
     await this.manager.shutdown();
+    await this.agentService.shutdown();
     for (const client of this.clients) client.socket.close();
     this.clients.clear();
   }
@@ -371,12 +393,13 @@ export class AcpGateway {
     switch (method) {
       case 'ui/session.create':
         return this.createSession(client, params);
-      case 'ui/session.prompt':
-        if (sessionId) {
-          const session = this.sessions.get(sessionId);
-          if (session) this.clientsByAcpSession.set(session.acpSessionId, client);
-        }
-        return this.prompt({ ...params, ...(sessionId ? { sessionId } : {}) });
+      case 'ui/session.prompt': {
+        const requestedSessionId = asString(params.sessionId, 'sessionId');
+        const resolvedSessionId = await this.ensureSession(client, requestedSessionId);
+        const resolved = this.sessions.get(resolvedSessionId);
+        if (resolved) this.clientsByAcpSession.set(resolved.acpSessionId, client);
+        return this.prompt({ ...params, sessionId: resolvedSessionId });
+      }
       case 'ui/session.cancel':
         await this.manager.cancelPrompt(sessionId ?? asString(params.sessionId, 'sessionId'));
         return { cancelled: true };
@@ -447,8 +470,31 @@ export class AcpGateway {
         return { authenticated: true };
       case 'ui/agents.resolve_launch':
         return this.agentService.resolveLaunch(asString(params.profileId, 'profileId'));
-      case 'ui/agents.probe':
-        return this.agentService.probe(asString(params.profileId, 'profileId'));
+      case 'ui/agents.probe': {
+        const profileId = asString(params.profileId, 'profileId');
+        const profile = this.agentService.listProfiles().find((item) => item.id === profileId);
+        if (!profile || profile.custom) {
+          throw new AcpError(
+            'capability_unsupported',
+            'Only trusted catalog profiles can be probed'
+          );
+        }
+        if (
+          profile.transport === 'tcp' &&
+          (!profile.host ||
+            typeof profile.port !== 'number' ||
+            !Number.isInteger(profile.port) ||
+            profile.port < 1 ||
+            profile.port > 65535 ||
+            !isLoopbackHost(profile.host))
+        ) {
+          throw new AcpError(
+            'capability_unsupported',
+            'Only valid loopback TCP profiles can be probed'
+          );
+        }
+        return this.agentService.probe(profileId);
+      }
       default:
         throw new AcpError('capability_unsupported', `Unknown UI method ${method}`);
     }
@@ -456,10 +502,28 @@ export class AcpGateway {
 
   private resolveSessionId(value: string): string {
     if (this.sessions.has(value)) return value;
+    const mapped = [...this.externalSessionIds.entries()].find(
+      ([, external]) => external === value
+    );
+    if (mapped) return mapped[0];
     return (
       [...this.sessions.entries()].find(([, session]) => session.acpSessionId === value)?.[0] ??
       value
     );
+  }
+
+  private async ensureSession(client: GatewayClient, externalSessionId: string): Promise<string> {
+    const resolved = this.resolveSessionId(externalSessionId);
+    if (this.sessions.has(resolved)) return resolved;
+    const row = this.db.prepare('SELECT id FROM sessions WHERE id = ?').get(externalSessionId) as
+      | { id?: string }
+      | undefined;
+    if (!row?.id) {
+      throw new AcpError('agent_error', `Unknown DevMentorAI session ${externalSessionId}`);
+    }
+    const session = await this.createSession(client, {});
+    this.externalSessionIds.set(session.id, externalSessionId);
+    return session.id;
   }
 
   private async createSession(
@@ -590,16 +654,30 @@ export class AcpGateway {
     // retained sequence are reported as gaps by replay().
     while (events.length > this.bufferLimit) events.shift();
     this.buffers.set(sessionId, events);
-    this.persistEvent(sessionId, event);
+    let eventToPersist = event;
     if (event.type === 'message') {
       this.replayMessageIds.get(sessionId)?.add(`${sessionId}:${event.messageId}`);
+      if (this.replayingSessions.has(sessionId)) {
+        const seen = this.replaySeenMessageIds.get(sessionId);
+        if (seen && !seen.has(event.messageId)) {
+          eventToPersist = { ...event, mode: 'replace' };
+          seen.add(event.messageId);
+        }
+      }
+    } else if (event.type === 'tool_call') {
+      this.replayMessageIds.get(sessionId)?.add(`${sessionId}:tool:${event.toolCallId}`);
     }
+    this.persistEvent(sessionId, eventToPersist);
     const client = this.clientsBySession(sessionId);
     if (client) {
       this.send(client, {
         jsonrpc: '2.0',
         method: 'ui/session.event',
-        params: { sessionId, seq: next, event },
+        params: {
+          sessionId: this.externalSessionIds.get(sessionId) ?? sessionId,
+          seq: next,
+          event,
+        },
       });
     }
   }
@@ -607,25 +685,94 @@ export class AcpGateway {
   private async loadSession(sessionId: string): Promise<{ supported: boolean }> {
     const replayed = new Set<string>();
     this.replayMessageIds.set(sessionId, replayed);
+    this.replaySeenMessageIds.set(sessionId, new Set());
+    this.replayingSessions.add(sessionId);
     try {
       const result = await this.manager.loadSession(sessionId);
       if (result.supported) {
         const rows = this.db
-          .prepare('SELECT id, metadata FROM messages WHERE session_id = ?')
-          .all(sessionId) as Array<{ id: string; metadata: string | null }>;
-        for (const row of rows) {
-          if (replayed.has(row.id)) continue;
+          .prepare(
+            'SELECT id, role, content, timestamp, metadata FROM messages WHERE session_id = ?'
+          )
+          .all(sessionId) as Array<{
+          id: string;
+          role: 'user' | 'assistant' | 'system';
+          content: string;
+          timestamp: string;
+          metadata: string | null;
+        }>;
+        const localMessages: CachedHistoryMessage[] = rows.map((row) => ({
+          id: row.id,
+          role: row.role,
+          content: row.content,
+          timestamp: row.timestamp,
+          source: 'local',
+        }));
+        const remoteMessages: Array<{
+          id: string;
+          role: 'user' | 'assistant' | 'system';
+          content: string;
+          timestamp: string;
+        }> = rows
+          .filter((row) => replayed.has(row.id) && !row.id.includes(':tool:'))
+          .map(({ id, role, content, timestamp }) => ({ id, role, content, timestamp }));
+        const reconciledMessages = reconcileMessages(localMessages, remoteMessages);
+        for (const message of reconciledMessages) {
+          const metadata = rows.find((row) => row.id === message.id)?.metadata;
+          const parsed = metadata ? (JSON.parse(metadata) as Record<string, unknown>) : {};
+          this.db.prepare('UPDATE messages SET metadata = ? WHERE id = ?').run(
+            JSON.stringify({
+              ...parsed,
+              ...(message.stale ? { stale: true, source: 'local' } : { source: 'agent' }),
+            }),
+            message.id
+          );
+        }
+        const localTools: CachedToolCall[] = rows.flatMap((row) => {
           const metadata = row.metadata
             ? (JSON.parse(row.metadata) as Record<string, unknown>)
             : {};
-          this.db
-            .prepare('UPDATE messages SET metadata = ? WHERE id = ?')
-            .run(JSON.stringify({ ...metadata, stale: true, source: 'local' }), row.id);
+          return typeof metadata.toolCallId === 'string'
+            ? [
+                {
+                  id: metadata.toolCallId,
+                  status: String(metadata.status ?? 'unknown'),
+                  ...(typeof metadata.title === 'string' ? { title: metadata.title } : {}),
+                  source: 'local' as const,
+                  timestamp: row.timestamp,
+                },
+              ]
+            : [];
+        });
+        const remoteTools = localTools.filter((tool) =>
+          replayed.has(`${sessionId}:tool:${tool.id}`)
+        );
+        const reconciledTools = reconcileToolCalls(localTools, remoteTools);
+        for (const tool of reconciledTools) {
+          const row = rows.find((candidate) => {
+            const metadata = candidate.metadata
+              ? (JSON.parse(candidate.metadata) as Record<string, unknown>)
+              : {};
+            return metadata.toolCallId === tool.id;
+          });
+          if (!row) continue;
+          const metadata = row.metadata
+            ? (JSON.parse(row.metadata) as Record<string, unknown>)
+            : {};
+          this.db.prepare('UPDATE messages SET metadata = ? WHERE id = ?').run(
+            JSON.stringify({
+              ...metadata,
+              ...(tool.stale ? { stale: true, source: 'local' } : { source: 'agent' }),
+            }),
+            row.id
+          );
         }
       }
       return result;
     } finally {
       this.replayMessageIds.delete(sessionId);
+      this.replaySeenMessageIds.delete(sessionId);
+      this.replayingSessions.delete(sessionId);
     }
   }
 
@@ -737,10 +884,27 @@ export class AcpGateway {
   }
 
   private persistEvent(sessionId: string, event: AcpEvent): void {
-    const text = textFromEvent(event);
-    if (!text) return;
     const session = this.sessions.get(sessionId);
     if (!session) return;
+    if (event.type === 'tool_call') {
+      const messageId = `${session.id}:tool:${event.toolCallId}`;
+      const metadata = JSON.stringify({
+        toolCallId: event.toolCallId,
+        status: event.status ?? 'unknown',
+        ...(event.title ? { title: event.title } : {}),
+        source: 'agent',
+      });
+      this.db
+        .prepare(
+          `INSERT INTO messages (id, session_id, role, content, timestamp, metadata)
+           VALUES (?, ?, 'assistant', ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET content = excluded.content, metadata = excluded.metadata`
+        )
+        .run(messageId, session.id, event.title ?? '', new Date().toISOString(), metadata);
+      return;
+    }
+    const text = textFromEvent(event);
+    if (!text) return;
     const role =
       event.type === 'message' && event.role === 'thought'
         ? 'assistant'
@@ -814,20 +978,24 @@ export class AcpGateway {
     const remotes: Array<{ id: string; agentId: string }> = [];
     const successfulAgents = new Set<string>();
     for (const profile of profiles) {
+      const profileId = profile.id;
       const agentId = profile.agentId ?? profile.id;
       try {
         const resolution = await this.agentService.resolveLaunch(profile.id);
         const connection =
-          this.connections.get(agentId) ??
+          this.connections.get(profileId) ??
           new AgentConnection({
-            agentId,
+            agentId: profileId,
             launchSpec: resolution.launchSpec,
           });
-        this.connections.set(agentId, connection);
-        this.manager.registerAgent({ agentId, launchSpec: resolution.launchSpec, connection });
-        const result = await this.manager.listAgentSessions(agentId);
+        this.connections.set(profileId, connection);
+        this.manager.registerAgent({
+          agentId: profileId,
+          launchSpec: resolution.launchSpec,
+          connection,
+        });
+        const result = await this.manager.listAgentSessions(profileId);
         if (!isRecord(result) || result.supported !== true) continue;
-        successfulAgents.add(agentId);
         const value = result.sessions;
         const sessions = isRecord(value) && Array.isArray(value.sessions) ? value.sessions : [];
         const remote = sessions.flatMap((item) =>
@@ -836,11 +1004,20 @@ export class AcpGateway {
             : []
         );
         remotes.push(...remote);
+        successfulAgents.add(agentId);
       } catch {
         // Unreachable agents are excluded from reconciliation.
       }
     }
-    const merged = reconcileSessionsByAgent(local, remotes, successfulAgents);
+    const localRows = this.db
+      .prepare('SELECT id, acp_session_id FROM sessions WHERE acp_session_id IS NOT NULL')
+      .all() as Array<{ id: string; acp_session_id: string }>;
+    const localByAcpId = new Map(localRows.map((row) => [row.acp_session_id, row.id]));
+    const normalizedRemotes = remotes.map((session) => ({
+      ...session,
+      id: localByAcpId.get(session.id) ?? session.id,
+    }));
+    const merged = reconcileSessionsByAgent(local, normalizedRemotes, successfulAgents);
     for (const session of merged) {
       this.db
         .prepare('UPDATE sessions SET history_state = ? WHERE id = ?')

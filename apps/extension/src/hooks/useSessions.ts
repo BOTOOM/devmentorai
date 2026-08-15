@@ -7,6 +7,7 @@ type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
 interface UseSessionsOptions {
   connectionStatus?: ConnectionStatus;
+  acpClient?: AcpClient;
 }
 
 export function useSessions(options?: UseSessionsOptions) {
@@ -17,14 +18,32 @@ export function useSessions(options?: UseSessionsOptions) {
   const prevConnectionStatus = useRef<ConnectionStatus | undefined>(options?.connectionStatus);
 
   const apiClient = useMemo(() => ApiClient.getInstance(), []);
-  const acpClient = useMemo(() => new AcpClient({ url: 'ws://127.0.0.1:3847/acp' }), []);
+  const ownAcpClient = useMemo(
+    () => (options?.acpClient ? undefined : new AcpClient({ url: 'ws://127.0.0.1:3847/acp' })),
+    [options?.acpClient]
+  );
+  const acpClient = options?.acpClient ?? (ownAcpClient as AcpClient);
+  const sessionsRef = useRef<Session[]>([]);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
 
   const loadSessions = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await apiClient.listSessions();
       if (response.success && response.data) {
-        setSessions(response.data.items);
+        let nextSessions = response.data.items;
+        try {
+          await acpClient.connect();
+          const acpSessions = await acpClient.listAgentSessions();
+          const byId = new Map(nextSessions.map((session) => [session.id, session]));
+          for (const session of acpSessions) byId.set(session.id, session);
+          nextSessions = [...byId.values()];
+        } catch {
+          // Cached sessions remain available when ACP history is unavailable.
+        }
+        setSessions(nextSessions);
 
         if (!activeSessionId && response.data.items.length > 0) {
           setActiveSessionId(response.data.items[0].id);
@@ -38,7 +57,7 @@ export function useSessions(options?: UseSessionsOptions) {
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, apiClient]);
+  }, [acpClient, activeSessionId, apiClient]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -98,7 +117,7 @@ export function useSessions(options?: UseSessionsOptions) {
     async (sessionId: string) => {
       setActiveSessionId(sessionId);
 
-      const selected = sessions.find((session) => session.id === sessionId);
+      const selected = sessionsRef.current.find((session) => session.id === sessionId);
       if (selected?.agentId && selected.replaySupported) {
         try {
           await acpClient.connect();
@@ -111,7 +130,7 @@ export function useSessions(options?: UseSessionsOptions) {
 
       // Non-replay ACP agents intentionally render their local cache read-only.
     },
-    [acpClient, sessions]
+    [acpClient]
   );
 
   const deleteSession = useCallback(

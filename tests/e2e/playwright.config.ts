@@ -48,7 +48,7 @@ export default defineConfig({
   // Run backend before tests
   webServer: {
     command:
-      'rm -rf .e2e-home || true; mkdir -p .e2e-home && HOME=$PWD/.e2e-home ACP_FIXTURE_AGENT=1 pnpm --filter devmentorai-server dev',
+      'rm -rf .e2e-home || true; mkdir -p .e2e-home && ACP_FIXTURE_AGENT=1 node ./start-fixture-server.mjs',
     url: 'http://localhost:3847/api/health',
     reuseExistingServer: false,
     timeout: 30000,

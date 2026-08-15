@@ -28,3 +28,7 @@ model.
 - v1's blocking `session/prompt` means the host must synthesise turn state (R-004).
 - Adopting v2 later is a normaliser plus flag flip, not a rewrite.
 - Cost: two normalisers and their golden-file tests.
+- The version seam lives at the session-manager update boundary: negotiated
+  notifications select the matching normaliser, while v1-only turn completion
+  synthesis is skipped for v2. The event union, session shape, and UI remain
+  version-neutral.

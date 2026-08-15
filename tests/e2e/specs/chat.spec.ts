@@ -38,11 +38,13 @@ test.describe('Chat Functionality', () => {
     const messageInput = sidePanelPage.locator('textarea');
     const sendButton = sidePanelPage.getByRole('button', { name: /send|enviar/i });
 
+    await messageInput.click();
     await messageInput.fill('Tell me a long story');
     await expect(sendButton).toBeEnabled();
     await messageInput.press('Enter');
 
-    await expect(sendButton).toBeDisabled();
+    await expect(sidePanelPage.getByRole('button', { name: /stop|cancel/i })).toBeVisible();
+    await expect(messageInput).toBeDisabled();
   });
 
   test('should handle Enter key to send message', async ({ sidePanelPage }) => {

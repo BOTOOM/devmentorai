@@ -11,6 +11,7 @@ import { AgentConnection } from './connection.js';
 import { AcpError } from './errors.js';
 import type { LaunchSpec } from './launcher.js';
 import { type AcpMessageRole, normalizeV1Update } from './normalize/v1.js';
+import { normalizeV2Update } from './normalize/v2.js';
 
 export type SessionEventHandler = (sessionId: string, event: AcpEvent) => void | Promise<void>;
 
@@ -27,6 +28,7 @@ export type CreateSessionOptions = {
 
 type ManagedSession = AcpSessionRecord & {
   activeToolCalls: Set<string>;
+  terminatedToolCalls: Set<string>;
   messageIds: Partial<Record<AcpMessageRole, string>>;
   updateChain: Promise<void>;
 };
@@ -85,6 +87,7 @@ export class AcpSessionManager {
       capabilities: connection.capabilities,
       ...(created.configOptions ? { configOptions: created.configOptions } : {}),
       activeToolCalls: new Set(),
+      terminatedToolCalls: new Set(),
       messageIds: {},
       updateChain: Promise.resolve(),
     };
@@ -106,6 +109,7 @@ export class AcpSessionManager {
         prompt
       );
       await session.updateChain;
+      if (session.protocolVersion >= 2) return;
       if (response.stopReason === 'cancelled') {
         await this.cancelUnfinishedTools(session);
       }
@@ -181,7 +185,10 @@ export class AcpSessionManager {
     );
     if (!session) return Promise.resolve();
     session.updateChain = session.updateChain.then(async () => {
-      const event = normalizeV1Update(notification.update, { messageIds: session.messageIds });
+      const event =
+        session.protocolVersion >= 2
+          ? normalizeV2Update(notification.update, { messageIds: session.messageIds })
+          : normalizeV1Update(notification.update, { messageIds: session.messageIds });
       if (event.type === 'tool_call') {
         if (
           event.status === 'completed' ||
@@ -189,7 +196,11 @@ export class AcpSessionManager {
           event.status === 'cancelled'
         ) {
           session.activeToolCalls.delete(event.toolCallId);
-        } else if (event.status !== undefined) {
+          session.terminatedToolCalls.add(event.toolCallId);
+        } else if (
+          !session.terminatedToolCalls.has(event.toolCallId) &&
+          (session.protocolVersion >= 2 || event.status !== undefined)
+        ) {
           session.activeToolCalls.add(event.toolCallId);
         }
       }

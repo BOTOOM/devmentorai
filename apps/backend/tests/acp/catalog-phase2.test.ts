@@ -41,6 +41,7 @@ function createProfileTable(db: Database.Database): void {
       env_json TEXT NOT NULL,
       default_cwd TEXT NOT NULL,
       transport TEXT NOT NULL,
+      custom INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
@@ -304,6 +305,38 @@ describe('ACP Phase 2 catalog', () => {
     });
   });
 
+  it('rejects archives containing symbolic links', async () => {
+    const directory = await tempDirectory();
+    const source = path.join(directory, 'source');
+    const archive = path.join(directory, 'symlink.tar.gz');
+    await fs.mkdir(source);
+    await fs.symlink('/outside', path.join(source, 'agent'));
+    await execFileAsync('tar', ['-czf', archive, '-C', source, 'agent']);
+    const bytes = new Uint8Array(await fs.readFile(archive));
+    const installer = new AgentInstaller({
+      root: path.join(directory, 'agents'),
+      fetcher: async () => bytes,
+    });
+    const entry = {
+      id: 'symlink-agent',
+      name: 'Symlink',
+      version: '1',
+      source: 'registry' as const,
+      distribution: {
+        binary: {
+          [platformKey()]: { archive: 'symlink.tar.gz', cmd: './agent' },
+        },
+      },
+      installState: 'not_installed' as const,
+      authState: 'unknown' as const,
+      authMethods: [],
+      platformAvailability: { available: true, key: platformKey() },
+    };
+    await expect(installer.install(entry)).rejects.toMatchObject({
+      code: 'agent_launch_failed',
+    });
+  });
+
   it('stores credentials encrypted and resolves only process environment values', async () => {
     const directory = await tempDirectory();
     const secret = 'phase2-secret-value';
@@ -314,6 +347,13 @@ describe('ACP Phase 2 catalog', () => {
     expect(store.resolveEnvironment({ PROVIDER_KEY: 'credential:provider-key' })).toEqual({
       PROVIDER_KEY: secret,
     });
+    expect(
+      store.resolveEnvironment({
+        SHORT: 'credential:provider-key',
+        URI: 'credential://provider-key',
+        TEMPLATE: '${credential:provider-key}',
+      })
+    ).toEqual({ SHORT: secret, URI: secret, TEMPLATE: secret });
     expect(JSON.stringify({ status: 'configured' })).not.toContain(secret);
   });
 
@@ -378,6 +418,80 @@ describe('ACP Phase 2 catalog', () => {
       installState: 'lazy',
       authState: 'authenticated',
       authMethods: [{ id: 'login', description: 'Login' }],
+    });
+    db.close();
+  });
+
+  it('keeps npx installs lazy instead of invoking the binary installer', async () => {
+    const db = new Database(':memory:');
+    const directory = await tempDirectory();
+    const catalog = new AgentCatalog({
+      fetcher: async () => ({ agents: [] }),
+      builtIns: [{ id: 'npx-agent', name: 'Npx', distribution: { npx: { package: 'npx-agent' } } }],
+    });
+    const installer = {
+      install: async () => {
+        throw new Error('must not install npx distributions');
+      },
+      uninstall: async () => undefined,
+    } as unknown as AgentInstaller;
+    const service = new AcpAgentService({
+      db,
+      catalog,
+      installer,
+      workspace: new WorkspaceService({ root: directory }),
+    });
+    await expect(service.install('npx-agent')).resolves.toMatchObject({ installState: 'lazy' });
+    db.close();
+  });
+
+  it('lists profiles for missing catalog agents as unavailable', async () => {
+    const db = new Database(':memory:');
+    const directory = await tempDirectory();
+    createProfileTable(db);
+    const profiles = new AgentProfileStore(db);
+    profiles.save({
+      id: 'missing-profile',
+      name: 'Missing',
+      agentId: 'missing-agent',
+      args: [],
+      env: {},
+      defaultCwd: directory,
+      transport: 'stdio',
+    });
+    const catalog = new AgentCatalog({
+      fetcher: async () => ({ agents: [] }),
+      builtIns: [],
+      getProfiles: () => profiles.list(),
+    });
+    await expect(catalog.get('missing-profile')).resolves.toMatchObject({
+      installState: 'unavailable',
+      platformAvailability: {
+        available: false,
+        reason: "Catalog entry 'missing-agent' is unavailable",
+      },
+    });
+    db.close();
+  });
+
+  it('persists an explicit custom profile flag', async () => {
+    const db = new Database(':memory:');
+    const directory = await tempDirectory();
+    createProfileTable(db);
+    const profiles = new AgentProfileStore(db);
+    profiles.save({
+      id: 'catalog-custom',
+      name: 'Catalog custom',
+      agentId: 'catalog-agent',
+      custom: true,
+      args: [],
+      env: {},
+      defaultCwd: directory,
+      transport: 'stdio',
+    });
+    expect(profiles.get('catalog-custom')).toMatchObject({
+      agentId: 'catalog-agent',
+      custom: true,
     });
     db.close();
   });

@@ -55,6 +55,8 @@ export type AcpProbeRequestResult = {
   error?: { code?: number; message: string };
 };
 
+const HANDSHAKE_TIMEOUT_MS = 10_000;
+
 function defaultPermissionPolicy(request: RequestPermissionRequest): PermissionDecision {
   const rejectOption = request.options.find(
     (option: PermissionOption) => option.kind === 'reject_once' || option.kind === 'reject_always'
@@ -200,7 +202,7 @@ export class AgentConnection {
 
     try {
       this.connection = app.connect(acp.ndJsonStream(this.process.stdin, this.process.stdout));
-      const response = await this.connection.agent.request('initialize', {
+      const initialize = this.connection.agent.request('initialize', {
         protocolVersion: acp.PROTOCOL_VERSION,
         clientCapabilities: {},
         clientInfo: {
@@ -208,6 +210,26 @@ export class AgentConnection {
           version: this.clientVersion,
         },
       });
+      const timeout = new Promise<never>((_, reject) => {
+        setTimeout(
+          () =>
+            reject(
+              new AcpError('agent_launch_failed', 'ACP initialization timed out', {
+                agentId: this.agentId,
+              })
+            ),
+          HANDSHAKE_TIMEOUT_MS
+        ).unref();
+      });
+      const exited = this.process.exited.then((exit) => {
+        throw new AcpError('agent_launch_failed', 'Agent exited before initialization', {
+          code: exit.code,
+          signal: exit.signal,
+          stderr: exit.stderr,
+          agentId: this.agentId,
+        });
+      });
+      const response = await Promise.race([initialize, timeout, exited]);
       if (response.protocolVersion !== acp.PROTOCOL_VERSION) {
         throw new AcpError(
           'protocol_version_unsupported',
@@ -279,6 +301,18 @@ export class AgentConnection {
           ...(Number.isFinite(code) ? { code } : {}),
           message,
         },
+      };
+    }
+  }
+
+  async probeNotification(method: string, params: unknown): Promise<AcpProbeRequestResult> {
+    try {
+      await this.requireConnection().agent.notify(method, params);
+      return { supported: true };
+    } catch (error) {
+      return {
+        supported: false,
+        error: { message: error instanceof Error ? error.message : String(error) },
       };
     }
   }

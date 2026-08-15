@@ -105,7 +105,7 @@ export async function runConformanceProbe(
     report.checks.history = await connection.probeRequest('session/load', {
       sessionId: session.sessionId,
     });
-    report.checks.cancel = await connection.probeRequest('session/cancel', {
+    report.checks.cancel = await connection.probeNotification('session/cancel', {
       sessionId: session.sessionId,
     });
     report.advertisedCommands = advertisedCommands;

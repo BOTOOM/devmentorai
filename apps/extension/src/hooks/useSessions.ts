@@ -19,8 +19,7 @@ export function useSessions(options?: UseSessionsOptions) {
 
   const apiClient = useMemo(() => ApiClient.getInstance(), []);
   const ownAcpClient = useMemo(
-    () =>
-      options?.acpClient ? undefined : new AcpClient({ url: 'ws://127.0.0.1:3847/acp' }),
+    () => (options?.acpClient ? undefined : new AcpClient({ url: 'ws://127.0.0.1:3847/acp' })),
     [options?.acpClient]
   );
   const acpClient = options?.acpClient ?? (ownAcpClient as AcpClient);
@@ -58,7 +57,7 @@ export function useSessions(options?: UseSessionsOptions) {
     } finally {
       setIsLoading(false);
     }
-  }, [activeSessionId, apiClient]);
+  }, [acpClient, activeSessionId, apiClient]);
 
   // Load sessions on mount
   useEffect(() => {

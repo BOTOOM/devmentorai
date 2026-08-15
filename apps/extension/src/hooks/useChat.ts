@@ -46,7 +46,10 @@ export function useChat(
   );
   const acpClient = sharedClient ?? (ownClient as AcpClient);
 
+  const activeSessionRef = useRef<string | undefined>(sessionId);
+
   useEffect(() => {
+    activeSessionRef.current = sessionId;
     dispatchAcpEvent({ type: 'reset' });
   }, [sessionId]);
 

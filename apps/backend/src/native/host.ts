@@ -12,8 +12,8 @@
  * The host reads JSON messages from stdin and writes responses to stdout.
  */
 
+import { pathToFileURL } from 'node:url';
 import type { FastifyInstance } from 'fastify';
-import { createServer } from '../server.js';
 
 interface NativeMessage {
   id: string;
@@ -36,7 +36,8 @@ class NativeMessagingHost {
   private activeStreams = new Map<string, AbortController>();
 
   async initialize(): Promise<void> {
-    this.app = await createServer();
+    const { createServer } = await import('../app.js');
+    this.app = await createServer({ logToStderr: true });
     await this.app.ready();
     this.log('Native Messaging Host initialized');
   }
@@ -288,7 +289,11 @@ class NativeMessagingHost {
 }
 
 // Entry point when run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  console.log = console.error;
+  console.info = console.error;
+  console.debug = console.error;
+
   const host = new NativeMessagingHost();
   host.run().catch((err) => {
     process.stderr.write(`Fatal error: ${err}\n`);

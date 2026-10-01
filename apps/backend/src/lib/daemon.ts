@@ -104,12 +104,16 @@ export async function isServerRunning(port: number = DEFAULT_PORT): Promise<{
   return { running: ok, pid: null, healthy: ok };
 }
 
+export function resolveServerEntry(moduleUrl: string): string {
+  return path.join(path.dirname(fileURLToPath(moduleUrl)), 'server.js');
+}
+
 /** Spawn the server as a detached background process */
 export function spawnServer(port: number = DEFAULT_PORT): ChildProcess {
   ensureDir(LOG_DIR);
 
   const logFd = fs.openSync(LOG_FILE, 'a');
-  const serverEntry = path.join(path.dirname(fileURLToPath(import.meta.url)), 'server.js');
+  const serverEntry = resolveServerEntry(import.meta.url);
 
   const child = fork(serverEntry, [], {
     detached: true,

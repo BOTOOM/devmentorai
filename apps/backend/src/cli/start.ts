@@ -69,9 +69,8 @@ export async function startCommand(options: CliOptions): Promise<void> {
   if (options.foreground) {
     console.log(`\n🚀 Starting DevMentorAI server on port ${port} (foreground)...\n`);
     process.env.DEVMENTORAI_PORT = String(port);
-    const { createServer } = await import('../server.js');
-    const fastify = await createServer();
-    await fastify.listen({ port, host: '0.0.0.0' });
+    const { startServer } = await import('../app.js');
+    await startServer();
     return;
   }
 

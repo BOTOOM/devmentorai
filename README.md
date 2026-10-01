@@ -221,9 +221,8 @@ For enhanced security, you can use Native Messaging instead of HTTP:
 
 ```bash
 # Get your extension ID from chrome://extensions
-npm install -g devmentorai-server
-node "$(npm root -g)/devmentorai-server/dist/install-native-host.js" <extension-id>
-node "$(npm root -g)/devmentorai-server/dist/install-native-host.js" --uninstall
+cd apps/backend
+node src/native/install-native-host.js <extension-id>
 ```
 
 Then enable "Native Messaging" in DevMentorAI settings.

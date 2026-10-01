@@ -10,6 +10,7 @@
  *   node install-native-host.js <extension-id> --uninstall
  */
 
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -62,12 +63,12 @@ function createManifest(extensionId: string): object {
   if (os.platform() === 'win32') {
     executablePath = path.resolve(__dirname, 'native-host.bat');
     // Create batch wrapper
-    const batchContent = `@echo off\nnode "${hostPath}"\n`;
+    const batchContent = `@echo off\r\n"${process.execPath}" "${hostPath}" %*\r\n`;
     fs.writeFileSync(executablePath, batchContent);
   } else {
     // On Unix, create a shell wrapper
     executablePath = path.resolve(__dirname, 'native-host.sh');
-    const shellContent = `#!/bin/bash\nexec node "${hostPath}"\n`;
+    const shellContent = `#!/bin/sh\nexec "${process.execPath}" "${hostPath}" "$@"\n`;
     fs.writeFileSync(executablePath, shellContent, { mode: 0o755 });
   }
 
@@ -104,11 +105,25 @@ function install(extensionId: string): void {
     }
   }
 
-  // Windows: Also register in registry
   if (os.platform() === 'win32') {
-    console.log('\n⚠️  Windows: You may need to add a registry entry manually:');
-    console.log(`   Key: HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${HOST_NAME}`);
-    console.log(`   Value: ${path.join(paths.chrome, `${HOST_NAME}.json`)}`);
+    const registryKeys = {
+      chrome: `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${HOST_NAME}`,
+      chromium: `HKCU\\Software\\Chromium\\NativeMessagingHosts\\${HOST_NAME}`,
+    };
+
+    for (const browser of ['chrome', 'chromium'] as const) {
+      const manifestPath = path.join(paths[browser], `${HOST_NAME}.json`);
+      try {
+        execFileSync(
+          'reg',
+          ['add', registryKeys[browser], '/ve', '/t', 'REG_SZ', '/d', manifestPath, '/f'],
+          { stdio: 'ignore' },
+        );
+        console.log(`  ✓ Registered for ${browser}: ${manifestPath}`);
+      } catch (error) {
+        console.error(`  ✗ Failed to register ${browser}: ${error}`);
+      }
+    }
   }
 
   console.log('\n✓ Installation complete!');
@@ -121,6 +136,22 @@ function uninstall(): void {
   console.log('Uninstalling Native Messaging Host...');
 
   const paths = getManifestPaths();
+
+  if (os.platform() === 'win32') {
+    const registryKeys = {
+      chrome: `HKCU\\Software\\Google\\Chrome\\NativeMessagingHosts\\${HOST_NAME}`,
+      chromium: `HKCU\\Software\\Chromium\\NativeMessagingHosts\\${HOST_NAME}`,
+    };
+
+    for (const browser of ['chrome', 'chromium'] as const) {
+      try {
+        execFileSync('reg', ['delete', registryKeys[browser], '/f'], { stdio: 'ignore' });
+        console.log(`  ✓ Unregistered for ${browser}`);
+      } catch {
+        console.log(`  - Not registered for ${browser}`);
+      }
+    }
+  }
 
   for (const [browser, manifestDir] of Object.entries(paths)) {
     const manifestPath = path.join(manifestDir, `${HOST_NAME}.json`);

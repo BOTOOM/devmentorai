@@ -30,8 +30,8 @@ import {
   isProcessRunning,
   isServerRunning,
   readPid,
-  resolveServerEntry,
   removePid,
+  resolveServerEntry,
   writePid,
 } from '../../src/lib/daemon.js';
 

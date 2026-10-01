@@ -8,6 +8,7 @@ import { type ChildProcess, fork } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { DEFAULT_CONFIG } from '@devmentorai/shared';
 import { LOG_DIR, LOG_FILE, PID_FILE, ensureDir } from './paths.js';
 
@@ -108,7 +109,7 @@ export function spawnServer(port: number = DEFAULT_PORT): ChildProcess {
   ensureDir(LOG_DIR);
 
   const logFd = fs.openSync(LOG_FILE, 'a');
-  const serverEntry = path.resolve(path.dirname(new URL(import.meta.url).pathname), 'server.js');
+  const serverEntry = path.join(path.dirname(fileURLToPath(import.meta.url)), 'server.js');
 
   const child = fork(serverEntry, [], {
     detached: true,

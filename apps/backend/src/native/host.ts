@@ -12,6 +12,7 @@
  * The host reads JSON messages from stdin and writes responses to stdout.
  */
 
+import { pathToFileURL } from 'node:url';
 import type { FastifyInstance } from 'fastify';
 import { createServer } from '../server.js';
 
@@ -288,7 +289,7 @@ class NativeMessagingHost {
 }
 
 // Entry point when run directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const host = new NativeMessagingHost();
   host.run().catch((err) => {
     process.stderr.write(`Fatal error: ${err}\n`);

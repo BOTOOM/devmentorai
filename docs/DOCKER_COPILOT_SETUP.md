@@ -1,159 +1,144 @@
-# Docker Backend + Copilot CLI Setup
+# Docker Backend Setup (Windows, macOS, Linux)
 
-This guide explains how to run the DevMentorAI backend in Docker with:
+Use Docker as a fallback when the normal npm/npx installation fails. The container serves the backend on port 3847 and supports either a GitHub token or Copilot CLI device-code login.
 
-- GitHub Copilot CLI installed inside the container
-- Copilot auth session persisted on the host (`.copilot`)
-- Backend data persisted on the host (`.devmentorai`)
-- Custom backend port support
-- Optional ngrok/cloudflared tunnels
-- Manual Copilot CLI update flow
+## Prerequisites
 
-## 1) Prerequisites
+- Windows: Docker Desktop using Linux containers and its WSL 2 backend.
+- macOS: Docker Desktop with Linux containers.
+- Linux: Docker Engine and Docker Compose v2.
+- Git and a GitHub account with Copilot access.
 
-- Docker + Docker Compose
-- A GitHub account with Copilot access
-- Optional: proxy settings if your network restricts outbound HTTPS
+Clone the repository and create your local environment file:
 
-## 2) Configure `.env`
+```powershell
+git clone https://github.com/BOTOOM/devmentorai.git
+Set-Location devmentorai
+Copy-Item .env.example .env
+```
 
-Create or update the root `.env` file:
+```bash
+git clone https://github.com/BOTOOM/devmentorai.git
+cd devmentorai
+cp .env.example .env
+```
+
+The `.env` file is ignored by Git; never commit it. Keep the default `BACKEND_BIND_ADDRESS=127.0.0.1` unless you intentionally need remote access.
+
+## Choose an authentication method
+
+### A. Fine-grained GitHub token
+
+Create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) with the **Copilot Requests** permission, then put it in `.env`:
 
 ```env
-# Backend port exposed on host and used inside container
-BACKEND_PORT=3847
-
-# Host path where Copilot session and backend data are persisted
-HOST_DEVMENTOR_CONTAINER_DIR=/home/botom/devmentor-container
-
-# Match host user/group to avoid permission issues on bind mounts
-HOST_UID=1000
-HOST_GID=1000
-
-# Optional (only if your network requires proxy)
-HTTP_PROXY=
-HTTPS_PROXY=
-ALL_PROXY=
-NO_PROXY=localhost,127.0.0.1,backend
-
-# Optional for ngrok profile
-NGROK_AUTHTOKEN=
+COPILOT_GITHUB_TOKEN=github_pat_your_token
 ```
 
-## 3) Prepare host directories
+Classic `ghp_` personal access tokens are not supported. The entrypoint logs which environment variable is in use but never prints its value.
 
-```bash
-mkdir -p /home/botom/devmentor-container/.copilot
-mkdir -p /home/botom/devmentor-container/.devmentorai
-chown -R "$(id -u):$(id -g)" /home/botom/devmentor-container
-```
+### B. Copilot CLI device-code login
 
-## 4) Build and start backend container
+Leave `COPILOT_GITHUB_TOKEN` blank. After starting the container below, run:
 
-```bash
-docker compose up -d --build backend
-```
-
-Check logs:
-
-```bash
-docker compose logs -f backend
-```
-
-## 5) Authenticate Copilot CLI inside container
-
-Use the `copilot` binary:
-
-```bash
+```sh
 docker compose exec backend copilot login
 ```
 
-Verify authentication status:
+Open the printed URL, https://github.com/login/device, enter the device code, and complete login. Then restart the backend:
 
-```bash
-docker compose exec backend copilot auth status
+```sh
+docker compose restart backend
 ```
 
-The auth session is stored in:
+The login is persisted in the `devmentorai-copilot` volume.
 
-- Container: `/home/devmentor/.copilot`
-- Host: `${HOST_DEVMENTOR_CONTAINER_DIR}/.copilot`
+## Start and verify
 
-## 6) Update Copilot CLI inside container
+Stop any locally running backend first so it releases port 3847:
 
-Check current version:
-
-```bash
-docker compose exec backend copilot --version
+```sh
+devmentorai-server stop
 ```
 
-Run update check/install:
+Build and start the container:
 
-```bash
-docker compose exec backend copilot update
-```
-
-If your network is strict and update checks fail with timeout, configure `HTTP_PROXY`/`HTTPS_PROXY` in `.env` and recreate the container:
-
-```bash
+```sh
 docker compose up -d --build backend
+docker compose logs -f backend
 ```
 
-## 7) Optional remote tunnel
+Verify the health and Copilot auth endpoints.
 
-### ngrok
+PowerShell:
+
+```powershell
+Invoke-RestMethod -Uri 'http://127.0.0.1:3847/api/health' | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri 'http://127.0.0.1:3847/api/account/auth' | ConvertTo-Json -Depth 5
+```
+
+macOS/Linux:
 
 ```bash
+curl -fsS http://127.0.0.1:3847/api/health
+curl -fsS http://127.0.0.1:3847/api/account/auth
+```
+
+For the extension, select **HTTP** mode and use `http://localhost:3847`. Native Messaging is for a locally installed backend and does not apply to Docker.
+
+## Remote access
+
+To bind beyond localhost, set `BACKEND_BIND_ADDRESS=0.0.0.0` in `.env`, then recreate the service:
+
+```sh
+docker compose up -d backend
+```
+
+This exposes an unauthenticated API that can spend your Copilot quota. Only do this on a trusted network with appropriate firewall rules. Alternatively, use a tunnel profile:
+
+```sh
 docker compose --profile tunnel-ngrok up -d
-```
-
-### Cloudflare Quick Tunnel
-
-```bash
 docker compose --profile tunnel-cloudflare up -d
 ```
 
-## 8) Useful commands
+## Migrate the previous bind-mount layout
 
-```bash
-# Stop and remove containers/networks
-docker compose down
+To keep data from `/home/botom/devmentor-container`, set these values in `.env`:
 
-# Restart backend
-docker compose restart backend
-
-# Open shell in backend container
-docker compose exec backend sh
+```env
+DEVMENTORAI_COPILOT_VOLUME=/home/botom/devmentor-container/.copilot
+DEVMENTORAI_DATA_VOLUME=/home/botom/devmentor-container/.devmentorai
+HOST_UID=1000
+HOST_GID=1000
 ```
 
-## 9) Troubleshooting
+Set `HOST_UID` and `HOST_GID` to the owner of those directories. On Linux, check with `id -u` and `id -g`. On Docker Desktop, use host paths accessible to Docker Desktop; the old `/home/botom/...` path is only valid if it is accessible from the Docker environment.
 
-### `copilot: command not found`
+## Update or reset login
 
-Rebuild image to ensure Copilot CLI is present:
+Pull the latest changes and rebuild:
 
-```bash
+```sh
+git pull
 docker compose up -d --build backend
 ```
 
-Then verify:
+To reset Copilot login, stop the service and remove only its auth volume:
 
-```bash
-docker compose exec backend sh -lc 'command -v copilot && copilot --version'
+```sh
+docker compose down
+docker volume rm devmentorai-copilot
+docker compose up -d backend
 ```
 
-### `Error: EACCES` on `.devmentorai` or `.copilot`
+## Troubleshooting
 
-Ensure host directory ownership matches your user:
+- **`EACCES` for `.copilot` or `.devmentorai`:** Use the default named volumes, or set `HOST_UID`/`HOST_GID` to match the bind-mounted directories' owner.
+- **Port 3847 is in use:** Stop the local `devmentorai-server`, or set another `BACKEND_PORT` in `.env`.
+- **Invalid token:** Use a fine-grained PAT with **Copilot Requests** permission. Classic `ghp_` PATs are unsupported; an organization may also block Copilot access through its policy.
+- **`copilot: command not found`:** Rebuild the image and check the installed CLI version:
 
-```bash
-chown -R "$(id -u):$(id -g)" /home/botom/devmentor-container
-```
-
-Also confirm `HOST_UID` and `HOST_GID` in `.env`.
-
-### `Failed to fetch latest release` / timeout during update check
-
-- Usually a transient network timeout.
-- Confirm connectivity to `api.github.com` from container.
-- If you are behind proxy/corporate network, set `HTTP_PROXY`/`HTTPS_PROXY` and recreate backend container.
+  ```sh
+  docker compose up -d --build backend
+  docker compose exec backend copilot --version
+  ```

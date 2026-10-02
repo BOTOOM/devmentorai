@@ -29,9 +29,7 @@ A Chrome/Chromium browser extension that provides DevOps mentoring, infrastructu
 
 ## Quick Start
 
-If you want to run the backend in Docker with Copilot CLI auth/session persistence, see:
-
-- [Docker Backend + Copilot CLI Setup](docs/DOCKER_COPILOT_SETUP.md)
+If npm/npx installation fails, the backend also runs in Docker on Windows, macOS, and Linux with either a GitHub token or device-code login inside the container. See the [cross-platform Docker setup guide](docs/DOCKER_COPILOT_SETUP.md).
 
 ### 1. Install Dependencies
 

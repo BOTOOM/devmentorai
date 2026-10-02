@@ -103,7 +103,7 @@ export async function imagesRoutes(fastify: FastifyInstance) {
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid upload body',
-            details: error.errors,
+            details: error.issues,
           },
         });
       }

@@ -1,4 +1,3 @@
-import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SESSION_TYPE_CONFIGS, getAgentConfig } from '@devmentorai/shared';
 import type {
@@ -11,6 +10,7 @@ import type {
 } from '@devmentorai/shared';
 import {
   CopilotClient,
+  RuntimeConnection,
   type Tool as CopilotTool,
   type SessionEvent,
   approveAll,
@@ -75,43 +75,7 @@ export class CopilotService {
     try {
       let cliPath: string | undefined;
       try {
-        const wrapperPkgUrl = import.meta.resolve('@github/copilot/package.json');
-        const { createRequire } = await import('node:module');
-        const req = createRequire(fileURLToPath(wrapperPkgUrl));
-
-        const platform = process.platform;
-        const arch = process.arch;
-        const candidates = [];
-
-        if (platform === 'linux') {
-          try {
-            const { isNonGlibcLinuxSync } = req('detect-libc');
-            if (isNonGlibcLinuxSync()) {
-              candidates.push(`@github/copilot-linuxmusl-${arch}`);
-            } else {
-              candidates.push(`@github/copilot-linux-${arch}`);
-            }
-          } catch {
-            candidates.push(`@github/copilot-linuxmusl-${arch}`);
-            candidates.push(`@github/copilot-linux-${arch}`);
-          }
-        } else {
-          candidates.push(`@github/copilot-${platform}-${arch}`);
-        }
-
-        for (const pkg of candidates) {
-          try {
-            const entry = req.resolve(pkg);
-            cliPath = join(dirname(entry), 'index.js');
-            break;
-          } catch {}
-        }
-
-        if (!cliPath) {
-          const baseEntry = req.resolve('@github/copilot');
-          cliPath = join(dirname(baseEntry), 'index.js');
-        }
-
+        cliPath = fileURLToPath(import.meta.resolve('@github/copilot/npm-loader.js'));
         console.log(`[CopilotService] Dynamically resolved Copilot CLI Path: ${cliPath}`);
       } catch (err) {
         console.warn(
@@ -122,7 +86,7 @@ export class CopilotService {
 
       this.client = new CopilotClient({
         gitHubToken: process.env.GITHUB_TOKEN || process.env.COPILOT_TOKEN || undefined,
-        cliPath,
+        connection: cliPath ? RuntimeConnection.forStdio({ path: cliPath }) : undefined,
       });
       await this.client.start();
       this.initialized = true;
@@ -379,14 +343,14 @@ export class CopilotService {
       }
     }
 
-    // Fallback: destroy and recreate session (legacy behavior)
+    // Fallback: disconnect and recreate session (legacy behavior)
     if (existing?.session && !this.mockMode) {
       try {
         await existing.session.abort().catch(() => undefined);
-        await existing.session.destroy();
+        await existing.session.disconnect();
       } catch (error) {
         console.warn(
-          `[CopilotService] Failed to destroy previous session before model switch: ${sessionId}`,
+          `[CopilotService] Failed to disconnect previous session before model switch: ${sessionId}`,
           error
         );
       }
@@ -968,12 +932,12 @@ export class CopilotService {
       try {
         // Abort any pending requests first
         await copilotSession.session.abort().catch(() => {});
-        // Destroy the session (releases resources but doesn't delete files)
-        await copilotSession.session.destroy();
-        console.log(`[CopilotService] Session ${sessionId} destroyed successfully`);
+        // Disconnect the session (releases resources but doesn't delete files)
+        await copilotSession.session.disconnect();
+        console.log(`[CopilotService] Session ${sessionId} disconnected successfully`);
       } catch (error) {
-        console.error(`[CopilotService] Error destroying session ${sessionId}:`, error);
-        // Continue with cleanup even if destroy fails
+        console.error(`[CopilotService] Error disconnecting session ${sessionId}:`, error);
+        // Continue with cleanup even if disconnect fails
       }
     }
 
@@ -997,14 +961,14 @@ export class CopilotService {
   }
 
   async shutdown(): Promise<void> {
-    // Destroy all sessions
+    // Disconnect all sessions
     for (const [sessionId, copilotSession] of this.sessions) {
       try {
         if (copilotSession.session && !this.mockMode) {
-          await copilotSession.session.destroy();
+          await copilotSession.session.disconnect();
         }
       } catch (error) {
-        console.error(`[CopilotService] Failed to destroy session ${sessionId}:`, error);
+        console.error(`[CopilotService] Failed to disconnect session ${sessionId}:`, error);
       }
     }
     this.sessions.clear();

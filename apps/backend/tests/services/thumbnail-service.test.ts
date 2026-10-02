@@ -22,7 +22,7 @@ import {
 // Test fixtures
 // Small 1x1 red pixel PNG encoded as base64
 const RED_PIXEL_PNG =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jH/wAAAABJRU5ErkJggg==';
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
 const PNG_DATA_URL = `data:image/png;base64,${RED_PIXEL_PNG}`;
 
 // Another valid PNG (slightly different red pixel)

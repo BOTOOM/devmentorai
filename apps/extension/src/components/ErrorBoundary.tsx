@@ -55,7 +55,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
         <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
           <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
+              <div className="shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
@@ -78,7 +78,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <button
                 type="button"
                 onClick={this.handleReload}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium shadow-xs"
               >
                 <RefreshCw className="w-4 h-4" />
                 Reload Extension

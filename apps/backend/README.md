@@ -88,7 +88,7 @@ devmentorai-server logs --lines 100
 
 ## Requirements
 
-- **Node.js** >= 20.0.0
+- **Node.js** 22.12+
 - **GitHub Copilot CLI** (optional — server runs in mock mode without it)
 
 ## How It Works

@@ -73,7 +73,7 @@ export function Header({
     <header className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 gap-3">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
+          <span className="text-xl font-bold bg-linear-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
             DevMentorAI
           </span>
         </div>
@@ -96,7 +96,7 @@ export function Header({
                   <User className="w-3.5 h-3.5" />
                 </button>
 
-                <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-medium text-gray-700 opacity-0 shadow-sm transition-all group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                <span className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-medium text-gray-700 opacity-0 shadow-xs transition-all group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
                   {loginLabel}
                 </span>
               </div>

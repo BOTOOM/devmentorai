@@ -268,7 +268,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid request body',
-            details: { errors: error.errors },
+            details: { errors: error.issues },
           },
         });
       }
@@ -586,7 +586,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
           error: {
             code: 'VALIDATION_ERROR',
             message: 'Invalid request body',
-            details: error.errors,
+            details: error.issues,
           },
         });
       }

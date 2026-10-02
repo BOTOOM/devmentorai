@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { JSDOM } from 'jsdom';
 /**
  * Unit tests for context-extractor.ts

@@ -124,7 +124,7 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
       {/* Backdrop */}
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-xs"
         onClick={onClose}
         aria-label="Close modal"
       />
@@ -137,7 +137,7 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-sm transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -237,7 +237,7 @@ export function NewSessionModal({ onClose, onSubmit }: Readonly<NewSessionModalP
                       value={modelSearch}
                       onChange={(event) => setModelSearch(event.target.value)}
                       placeholder="Search models..."
-                      className="w-full px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-hidden focus:ring-1 focus:ring-primary-500"
                     />
                   </div>
 

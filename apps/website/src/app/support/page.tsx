@@ -1,7 +1,8 @@
 import { CTASection } from '@/components/sections/CTASection';
 import { HeroSection } from '@/components/sections/HeroSection';
 import { Badge } from '@/components/ui/Badge';
-import { ArrowRight, Github, LifeBuoy } from 'lucide-react';
+import { GithubIcon } from '@/components/ui/GithubIcon';
+import { ArrowRight, LifeBuoy } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -41,7 +42,7 @@ export default function SupportPage() {
               rel="noopener noreferrer"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-hover"
             >
-              <Github className="h-4 w-4" />
+              <GithubIcon className="h-4 w-4" />
               Open GitHub Issues
               <ArrowRight className="h-4 w-4" />
             </a>

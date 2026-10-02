@@ -78,7 +78,7 @@ export function useSessions(options?: UseSessionsOptions) {
   useEffect(() => {
     chrome.storage.local.get('activeSessionId', (result) => {
       if (result.activeSessionId) {
-        setActiveSessionId(result.activeSessionId);
+        setActiveSessionId(result.activeSessionId as string);
       }
     });
   }, []);

@@ -102,7 +102,7 @@ Azure (Portal, DevOps, VMs), AWS (Console, EC2, S3, CloudFormation), GCP (Cloud 
 2. Download extension from GitHub Releases
 3. Load in Chrome via chrome://extensions (Developer mode → Load unpacked)
 
-Prerequisites: Node.js 20+, GitHub Copilot CLI installed and authenticated
+Prerequisites: Node.js 22.12+, GitHub Copilot CLI installed and authenticated
 
 ## Security
 

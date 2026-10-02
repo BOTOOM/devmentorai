@@ -144,20 +144,20 @@ export function ImageLightbox({
   return (
     <dialog
       open
-      className="fixed inset-0 z-[100] flex items-center justify-center"
+      className="fixed inset-0 z-100 flex items-center justify-center"
       aria-modal="true"
       aria-label="Image viewer"
     >
       {/* Backdrop */}
       <button
         type="button"
-        className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/90 backdrop-blur-xs"
         onClick={onClose}
         aria-label="Close image viewer"
       />
 
       {/* Header toolbar */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/50 to-transparent">
+      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-linear-to-b from-black/50 to-transparent">
         <div className="text-white text-sm">
           {hasMultiple && (
             <span>
@@ -266,7 +266,7 @@ export function ImageLightbox({
 
       {/* Image source indicator */}
       {currentImage.source && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-black/60 text-white/90 text-xs backdrop-blur-sm">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 rounded-full bg-black/60 text-white/90 text-xs backdrop-blur-xs">
           {currentImage.source === 'screenshot' ? 'Screenshot' : currentImage.source}
         </div>
       )}

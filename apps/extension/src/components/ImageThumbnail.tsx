@@ -122,7 +122,7 @@ export function ImageThumbnail({
       {/* Source badge */}
       {source && !isLoading && (
         <div
-          className="absolute bottom-0.5 left-0.5 text-[10px] bg-black/60 text-white px-1 rounded pointer-events-none"
+          className="absolute bottom-0.5 left-0.5 text-[10px] bg-black/60 text-white px-1 rounded-sm pointer-events-none"
           title={`Source: ${source}`}
         >
           {sourceLabels[source]}

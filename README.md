@@ -22,7 +22,7 @@ A Chrome/Chromium browser extension that provides DevOps mentoring, infrastructu
 
 ## Prerequisites
 
-- **Node.js** 20+ 
+- **Node.js** 22.12+
 - **pnpm** 9+
 - **GitHub Copilot CLI** installed and authenticated ([Installation Guide](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli))
 - **Chrome/Chromium** browser

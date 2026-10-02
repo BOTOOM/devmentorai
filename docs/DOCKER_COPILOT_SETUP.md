@@ -65,8 +65,10 @@ Build and start the container:
 
 ```sh
 docker compose up -d --build backend
-docker compose logs -f backend
+docker compose logs backend
 ```
+
+Use `docker compose logs -f backend` to follow the logs; press Ctrl+C to stop following.
 
 Verify the health and Copilot auth endpoints.
 

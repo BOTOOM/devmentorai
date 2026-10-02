@@ -18,8 +18,10 @@ for name in COPILOT_GITHUB_TOKEN GH_TOKEN GITHUB_TOKEN COPILOT_TOKEN; do
 done
 
 if [[ -n "$token_name" ]]; then
+  export GITHUB_TOKEN="${!token_name}"
+  unset COPILOT_GITHUB_TOKEN GH_TOKEN COPILOT_TOKEN
   echo "[DevMentorAI Docker] Using GitHub token from ${token_name}"
-  if [[ "${!token_name}" == ghp_* ]]; then
+  if [[ "$GITHUB_TOKEN" == ghp_* ]]; then
     echo "[DevMentorAI Docker] Warning: classic ghp_ PATs are not supported. Use a fine-grained PAT with the Copilot Requests permission."
   fi
 else

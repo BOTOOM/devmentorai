@@ -19,7 +19,7 @@ COPY . .
 
 RUN pnpm install --frozen-lockfile \
   && pnpm --filter devmentorai-server build \
-  && npm install -g @github/copilot@$(node -p "require('./apps/backend/package.json').dependencies['@github/copilot'].replace(/^[^0-9]*/,'')") \
+  && npm install -g @github/copilot@$(node -p "require('./apps/backend/node_modules/@github/copilot/package.json').version") \
   && useradd -m -u 10001 -s /bin/bash devmentor \
   && mkdir -p /home/devmentor/.copilot /home/devmentor/.devmentorai \
   && chown -R devmentor:devmentor /home/devmentor /workspace

@@ -147,7 +147,7 @@ describe('NativeTransport', () => {
     expect(runtime.connectNative).toHaveBeenCalledTimes(2);
   });
 
-  it('does not release a port while a request is pending', async () => {
+  it('releases a requested port after its pending request finishes', async () => {
     const port = new FakePort();
     installChrome([port]);
     const transport = new NativeTransport();
@@ -163,6 +163,51 @@ describe('NativeTransport', () => {
       data: {},
     });
     await expect(request).resolves.toEqual({ status: 200, data: {} });
+    expect(port.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the port open when a new native request cancels a pending release', async () => {
+    const port = new FakePort();
+    const runtime = installChrome([port]);
+    const transport = new NativeTransport();
+
+    const firstRequest = transport.request('GET', '/first');
+    transport.releaseIfIdle();
+    const secondRequest = transport.request('GET', '/second');
+
+    port.emitMessage({
+      id: port.messages[0].id,
+      type: 'response',
+      status: 200,
+      data: {},
+    });
+    await expect(firstRequest).resolves.toEqual({ status: 200, data: {} });
+    expect(port.disconnect).not.toHaveBeenCalled();
+
+    port.emitMessage({
+      id: port.messages[1].id,
+      type: 'response',
+      status: 200,
+      data: {},
+    });
+    await expect(secondRequest).resolves.toEqual({ status: 200, data: {} });
+    expect(port.disconnect).not.toHaveBeenCalled();
+    expect(runtime.connectNative).toHaveBeenCalledOnce();
+  });
+
+  it('sends an abort frame before releasing a port with a pending release', async () => {
+    const port = new FakePort();
+    installChrome([port]);
+    const transport = new NativeTransport();
+    const controller = new AbortController();
+
+    const stream = transport.stream('POST', '/stream', {}, () => {}, controller.signal);
+    transport.releaseIfIdle();
+    controller.abort();
+
+    await expect(stream).rejects.toMatchObject({ name: 'AbortError' });
+    expect(port.messages[1]).toMatchObject({ type: 'abort' });
+    expect(port.disconnect).toHaveBeenCalledOnce();
   });
 
   it('rejects request calls on error frames', async () => {

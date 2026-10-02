@@ -36,10 +36,12 @@ export class NativeTransport {
   private port: chrome.runtime.Port | null = null;
   private readonly pending = new Map<string, PendingCall>();
   private requestId = 0;
+  private releaseRequested = false;
 
   constructor(private readonly hostName = NATIVE_HOST_NAME) {}
 
   request<T>(method: string, path: string, body?: unknown): Promise<{ status: number; data: T }> {
+    this.releaseRequested = false;
     const id = this.nextId();
 
     return new Promise((resolve, reject) => {
@@ -72,6 +74,7 @@ export class NativeTransport {
     onChunk: (data: unknown) => void,
     signal?: AbortSignal
   ): Promise<void> {
+    this.releaseRequested = false;
     if (signal?.aborted) {
       return Promise.reject(abortError());
     }
@@ -99,11 +102,6 @@ export class NativeTransport {
           return;
         }
 
-        const call = this.removePending(id);
-        if (!call) {
-          return;
-        }
-
         try {
           port.postMessage({
             id,
@@ -112,11 +110,11 @@ export class NativeTransport {
             path: '',
           } satisfies NativeMessage);
         } catch {
-          call.reject(abortError());
+          this.removePending(id)?.reject(abortError());
           return;
         }
 
-        call.reject(abortError());
+        this.removePending(id)?.reject(abortError());
       };
 
       if (signal) {
@@ -147,12 +145,19 @@ export class NativeTransport {
   }
 
   releaseIfIdle(): void {
-    if (this.pending.size !== 0 || !this.port) {
+    if (!this.port) {
+      this.releaseRequested = false;
+      return;
+    }
+
+    if (this.pending.size !== 0) {
+      this.releaseRequested = true;
       return;
     }
 
     const port = this.port;
     this.port = null;
+    this.releaseRequested = false;
     port.disconnect();
   }
 
@@ -235,16 +240,16 @@ export class NativeTransport {
     if (pending) {
       this.pending.delete(id);
       pending.cleanup?.();
+      if (this.releaseRequested && this.pending.size === 0) {
+        this.releaseIfIdle();
+      }
     }
     return pending;
   }
 
   private rejectPending(error: Error): void {
-    const calls = [...this.pending.values()];
-    this.pending.clear();
-    for (const pending of calls) {
-      pending.cleanup?.();
-      pending.reject(error);
+    for (const id of [...this.pending.keys()]) {
+      this.removePending(id)?.reject(error);
     }
   }
 

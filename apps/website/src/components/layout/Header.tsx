@@ -1,7 +1,8 @@
 'use client';
 
 import { DevMentorLogo } from '@/components/ui/DevMentorLogo';
-import { Github, Heart, Menu, X } from 'lucide-react';
+import { GithubIcon } from '@/components/ui/GithubIcon';
+import { Heart, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { ThemeToggle } from './ThemeToggle';
@@ -52,7 +53,7 @@ export function Header() {
             className="hidden h-10 w-10 items-center justify-center rounded-lg border border-[var(--card-border)] text-[var(--muted)] transition-colors hover:text-primary lg:flex"
             aria-label="GitHub repository"
           >
-            <Github className="h-4.5 w-4.5" />
+            <GithubIcon className="h-4.5 w-4.5" />
           </a>
           <a
             href="https://github.com/sponsors/BOTOOM"
@@ -102,7 +103,7 @@ export function Header() {
                 className="flex h-10 flex-1 items-center justify-center rounded-lg border border-[var(--card-border)] text-sm font-medium text-[var(--muted)]"
                 aria-label="GitHub repository"
               >
-                <Github className="mr-2 h-4 w-4" />
+                <GithubIcon className="mr-2 h-4 w-4" />
                 GitHub
               </a>
               <a

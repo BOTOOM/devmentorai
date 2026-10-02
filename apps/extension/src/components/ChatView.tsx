@@ -352,7 +352,7 @@ export function ChatView({
             }}
             disabled={!canUseModelPicker}
             className={cn(
-              'flex items-center gap-1.5 text-xs px-2 py-1 rounded transition-colors',
+              'flex items-center gap-1.5 text-xs px-2 py-1 rounded-sm transition-colors',
               canUseModelPicker
                 ? 'text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer'
                 : 'text-gray-400 dark:text-gray-500 cursor-default'
@@ -362,7 +362,7 @@ export function ChatView({
             <Cpu className="w-3.5 h-3.5" />
             <span>{session.model}</span>
             {session.reasoningEffort && (
-              <span className="text-[10px] px-1 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+              <span className="text-[10px] px-1 py-0.5 rounded-sm bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
                 {session.reasoningEffort}
               </span>
             )}
@@ -425,7 +425,7 @@ export function ChatView({
 
         {/* Sending indicator - shown when uploading images / initiating request */}
         {isSending && !isStreaming && (
-          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg border border-amber-100 dark:border-amber-800/50">
+          <div className="flex items-center gap-3 p-3 bg-linear-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg border border-amber-100 dark:border-amber-800/50">
             <div className="flex items-center gap-2">
               <Upload className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-pulse" />
               <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
@@ -438,7 +438,7 @@ export function ChatView({
 
         {/* C.4 - Enhanced thinking indicator */}
         {isStreaming && (
-          <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-primary-50 to-indigo-50 dark:from-primary-900/20 dark:to-indigo-900/20 rounded-lg border border-primary-100 dark:border-primary-800/50">
+          <div className="flex items-center gap-3 p-3 bg-linear-to-r from-primary-50 to-indigo-50 dark:from-primary-900/20 dark:to-indigo-900/20 rounded-lg border border-primary-100 dark:border-primary-800/50">
             <div className="flex items-center gap-2">
               <Brain className="w-5 h-5 text-primary-600 dark:text-primary-400 animate-pulse" />
               <div className="flex gap-1">
@@ -519,12 +519,12 @@ export function ChatView({
                   {platform?.specificProduct || platform?.type || 'Page Context'}
                 </span>
                 {platform && platform.confidence >= 0.7 && (
-                  <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-800/50 text-indigo-600 dark:text-indigo-400 rounded text-[10px]">
+                  <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-800/50 text-indigo-600 dark:text-indigo-400 rounded-sm text-[10px]">
                     {Math.round(platform.confidence * 100)}% match
                   </span>
                 )}
                 {errorCount > 0 && (
-                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded text-[10px]">
+                  <span className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-sm text-[10px]">
                     <AlertTriangle className="w-3 h-3" />
                     {errorCount} errors detected
                   </span>
@@ -610,7 +610,7 @@ export function ChatView({
               className={cn(
                 'w-full px-4 text-sm rounded-xl border resize-none',
                 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700',
-                'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
+                'focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:border-transparent',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
                 'max-h-32',
                 contextEnabled && 'ring-1 ring-indigo-300 dark:ring-indigo-700',

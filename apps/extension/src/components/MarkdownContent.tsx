@@ -89,7 +89,7 @@ export function MarkdownContent({ content, variant }: Readonly<MarkdownContentPr
       return (
         <code
           className={cn(
-            'px-1.5 py-0.5 rounded text-[0.85em] font-mono break-words',
+            'px-1.5 py-0.5 rounded-sm text-[0.85em] font-mono wrap-break-word',
             isUser ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-700'
           )}
         >
@@ -139,7 +139,7 @@ export function MarkdownContent({ content, variant }: Readonly<MarkdownContentPr
   };
 
   return (
-    <div className="text-sm min-w-0 max-w-full break-words">
+    <div className="text-sm min-w-0 max-w-full wrap-break-word">
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>
         {content}
       </ReactMarkdown>

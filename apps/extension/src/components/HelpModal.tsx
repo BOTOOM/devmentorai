@@ -12,7 +12,7 @@ export function HelpModal({ onClose }: Readonly<HelpModalProps>) {
       <button
         type="button"
         aria-label="Close help modal"
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-xs"
         onClick={onClose}
       />
 
@@ -27,7 +27,7 @@ export function HelpModal({ onClose }: Readonly<HelpModalProps>) {
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-sm transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -117,7 +117,7 @@ export function HelpModal({ onClose }: Readonly<HelpModalProps>) {
                     {shortcut.keys.map((key, i) => (
                       <kbd
                         key={i}
-                        className="px-2 py-1 text-xs font-mono bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded"
+                        className="px-2 py-1 text-xs font-mono bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-sm"
                       >
                         {key}
                       </kbd>

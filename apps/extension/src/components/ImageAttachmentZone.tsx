@@ -159,12 +159,12 @@ export function ImageAttachmentZone({
           {/* Error message */}
           {error && (
             <div className="flex items-center gap-2 mb-2 px-2 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-xs">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
               <span className="flex-1">{error}</span>
               <button
                 type="button"
                 onClick={onClearError}
-                className="p-0.5 hover:bg-red-100 dark:hover:bg-red-800/50 rounded"
+                className="p-0.5 hover:bg-red-100 dark:hover:bg-red-800/50 rounded-sm"
               >
                 <X className="w-3 h-3" />
               </button>

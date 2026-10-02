@@ -140,7 +140,7 @@ export function ActivityView({
         <div className="mt-3 space-y-2">
           {/* Thinking Content (if available) */}
           {thinkingContent && (
-            <div className="border border-purple-500/20 rounded p-2 bg-purple-500/5">
+            <div className="border border-purple-500/20 rounded-sm p-2 bg-purple-500/5">
               <button
                 type="button"
                 className="flex items-center gap-1 text-purple-500 text-xs cursor-pointer"
@@ -203,7 +203,7 @@ function ToolExecutionItem({ tool }: Readonly<ToolExecutionItemProps>): React.Re
     : null;
 
   return (
-    <div className="border border-border rounded p-2 bg-background/50">
+    <div className="border border-border rounded-sm p-2 bg-background/50">
       <button
         type="button"
         className="flex w-full items-center justify-between cursor-pointer"
@@ -224,13 +224,13 @@ function ToolExecutionItem({ tool }: Readonly<ToolExecutionItemProps>): React.Re
           {tool.input && (
             <div>
               <span className="text-muted-foreground">Input: </span>
-              <code className="bg-muted px-1 rounded">{JSON.stringify(tool.input, null, 2)}</code>
+              <code className="bg-muted px-1 rounded-sm">{JSON.stringify(tool.input, null, 2)}</code>
             </div>
           )}
           {tool.output && (
             <div>
               <span className="text-muted-foreground">Output: </span>
-              <pre className="bg-muted p-1 rounded overflow-x-auto max-h-20">
+              <pre className="bg-muted p-1 rounded-sm overflow-x-auto max-h-20">
                 {tool.output.slice(0, 500)}
                 {tool.output.length > 500 && '...'}
               </pre>

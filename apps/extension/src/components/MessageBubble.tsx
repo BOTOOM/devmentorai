@@ -81,7 +81,7 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
         {/* Avatar */}
         <div
           className={cn(
-            'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
+            'shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
             isUser
               ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
@@ -164,7 +164,7 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
               <button
                 type="button"
                 onClick={handleCopy}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-sm transition-colors"
                 title="Copy to clipboard"
               >
                 {copied ? (
@@ -179,7 +179,7 @@ export function MessageBubble({ message, onReplaceText }: Readonly<MessageBubble
                 <button
                   type="button"
                   onClick={handleReplace}
-                  className="flex items-center gap-1 px-2 py-1 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded transition-colors"
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-sm transition-colors"
                   title="Replace original text"
                 >
                   <Replace className="w-3 h-3" />

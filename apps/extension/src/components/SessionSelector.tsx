@@ -121,7 +121,7 @@ export function SessionSelector({
                       e.stopPropagation();
                       onDeleteSession(session.id);
                     }}
-                    className="p-1.5 text-gray-400 hover:text-red-500 rounded transition-colors"
+                    className="p-1.5 text-gray-400 hover:text-red-500 rounded-sm transition-colors"
                     title="Delete session"
                   >
                     <Trash2 className="w-4 h-4" />

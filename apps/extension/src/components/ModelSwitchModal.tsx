@@ -149,7 +149,7 @@ export function ModelSwitchModal({
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {model.provider}
                       {model.pricingTier && (
-                        <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700">
+                        <span className="ml-2 text-xs px-1.5 py-0.5 rounded-sm bg-gray-100 dark:bg-gray-700">
                           {model.pricingTier}
                         </span>
                       )}

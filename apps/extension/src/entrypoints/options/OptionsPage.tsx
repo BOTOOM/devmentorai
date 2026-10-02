@@ -171,7 +171,7 @@ export function OptionsPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-indigo-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary to-indigo-500 flex items-center justify-center">
               <span className="text-white text-2xl font-bold">D</span>
             </div>
             <div>
@@ -182,7 +182,7 @@ export function OptionsPage() {
         </div>
 
         {/* Backend Status */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Backend Connection
           </h2>
@@ -222,7 +222,7 @@ export function OptionsPage() {
         </div>
 
         {/* Appearance */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Appearance</h2>
 
           <div className="space-y-4">
@@ -343,7 +343,7 @@ export function OptionsPage() {
         </div>
 
         {/* Behavior */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Behavior</h2>
 
           <div className="space-y-4">
@@ -433,7 +433,7 @@ export function OptionsPage() {
         </div>
 
         {/* Image & Screenshots */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Images & Screenshots
           </h2>
@@ -505,7 +505,7 @@ export function OptionsPage() {
         </div>
 
         {/* Advanced Settings - C.3 */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Advanced</h2>
 
           <div className="space-y-4">
@@ -540,7 +540,7 @@ export function OptionsPage() {
         </div>
 
         {/* AI Assistant Personality */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             AI Assistant Personality
           </h2>
@@ -611,7 +611,7 @@ export function OptionsPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions
           </h2>
@@ -682,7 +682,7 @@ export function OptionsPage() {
           <button
             type="button"
             onClick={saveSettings}
-            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+            className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium shadow-xs"
           >
             Save Settings
           </button>
@@ -690,7 +690,7 @@ export function OptionsPage() {
 
         {/* Support & Help */}
         <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Support & Help
             </h2>
@@ -705,7 +705,7 @@ export function OptionsPage() {
                   href="https://github.com/BOTOOM/devmentorai/issues/new"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors font-medium shadow-xs"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <title>GitHub</title>
@@ -730,7 +730,7 @@ export function OptionsPage() {
           </div>
 
           {/* About & Updates */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xs p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               About & Updates
             </h2>

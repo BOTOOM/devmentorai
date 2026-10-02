@@ -100,11 +100,11 @@ export function PageContextModal({ onClose, onUseInChat }: Readonly<PageContextM
             <p className="text-sm text-gray-600 dark:text-gray-300 break-all line-clamp-2 flex-1">
               {pageContext.url}
             </p>
-            <div className="flex gap-1 flex-shrink-0">
+            <div className="flex gap-1 shrink-0">
               <button
                 type="button"
                 onClick={() => copyToClipboard(pageContext.url)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 title="Copy URL"
               >
                 {copied ? (
@@ -117,7 +117,7 @@ export function PageContextModal({ onClose, onUseInChat }: Readonly<PageContextM
                 href={pageContext.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 title="Open in new tab"
               >
                 <ExternalLink className="w-4 h-4" />
@@ -154,7 +154,7 @@ export function PageContextModal({ onClose, onUseInChat }: Readonly<PageContextM
       {/* Backdrop */}
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-xs"
         onClick={onClose}
         aria-label="Close modal"
       />
@@ -170,7 +170,7 @@ export function PageContextModal({ onClose, onUseInChat }: Readonly<PageContextM
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded transition-colors"
+            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-sm transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

@@ -16,6 +16,23 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
   extension: [
     {
       track: 'extension',
+      version: '1.9.0',
+      tag: 'ext-v1.9.0',
+      releasedAt: '2026-07-21',
+      headline: 'A chat that is easier to read and easier to write in',
+      summary:
+        'This release polishes the everyday chat experience: answers are rendered as proper Markdown and the message box grows with what you type.',
+      highlights: [
+        'Assistant replies now render as Markdown, so headings, lists, tables, and code blocks look the way they were meant to.',
+        'The chat input grows automatically as you type longer prompts, so you can review everything before sending.',
+      ],
+      fixes: [
+        'Long lines of code now stay inside the chat bubble and scroll horizontally instead of stretching the side panel.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/ext-v1.9.0',
+    },
+    {
+      track: 'extension',
       version: '1.8.0',
       tag: 'ext-v1.8.0',
       releasedAt: '2026-07-06',
@@ -155,6 +172,41 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
     },
   ],
   backend: [
+    {
+      track: 'backend',
+      version: '1.10.0',
+      tag: 'backend-v1.10.0',
+      releasedAt: '2026-10-02',
+      headline: 'Connect the extension to the backend without opening a local port',
+      summary:
+        'This release ships a working Native Messaging host, so the browser can talk to the backend directly as a child process, with Windows support built in.',
+      highlights: [
+        'The backend package now includes a Native Messaging host that Chrome and Chromium can launch directly, with streaming replies and cancellation working just like over HTTP.',
+        'On Windows, the host installer now registers itself for Chrome and Chromium automatically, and removes those entries again when you uninstall it.',
+        'Native Messaging works alongside the regular HTTP server, so you can switch between the two from the extension settings at any time.',
+      ],
+      fixes: [
+        'Running the server in the foreground no longer starts it twice and crashes with an "address already in use" error.',
+        'Accented characters and other non-English text now stream correctly in Native Messaging mode.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/backend-v1.10.0',
+    },
+    {
+      track: 'backend',
+      version: '1.9.0',
+      tag: 'backend-v1.9.0',
+      releasedAt: '2026-10-02',
+      headline: 'npx devmentorai-server now works on native Windows',
+      summary:
+        'This release fixes the Windows startup failure that kept the backend from launching in PowerShell, especially when your user folder has a space in its name.',
+      highlights: [
+        'Running npx devmentorai-server in PowerShell or Command Prompt now starts the backend correctly, with no WSL required.',
+      ],
+      fixes: [
+        'Fixed a broken path to the server on Windows that made background startup fail its health check, especially when your user folder name contains spaces.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/backend-v1.9.0',
+    },
     {
       track: 'backend',
       version: '1.8.0',

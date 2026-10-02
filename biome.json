@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -7,37 +7,56 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": [
-      "**/dist/**",
-      "**/node_modules/**",
-      "**/.output/**",
-      "**/.wxt/**",
-      "**/coverage/**",
-      "**/*.d.ts"
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!**/.output",
+      "!**/.wxt",
+      "!**/coverage",
+      "!**/*.d.ts"
     ]
   },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineWidth": 100,
+    "lineEnding": "crlf"
   },
-  "organizeImports": {
-    "enabled": true
+  "assist": { "actions": { "source": { "organizeImports": "off" } } },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "complexity": {
         "noStaticOnlyClass": "off",
         "useLiteralKeys": "off"
+      },
+      "a11y": {
+        "noLabelWithoutControl": "off",
+        "noStaticElementInteractions": "off",
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "off"
+      },
+      "correctness": {
+        "noEmptyPattern": "off",
+        "useExhaustiveDependencies": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
       },
       "style": {
         "useEnumInitializers": "off",
         "useImportType": "off"
       },
       "suspicious": {
+        "noCommentText": "off",
         "noExplicitAny": "warn",
         "noConfusingVoidType": "off"
       }

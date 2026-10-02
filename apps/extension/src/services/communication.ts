@@ -1,380 +1,6 @@
-/**
- * Communication Adapter Interface
- *
- * Provides an abstraction layer for communication between the extension
- * and the backend, supporting both HTTP and Native Messaging protocols.
- */
+export const NATIVE_HOST_NAME = 'com.devmentorai.host';
 
-import type { ApiResponse, ModelInfo, Session } from '@devmentorai/shared';
-import { storageGet, storageSet } from '../lib/browser-utils';
-
-/** Chat message sent to the backend */
-interface ChatMessage {
-  content: string;
-  role?: 'user' | 'assistant' | 'system';
-  context?: Record<string, unknown>;
-}
-
-/** Event received from the backend during streaming */
-interface SessionEvent {
-  type: string;
-  data?: unknown;
-  content?: string;
-  error?: string;
-  sessionId?: string;
-}
-
-export interface HealthStatus {
-  status: 'ok' | 'error';
-  mode: 'http' | 'native';
-  version?: string;
-  error?: string;
-}
-
-export interface CommunicationAdapter {
-  readonly mode: 'http' | 'native';
-
-  // Health check
-  getHealth(): Promise<HealthStatus>;
-
-  // Session management
-  createSession(
-    session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<ApiResponse<Session>>;
-  getSession(sessionId: string): Promise<ApiResponse<Session>>;
-  listSessions(): Promise<ApiResponse<Session[]>>;
-  deleteSession(sessionId: string): Promise<ApiResponse<void>>;
-
-  // Chat
-  sendMessage(sessionId: string, message: ChatMessage): Promise<ApiResponse<unknown>>;
-  streamMessage(
-    sessionId: string,
-    message: ChatMessage,
-    onEvent: (event: SessionEvent) => void,
-    signal?: AbortSignal
-  ): Promise<void>;
-
-  // Models
-  listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>>;
-}
-
-/**
- * HTTP Communication Adapter
- * Uses fetch API to communicate with local HTTP backend
- */
-export class HttpAdapter implements CommunicationAdapter {
-  readonly mode = 'http' as const;
-
-  constructor(private readonly baseUrl: string) {}
-
-  async getHealth(): Promise<HealthStatus> {
-    try {
-      const response = await fetch(`${this.baseUrl}/health`);
-      if (response.ok) {
-        const data = await response.json();
-        return { status: 'ok', mode: 'http', version: data.version };
-      }
-      return { status: 'error', mode: 'http', error: `HTTP ${response.status}` };
-    } catch (error) {
-      return {
-        status: 'error',
-        mode: 'http',
-        error: error instanceof Error ? error.message : 'Connection failed',
-      };
-    }
-  }
-
-  async createSession(
-    session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<ApiResponse<Session>> {
-    const response = await fetch(`${this.baseUrl}/api/sessions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(session),
-    });
-    return response.json();
-  }
-
-  async getSession(sessionId: string): Promise<ApiResponse<Session>> {
-    const response = await fetch(`${this.baseUrl}/api/sessions/${sessionId}`);
-    return response.json();
-  }
-
-  async listSessions(): Promise<ApiResponse<Session[]>> {
-    const response = await fetch(`${this.baseUrl}/api/sessions`);
-    return response.json();
-  }
-
-  async deleteSession(sessionId: string): Promise<ApiResponse<void>> {
-    const response = await fetch(`${this.baseUrl}/api/sessions/${sessionId}`, {
-      method: 'DELETE',
-    });
-    return response.json();
-  }
-
-  async sendMessage(sessionId: string, message: ChatMessage): Promise<ApiResponse<unknown>> {
-    const response = await fetch(`${this.baseUrl}/api/sessions/${sessionId}/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    });
-    return response.json();
-  }
-
-  async streamMessage(
-    sessionId: string,
-    message: ChatMessage,
-    onEvent: (event: SessionEvent) => void,
-    signal?: AbortSignal
-  ): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/sessions/${sessionId}/chat/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-      signal,
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || `HTTP ${response.status}`);
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error('No response body');
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') {
-            onEvent({ type: 'complete', sessionId });
-          } else {
-            try {
-              const event = JSON.parse(data) as SessionEvent;
-              onEvent(event);
-            } catch {
-              // Skip non-JSON data
-            }
-          }
-        }
-      }
-    }
-  }
-
-  async listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>> {
-    const response = await fetch(`${this.baseUrl}/api/models`);
-    return response.json();
-  }
-}
-
-/**
- * Native Messaging Adapter
- * Uses Chrome Native Messaging API for direct communication
- */
-export class NativeMessagingAdapter implements CommunicationAdapter {
-  readonly mode = 'native' as const;
-  private port: chrome.runtime.Port | null = null;
-  private readonly pendingRequests = new Map<
-    string,
-    {
-      resolve: (value: unknown) => void;
-      reject: (error: Error) => void;
-      onEvent?: (event: SessionEvent) => void;
-    }
-  >();
-  private requestId = 0;
-
-  constructor(private readonly hostName: string = 'com.devmentorai.host') {}
-
-  private connect(): chrome.runtime.Port {
-    if (this.port) return this.port;
-
-    this.port = chrome.runtime.connectNative(this.hostName);
-
-    this.port.onMessage.addListener((response: NativeResponse) => {
-      const pending = this.pendingRequests.get(response.id);
-      if (!pending) return;
-
-      switch (response.type) {
-        case 'response':
-          pending.resolve(response.data);
-          this.pendingRequests.delete(response.id);
-          break;
-        case 'stream_chunk':
-          if (pending.onEvent && response.data) {
-            pending.onEvent(response.data as SessionEvent);
-          }
-          break;
-        case 'stream_end':
-          if (pending.onEvent) {
-            pending.onEvent({ type: 'complete', sessionId: '' });
-          }
-          pending.resolve(undefined);
-          this.pendingRequests.delete(response.id);
-          break;
-        case 'error':
-          pending.reject(new Error(response.error || 'Native messaging error'));
-          this.pendingRequests.delete(response.id);
-          break;
-      }
-    });
-
-    this.port.onDisconnect.addListener(() => {
-      const error = chrome.runtime.lastError;
-      for (const pending of this.pendingRequests.values()) {
-        pending.reject(new Error(error?.message || 'Native host disconnected'));
-      }
-      this.pendingRequests.clear();
-      this.port = null;
-    });
-
-    return this.port;
-  }
-
-  private sendNativeMessage<T>(message: NativeMessage): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const port = this.connect();
-      this.pendingRequests.set(message.id, {
-        resolve: resolve as (value: unknown) => void,
-        reject,
-      });
-      port.postMessage(message);
-    });
-  }
-
-  private sendStreamingMessage(
-    message: NativeMessage,
-    onEvent: (event: SessionEvent) => void
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const port = this.connect();
-      this.pendingRequests.set(message.id, {
-        resolve: resolve as (value: unknown) => void,
-        reject,
-        onEvent,
-      });
-      port.postMessage(message);
-    });
-  }
-
-  private nextId(): string {
-    return `native_${++this.requestId}_${Date.now()}`;
-  }
-
-  async getHealth(): Promise<HealthStatus> {
-    try {
-      const data = await this.sendNativeMessage<{ status: string; version?: string }>({
-        id: this.nextId(),
-        type: 'request',
-        method: 'GET',
-        path: '/health',
-      });
-      return { status: 'ok', mode: 'native', version: data.version };
-    } catch (error) {
-      return {
-        status: 'error',
-        mode: 'native',
-        error: error instanceof Error ? error.message : 'Native messaging failed',
-      };
-    }
-  }
-
-  async createSession(
-    session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<ApiResponse<Session>> {
-    return this.sendNativeMessage({
-      id: this.nextId(),
-      type: 'request',
-      method: 'POST',
-      path: '/api/sessions',
-      body: session,
-    });
-  }
-
-  async getSession(sessionId: string): Promise<ApiResponse<Session>> {
-    return this.sendNativeMessage({
-      id: this.nextId(),
-      type: 'request',
-      method: 'GET',
-      path: `/api/sessions/${sessionId}`,
-    });
-  }
-
-  async listSessions(): Promise<ApiResponse<Session[]>> {
-    return this.sendNativeMessage({
-      id: this.nextId(),
-      type: 'request',
-      method: 'GET',
-      path: '/api/sessions',
-    });
-  }
-
-  async deleteSession(sessionId: string): Promise<ApiResponse<void>> {
-    return this.sendNativeMessage({
-      id: this.nextId(),
-      type: 'request',
-      method: 'DELETE',
-      path: `/api/sessions/${sessionId}`,
-    });
-  }
-
-  async sendMessage(sessionId: string, message: ChatMessage): Promise<ApiResponse<unknown>> {
-    return this.sendNativeMessage({
-      id: this.nextId(),
-      type: 'request',
-      method: 'POST',
-      path: `/api/sessions/${sessionId}/chat`,
-      body: message,
-    });
-  }
-
-  async streamMessage(
-    sessionId: string,
-    message: ChatMessage,
-    onEvent: (event: SessionEvent) => void,
-    _signal?: AbortSignal
-  ): Promise<void> {
-    const id = this.nextId();
-    return this.sendStreamingMessage(
-      {
-        id,
-        type: 'stream',
-        method: 'POST',
-        path: `/api/sessions/${sessionId}/chat/stream`,
-        body: message,
-      },
-      onEvent
-    );
-  }
-
-  async listModels(): Promise<ApiResponse<{ models: ModelInfo[]; default: string }>> {
-    return this.sendNativeMessage({
-      id: this.nextId(),
-      type: 'request',
-      method: 'GET',
-      path: '/api/models',
-    });
-  }
-
-  disconnect(): void {
-    if (this.port) {
-      this.port.disconnect();
-      this.port = null;
-    }
-  }
-}
-
-interface NativeMessage {
+export interface NativeMessage {
   id: string;
   type: 'request' | 'stream' | 'abort';
   method: string;
@@ -382,7 +8,7 @@ interface NativeMessage {
   body?: unknown;
 }
 
-interface NativeResponse {
+export interface NativeResponse {
   id: string;
   type: 'response' | 'stream_chunk' | 'stream_end' | 'error';
   status?: number;
@@ -390,89 +16,236 @@ interface NativeResponse {
   error?: string;
 }
 
-/**
- * Communication Service
- * Manages the active communication adapter and provides switching capability
- */
-export class CommunicationService {
-  private adapter: CommunicationAdapter;
-  private readonly httpAdapter: HttpAdapter;
-  private nativeAdapter: NativeMessagingAdapter | null = null;
-
-  constructor(httpBaseUrl = 'http://localhost:3847') {
-    this.httpAdapter = new HttpAdapter(httpBaseUrl);
-    this.adapter = this.httpAdapter;
-  }
-
-  get currentMode(): 'http' | 'native' {
-    return this.adapter.mode;
-  }
-
-  getAdapter(): CommunicationAdapter {
-    return this.adapter;
-  }
-
-  async switchToHttp(): Promise<void> {
-    if (this.nativeAdapter) {
-      this.nativeAdapter.disconnect();
-    }
-    this.adapter = this.httpAdapter;
-    await storageSet({ communicationMode: 'http' });
-  }
-
-  async switchToNative(): Promise<void> {
-    if (!this.nativeAdapter) {
-      this.nativeAdapter = new NativeMessagingAdapter();
-    }
-
-    // Test connection before switching
-    const health = await this.nativeAdapter.getHealth();
-    if (health.status === 'error') {
-      throw new Error(`Native Messaging unavailable: ${health.error}`);
-    }
-
-    this.adapter = this.nativeAdapter;
-    await storageSet({ communicationMode: 'native' });
-  }
-
-  async initialize(): Promise<void> {
-    const { communicationMode } = await storageGet<{ communicationMode?: 'http' | 'native' }>(
-      'communicationMode'
-    );
-
-    if (communicationMode === 'native') {
-      try {
-        await this.switchToNative();
-      } catch {
-        // Fall back to HTTP if native fails
-        console.warn('Native Messaging unavailable, falling back to HTTP');
-        await this.switchToHttp();
-      }
-    }
-  }
-
-  // Proxy methods
-  getHealth = () => this.adapter.getHealth();
-  createSession = (...args: Parameters<CommunicationAdapter['createSession']>) =>
-    this.adapter.createSession(...args);
-  getSession = (...args: Parameters<CommunicationAdapter['getSession']>) =>
-    this.adapter.getSession(...args);
-  listSessions = () => this.adapter.listSessions();
-  deleteSession = (...args: Parameters<CommunicationAdapter['deleteSession']>) =>
-    this.adapter.deleteSession(...args);
-  sendMessage = (...args: Parameters<CommunicationAdapter['sendMessage']>) =>
-    this.adapter.sendMessage(...args);
-  streamMessage = (...args: Parameters<CommunicationAdapter['streamMessage']>) =>
-    this.adapter.streamMessage(...args);
-  listModels = () => this.adapter.listModels();
+interface PendingCall {
+  type: 'request' | 'stream';
+  resolve: (value: { status: number; data: unknown } | void) => void;
+  reject: (error: Error) => void;
+  onChunk?: (data: unknown) => void;
+  cleanup?: () => void;
 }
 
-// Singleton instance
-let communicationService: CommunicationService | null = null;
+function asError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
 
-export function getCommunicationService(): CommunicationService {
-  if (!communicationService) {
-    communicationService = new CommunicationService();
+function abortError(): DOMException {
+  return new DOMException('The operation was aborted.', 'AbortError');
+}
+
+export class NativeTransport {
+  private port: chrome.runtime.Port | null = null;
+  private readonly pending = new Map<string, PendingCall>();
+  private requestId = 0;
+
+  constructor(private readonly hostName = NATIVE_HOST_NAME) {}
+
+  request<T>(method: string, path: string, body?: unknown): Promise<{ status: number; data: T }> {
+    const id = this.nextId();
+
+    return new Promise((resolve, reject) => {
+      let port: chrome.runtime.Port;
+      try {
+        port = this.connect();
+      } catch (error) {
+        reject(asError(error));
+        return;
+      }
+
+      this.pending.set(id, {
+        type: 'request',
+        resolve: (response) => resolve(response as { status: number; data: T }),
+        reject,
+      });
+
+      try {
+        port.postMessage({ id, type: 'request', method, path, body } satisfies NativeMessage);
+      } catch (error) {
+        this.removePending(id)?.reject(asError(error));
+      }
+    });
   }
-  return communicationService;
+
+  stream(
+    method: string,
+    path: string,
+    body: unknown,
+    onChunk: (data: unknown) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    if (signal?.aborted) {
+      return Promise.reject(abortError());
+    }
+
+    const id = this.nextId();
+
+    return new Promise((resolve, reject) => {
+      let port: chrome.runtime.Port;
+      try {
+        port = this.connect();
+      } catch (error) {
+        reject(asError(error));
+        return;
+      }
+
+      const pending: PendingCall = {
+        type: 'stream',
+        resolve: () => resolve(),
+        reject,
+        onChunk,
+      };
+
+      const abort = () => {
+        if (this.pending.get(id) !== pending) {
+          return;
+        }
+
+        const call = this.removePending(id);
+        if (!call) {
+          return;
+        }
+
+        try {
+          port.postMessage({
+            id,
+            type: 'abort',
+            method: '',
+            path: '',
+          } satisfies NativeMessage);
+        } catch {
+          call.reject(abortError());
+          return;
+        }
+
+        call.reject(abortError());
+      };
+
+      if (signal) {
+        signal.addEventListener('abort', abort, { once: true });
+        pending.cleanup = () => signal.removeEventListener('abort', abort);
+      }
+
+      this.pending.set(id, pending);
+
+      if (signal?.aborted) {
+        abort();
+        return;
+      }
+
+      try {
+        port.postMessage({ id, type: 'stream', method, path, body } satisfies NativeMessage);
+      } catch (error) {
+        this.removePending(id)?.reject(asError(error));
+      }
+    });
+  }
+
+  disconnect(): void {
+    const port = this.port;
+    this.port = null;
+    this.rejectPending(new Error(this.getDisconnectMessage()));
+    port?.disconnect();
+  }
+
+  private connect(): chrome.runtime.Port {
+    if (this.port) {
+      return this.port;
+    }
+
+    const port = chrome.runtime.connectNative(this.hostName);
+    this.port = port;
+    port.onMessage.addListener((message: unknown) => this.handleMessage(message));
+    port.onDisconnect.addListener(() => this.handleDisconnect(port));
+    return port;
+  }
+
+  private handleMessage(message: unknown): void {
+    if (!message || typeof message !== 'object' || !('id' in message)) {
+      return;
+    }
+
+    const response = message as NativeResponse;
+    const pending = this.pending.get(response.id);
+    if (!pending) {
+      return;
+    }
+
+    if (response.type === 'error') {
+      this.removePending(response.id)?.reject(new Error(response.error || 'Native host error'));
+      return;
+    }
+
+    if (response.type === 'response') {
+      const call = this.removePending(response.id);
+      if (!call) {
+        return;
+      }
+      if (call.type === 'stream') {
+        call.reject(new Error(`Stream request failed: ${response.status}`));
+      } else {
+        call.resolve({
+          status: response.status ?? 0,
+          data: response.data,
+        });
+      }
+      return;
+    }
+
+    if (response.type === 'stream_chunk' && pending.type === 'stream') {
+      try {
+        pending.onChunk?.(response.data);
+      } catch (error) {
+        this.removePending(response.id)?.reject(asError(error));
+      }
+      return;
+    }
+
+    if (response.type === 'stream_end' && pending.type === 'stream') {
+      this.removePending(response.id)?.resolve();
+    }
+  }
+
+  private handleDisconnect(port: chrome.runtime.Port): void {
+    if (this.port !== port) {
+      return;
+    }
+
+    this.port = null;
+    this.rejectPending(new Error(this.getDisconnectMessage()));
+  }
+
+  private getDisconnectMessage(): string {
+    return (
+      (typeof chrome !== 'undefined' && chrome.runtime.lastError?.message) ||
+      'Native host disconnected'
+    );
+  }
+
+  private removePending(id: string): PendingCall | undefined {
+    const pending = this.pending.get(id);
+    if (pending) {
+      this.pending.delete(id);
+      pending.cleanup?.();
+    }
+    return pending;
+  }
+
+  private rejectPending(error: Error): void {
+    const calls = [...this.pending.values()];
+    this.pending.clear();
+    for (const pending of calls) {
+      pending.cleanup?.();
+      pending.reject(error);
+    }
+  }
+
+  private nextId(): string {
+    return `native_${Date.now()}_${++this.requestId}`;
+  }
+}
+
+let nativeTransport: NativeTransport | undefined;
+
+export function getNativeTransport(): NativeTransport {
+  nativeTransport ??= new NativeTransport();
+  return nativeTransport;
 }

@@ -1,3 +1,4 @@
+import { API_ENDPOINTS } from '@devmentorai/shared';
 import { useCallback, useEffect, useState } from 'react';
 import {
   AVAILABLE_LANGUAGES,
@@ -6,6 +7,7 @@ import {
   useSettings,
 } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
+import { getNativeTransport } from '../../services/communication';
 import {
   type QuickActionModelOption,
   getQuickActionModelState,
@@ -94,16 +96,24 @@ export function OptionsPage() {
 
   const checkBackendConnection = useCallback(async () => {
     try {
-      const response = await fetch(`${localSettings.backendUrl}/api/health`);
-      if (response.ok) {
-        setBackendStatus('connected');
-      } else {
-        setBackendStatus('disconnected');
+      if (localSettings.communicationMode === 'native') {
+        const response = await getNativeTransport().request<{ success?: boolean }>(
+          'GET',
+          API_ENDPOINTS.HEALTH
+        );
+        setBackendStatus(
+          response.status === 200 && response.data.success ? 'connected' : 'disconnected'
+        );
+        return;
       }
+
+      const response = await fetch(`${localSettings.backendUrl}${API_ENDPOINTS.HEALTH}`);
+      const data = await response.json();
+      setBackendStatus(response.ok && data.success ? 'connected' : 'disconnected');
     } catch {
       setBackendStatus('disconnected');
     }
-  }, [localSettings.backendUrl]);
+  }, [localSettings.backendUrl, localSettings.communicationMode]);
 
   useEffect(() => {
     if (isLoaded) {

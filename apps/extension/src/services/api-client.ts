@@ -15,6 +15,7 @@ import type {
   UpdateSessionRequest,
 } from '@devmentorai/shared';
 import { storageGet } from '../lib/browser-utils';
+import { getNativeTransport } from './communication';
 
 interface ModelsResponse {
   models: ModelInfo[];
@@ -48,6 +49,17 @@ export class ApiClient {
     return this.baseUrl;
   }
 
+  private async resolveMode(): Promise<'http' | 'native'> {
+    try {
+      const { communicationMode } = await storageGet<{ communicationMode?: string }>(
+        'communicationMode'
+      );
+      return communicationMode === 'native' ? 'native' : 'http';
+    } catch {
+      return 'http';
+    }
+  }
+
   static getInstance(): ApiClient {
     if (!ApiClient.instance) {
       ApiClient.instance = new ApiClient();
@@ -56,6 +68,29 @@ export class ApiClient {
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    if ((await this.resolveMode()) === 'native') {
+      try {
+        const body = options.body ? JSON.parse(options.body as string) : undefined;
+        const response = await getNativeTransport().request<ApiResponse<T>>(
+          options.method ?? 'GET',
+          endpoint,
+          body
+        );
+        if (response.status === 204) {
+          return { success: true } as ApiResponse<T>;
+        }
+        return response.data;
+      } catch (error) {
+        return {
+          success: false,
+          error: {
+            code: 'NATIVE_ERROR',
+            message: error instanceof Error ? error.message : 'Native messaging failed',
+          },
+        };
+      }
+    }
+
     try {
       const baseUrl = await this.resolveBaseUrl();
       const response = await fetch(`${baseUrl}${endpoint}`, {
@@ -184,6 +219,27 @@ export class ApiClient {
     onEvent: (event: StreamEvent) => void,
     signal?: AbortSignal
   ): Promise<void> {
+    if ((await this.resolveMode()) === 'native') {
+      let receivedDone = false;
+      await getNativeTransport().stream(
+        'POST',
+        API_ENDPOINTS.CHAT_STREAM(sessionId),
+        data,
+        (chunk) => {
+          const event = chunk as StreamEvent;
+          if (event.type === 'done') {
+            receivedDone = true;
+          }
+          onEvent(event);
+        },
+        signal
+      );
+      if (!receivedDone) {
+        onEvent({ type: 'done', data: {} });
+      }
+      return;
+    }
+
     const baseUrl = await this.resolveBaseUrl();
     console.log('[ApiClient] streamChat called for session:', sessionId);
     console.log('[ApiClient] Request data:', {
@@ -277,9 +333,6 @@ export class ApiClient {
       }>;
     }>
   > {
-    const baseUrl = await this.resolveBaseUrl();
-
-    // Upload images one at a time to avoid payload limits
     const allProcessed: Array<{
       id: string;
       thumbnailUrl: string;
@@ -289,6 +342,34 @@ export class ApiClient {
       dimensions: { width: number; height: number };
       fileSize: number;
     }> = [];
+
+    if ((await this.resolveMode()) === 'native') {
+      const uploadPromises = images.map(async (image) => {
+        const response = await getNativeTransport().request<
+          ApiResponse<{ images: typeof allProcessed }>
+        >('POST', `/api/images/upload/${sessionId}/${messageId}`, { images: [image] });
+
+        if (response.status >= 400) {
+          throw new Error(`Image upload failed: ${response.status}`);
+        }
+        if (response.data.success && response.data.data?.images) {
+          return response.data.data.images;
+        }
+        throw new Error(response.data.error?.message || 'Upload failed');
+      });
+
+      const results = await Promise.all(uploadPromises);
+      for (const imgs of results) {
+        allProcessed.push(...imgs);
+      }
+
+      return {
+        success: true,
+        data: { images: allProcessed },
+      };
+    }
+
+    const baseUrl = await this.resolveBaseUrl();
 
     // Upload in parallel (each image is its own request)
     const uploadPromises = images.map(async (image) => {

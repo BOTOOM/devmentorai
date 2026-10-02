@@ -17,11 +17,10 @@ import { logsCommand } from './cli/logs.js';
 import { startCommand } from './cli/start.js';
 import { statusCommand } from './cli/status.js';
 import { stopCommand } from './cli/stop.js';
-
-const VERSION = '1.0.0';
+import { BACKEND_VERSION } from './version.js';
 
 const HELP = `
-devmentorai-server v${VERSION}
+devmentorai-server v${BACKEND_VERSION}
 
 Usage:
   devmentorai-server [command] [options]
@@ -56,7 +55,7 @@ async function main(): Promise<void> {
   }
 
   if (args.includes('--version') || args.includes('-v')) {
-    console.log(VERSION);
+    console.log(BACKEND_VERSION);
     process.exit(0);
   }
 

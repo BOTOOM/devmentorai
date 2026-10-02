@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { BACKEND_VERSION } from '../../src/version';
 
 const CLI_PATH = path.resolve(__dirname, '../../dist/cli.js');
 const CLI_EXISTS = fs.existsSync(CLI_PATH);
@@ -10,6 +11,7 @@ describe.skipIf(!CLI_EXISTS)('CLI entry point', () => {
   it('should show help with --help flag', () => {
     const output = execSync(`node ${CLI_PATH} --help`, { encoding: 'utf-8' });
     expect(output).toContain('devmentorai-server');
+    expect(output).toContain(`v${BACKEND_VERSION}`);
     expect(output).toContain('start');
     expect(output).toContain('stop');
     expect(output).toContain('status');
@@ -19,7 +21,7 @@ describe.skipIf(!CLI_EXISTS)('CLI entry point', () => {
 
   it('should show version with --version flag', () => {
     const output = execSync(`node ${CLI_PATH} --version`, { encoding: 'utf-8' });
-    expect(output.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(output.trim()).toBe(BACKEND_VERSION);
   });
 
   it('should exit with error on unknown command', () => {

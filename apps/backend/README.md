@@ -27,6 +27,37 @@ npm install -g devmentorai-server
 devmentorai-server
 ```
 
+### Windows (PowerShell / CMD)
+
+WSL is not needed; native PowerShell and CMD are supported. On Windows, prefer a global install over `npx`: `npx` re-checks the registry and can prompt to install again when a newer version is available. Its `_npx` cache can also show `npm warn cleanup ... EPERM` warnings. These are harmless: npm cannot remove temporary cache files while a background server started from that cache, antivirus, or an indexer holds them open.
+
+If you previously started the server with `npx`, stop it first:
+
+```powershell
+npx devmentorai-server stop
+```
+
+Install globally and start:
+
+```powershell
+npm install -g devmentorai-server
+devmentorai-server
+```
+
+To update:
+
+```powershell
+devmentorai-server stop
+npm install -g devmentorai-server@latest
+devmentorai-server
+```
+
+Check the installed version:
+
+```powershell
+devmentorai-server --version
+```
+
 ## Long-Running Usage (No Interruptions)
 
 `npx devmentorai-server` is supported and starts the backend in background mode, but for long-running sessions (hours/days) you should use a process supervisor.

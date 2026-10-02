@@ -49,6 +49,7 @@ To update:
 ```powershell
 devmentorai-server stop
 npm install -g devmentorai-server@latest
+devmentorai-server
 ```
 
 Check the installed version:

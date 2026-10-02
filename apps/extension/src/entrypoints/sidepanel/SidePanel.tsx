@@ -24,6 +24,7 @@ import { useSessions } from '../../hooks/useSessions';
 import { useSettings } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
 import { ApiClient } from '../../services/api-client';
+import { SESSION_MESSAGES_UPDATED } from '../../services/writing-assistant-session';
 
 // Extend QuickAction to include tone variations
 type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
@@ -72,6 +73,19 @@ export function SidePanel() {
   const { messages, isStreaming, isSending, sendMessage, abortMessage } = useChat(
     activeSession?.id
   );
+
+  useEffect(() => {
+    const handleMessage = (message: { type?: string }) => {
+      if (message.type === SESSION_MESSAGES_UPDATED) {
+        void refreshSessions({ silent: true }).catch((error) => {
+          console.error('[SidePanel] Failed to refresh sessions after quick action:', error);
+        });
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [refreshSessions]);
 
   // Context extraction hook
   const {

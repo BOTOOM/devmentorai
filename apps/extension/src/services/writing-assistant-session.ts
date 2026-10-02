@@ -7,13 +7,22 @@ import type { Session } from '@devmentorai/shared';
 import { ApiClient } from './api-client';
 import { getEffectiveQuickActionModel, invalidateModelAvailabilityCache } from './model-catalog';
 
+export const SESSION_MESSAGES_UPDATED = 'SESSION_MESSAGES_UPDATED';
+
 const WRITING_ASSISTANT_SESSION_NAME = 'Writing Assistant';
 const WRITING_ASSISTANT_SESSION_TYPE = 'writing';
+const SESSION_PAGE_SIZE = 50;
 
 // Cache the session to avoid repeated API calls
 let cachedSession: Session | null = null;
 let lastFetchTime = 0;
 const CACHE_TTL_MS = 30000; // 30 seconds
+
+export function notifySessionMessagesUpdated(sessionId: string): void {
+  try {
+    void chrome.runtime.sendMessage({ type: SESSION_MESSAGES_UPDATED, sessionId }).catch(() => {});
+  } catch {}
+}
 
 function isLikelySessionRecoveryError(message: string): boolean {
   const normalized = message.toLowerCase();
@@ -145,20 +154,28 @@ export async function getOrCreateWritingAssistantSession(model?: string): Promis
   }
 
   try {
-    // Fetch all sessions
-    const response = await apiClient.listSessions();
+    let existingSession: Session | undefined;
+    for (let page = 1; ; page++) {
+      const response = await apiClient.listSessions(page, SESSION_PAGE_SIZE);
 
-    if (!response.success || !response.data) {
-      console.error('[WritingAssistant] Failed to list sessions:', response.error);
-      return null;
+      if (!response.success || !response.data) {
+        console.error('[WritingAssistant] Failed to list sessions:', response.error);
+        return null;
+      }
+
+      if (response.data.items.length === 0) {
+        break;
+      }
+
+      existingSession = response.data.items.find(
+        (session) =>
+          session.name === WRITING_ASSISTANT_SESSION_NAME &&
+          session.type === WRITING_ASSISTANT_SESSION_TYPE
+      );
+      if (existingSession || !response.data.hasMore) {
+        break;
+      }
     }
-
-    // Look for existing Writing Assistant session
-    const existingSession = response.data.items.find(
-      (session) =>
-        session.name === WRITING_ASSISTANT_SESSION_NAME &&
-        session.type === WRITING_ASSISTANT_SESSION_TYPE
-    );
 
     if (existingSession) {
       const session = await ensureWritingAssistantModel(apiClient, existingSession, model);
@@ -235,6 +252,7 @@ export async function streamQuickAction(
   }
 
   const apiClient = ApiClient.getInstance();
+  let streamedSessionId = session.id;
 
   try {
     try {
@@ -265,6 +283,7 @@ export async function streamQuickAction(
           throw error;
         }
         session = recoveredSession;
+        streamedSessionId = session.id;
       }
 
       await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
@@ -282,6 +301,7 @@ export async function streamQuickAction(
         clearWritingAssistantCache();
         session = await getOrCreateWritingAssistantSession(effectiveModel);
         if (session) {
+          streamedSessionId = session.id;
           try {
             await streamQuickActionOnce(apiClient, session.id, prompt, onEvent, signal);
             return;
@@ -301,5 +321,7 @@ export async function streamQuickAction(
     } else {
       onEvent({ type: 'error', error: error instanceof Error ? error.message : 'Unknown error' });
     }
+  } finally {
+    notifySessionMessagesUpdated(streamedSessionId);
   }
 }

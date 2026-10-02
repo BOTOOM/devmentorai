@@ -8,6 +8,7 @@ import type {
 } from '@devmentorai/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiClient } from '../services/api-client';
+import { SESSION_MESSAGES_UPDATED } from '../services/writing-assistant-session';
 
 export interface SendMessageOptions {
   context?: MessageContext;
@@ -35,25 +36,65 @@ function isRecoverableSessionError(error: unknown): boolean {
 
 export function useChat(sessionId: string | undefined) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [isStreaming, setIsStreamingState] = useState(false);
+  const [isSending, setIsSendingState] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExtractingContext, setIsExtractingContext] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentMessageRef = useRef<string>('');
   const currentSessionRef = useRef<string | undefined>(sessionId);
+  const loadGenerationRef = useRef(0);
+  const activeMessageLoadsRef = useRef(0);
+  const isStreamingRef = useRef(false);
+  const isSendingRef = useRef(false);
+  const pendingReloadRef = useRef(false);
+
+  const setIsStreaming = useCallback((value: boolean) => {
+    isStreamingRef.current = value;
+    setIsStreamingState(value);
+  }, []);
+  const setIsSending = useCallback((value: boolean) => {
+    isSendingRef.current = value;
+    setIsSendingState(value);
+  }, []);
 
   const apiClient = useMemo(() => ApiClient.getInstance(), []);
 
   const loadMessages = useCallback(
-    async (sid: string) => {
+    async (requestedSessionId: string) => {
+      const generation = ++loadGenerationRef.current;
+      activeMessageLoadsRef.current += 1;
+      const canApplyResponse = () => {
+        const isCurrentSession = currentSessionRef.current === requestedSessionId;
+        const isBusy = isSendingRef.current || isStreamingRef.current;
+
+        if (isCurrentSession && isBusy) {
+          pendingReloadRef.current = true;
+        }
+
+        return (
+          generation === loadGenerationRef.current &&
+          isCurrentSession &&
+          !isSendingRef.current &&
+          !isStreamingRef.current
+        );
+      };
+
       try {
-        const response = await apiClient.getSessionMessages(sid);
+        const response = await apiClient.getSessionMessages(requestedSessionId);
+        if (!canApplyResponse()) {
+          return;
+        }
+
         if (response.success && response.data) {
           setMessages(response.data.items);
         }
       } catch (err) {
-        console.error('[useChat] Failed to load messages:', err);
+        if (canApplyResponse()) {
+          console.error('[useChat] Failed to load messages:', err);
+        }
+      } finally {
+        activeMessageLoadsRef.current -= 1;
       }
     },
     [apiClient]
@@ -61,8 +102,50 @@ export function useChat(sessionId: string | undefined) {
 
   // Track session changes to prevent message mixup (A.4 fix)
   useEffect(() => {
+    loadGenerationRef.current += 1;
     currentSessionRef.current = sessionId;
+    pendingReloadRef.current = false;
   }, [sessionId]);
+
+  useEffect(() => {
+    const handleMessage = (message: { type?: string; sessionId?: string }) => {
+      if (
+        message.type !== SESSION_MESSAGES_UPDATED ||
+        !message.sessionId ||
+        message.sessionId !== currentSessionRef.current
+      ) {
+        return;
+      }
+
+      if (isStreamingRef.current || isSendingRef.current) {
+        pendingReloadRef.current = true;
+        return;
+      }
+
+      void loadMessages(message.sessionId);
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [loadMessages]);
+
+  useEffect(() => {
+    if (
+      isStreaming ||
+      isSending ||
+      isStreamingRef.current ||
+      isSendingRef.current ||
+      !pendingReloadRef.current
+    ) {
+      return;
+    }
+
+    pendingReloadRef.current = false;
+    const currentSessionId = currentSessionRef.current;
+    if (currentSessionId) {
+      void loadMessages(currentSessionId);
+    }
+  }, [isSending, isStreaming, loadMessages]);
 
   // Load messages when session changes
   useEffect(() => {
@@ -78,7 +161,7 @@ export function useChat(sessionId: string | undefined) {
     } else {
       setMessages([]);
     }
-  }, [loadMessages, sessionId]);
+  }, [loadMessages, sessionId, setIsSending, setIsStreaming]);
 
   const sendMessage = useCallback(
     async (content: string, options?: SendMessageOptions | MessageContext) => {
@@ -113,6 +196,10 @@ export function useChat(sessionId: string | undefined) {
       // Store the session ID at the start of this request (A.4 fix)
       const requestSessionId = sessionId;
 
+      loadGenerationRef.current += 1;
+      if (activeMessageLoadsRef.current > 0) {
+        pendingReloadRef.current = true;
+      }
       setError(null);
       setIsSending(true);
       currentMessageRef.current = '';
@@ -452,7 +539,7 @@ export function useChat(sessionId: string | undefined) {
         abortControllerRef.current = null;
       }
     },
-    [apiClient, isSending, isStreaming, sessionId]
+    [apiClient, isSending, isStreaming, sessionId, setIsSending, setIsStreaming]
   );
 
   const abortMessage = useCallback(async () => {
@@ -470,7 +557,7 @@ export function useChat(sessionId: string | undefined) {
 
     setIsStreaming(false);
     setIsSending(false);
-  }, [apiClient, sessionId]);
+  }, [apiClient, sessionId, setIsSending, setIsStreaming]);
 
   return {
     messages,

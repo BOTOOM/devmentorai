@@ -173,10 +173,10 @@ export class SessionService {
     const stmt = this.db.prepare(`
       SELECT * FROM messages 
       WHERE session_id = ?
-      ORDER BY timestamp ASC
+      ORDER BY timestamp DESC, rowid DESC
       LIMIT ? OFFSET ?
     `);
-    const rows = stmt.all(sessionId, pageSize, offset) as DbMessage[];
+    const rows = (stmt.all(sessionId, pageSize, offset) as DbMessage[]).reverse();
 
     return {
       items: rows.map((row) => this.mapDbMessage(row)),

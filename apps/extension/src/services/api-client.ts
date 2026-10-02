@@ -141,8 +141,12 @@ export class ApiClient {
   }
 
   // Sessions
-  async listSessions(): Promise<ApiResponse<PaginatedResponse<Session>>> {
-    return this.request<PaginatedResponse<Session>>(API_ENDPOINTS.SESSIONS);
+  async listSessions(
+    page?: number,
+    pageSize = 50
+  ): Promise<ApiResponse<PaginatedResponse<Session>>> {
+    const query = page === undefined ? '' : `?page=${page}&pageSize=${pageSize}`;
+    return this.request<PaginatedResponse<Session>>(`${API_ENDPOINTS.SESSIONS}${query}`);
   }
 
   async createSession(data: CreateSessionRequest): Promise<ApiResponse<Session>> {

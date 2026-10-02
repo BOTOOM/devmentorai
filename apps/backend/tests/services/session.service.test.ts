@@ -250,6 +250,38 @@ describe('SessionService', () => {
       expect(result.items[2].content).toBe('Third');
     });
 
+    it('should return the newest messages first with chronological page ordering', () => {
+      const session = service.createSession({
+        name: 'Test',
+        type: 'devops',
+      });
+
+      for (let i = 0; i < 105; i++) {
+        service.addMessage(session.id, 'user', `Message ${i}`);
+      }
+
+      const newestPage = service.listMessages(session.id);
+      expect(newestPage.items).toHaveLength(100);
+      expect(newestPage.items.map((message) => message.content)).toEqual(
+        Array.from({ length: 100 }, (_, index) => `Message ${index + 5}`)
+      );
+      expect(newestPage.items[99].content).toBe('Message 104');
+      expect(newestPage.total).toBe(105);
+      expect(newestPage.page).toBe(1);
+      expect(newestPage.pageSize).toBe(100);
+      expect(newestPage.hasMore).toBe(true);
+
+      const olderPage = service.listMessages(session.id, 2);
+      expect(olderPage.items.map((message) => message.content)).toEqual([
+        'Message 0',
+        'Message 1',
+        'Message 2',
+        'Message 3',
+        'Message 4',
+      ]);
+      expect(olderPage.hasMore).toBe(false);
+    });
+
     it('should store message metadata', () => {
       const session = service.createSession({
         name: 'Test',

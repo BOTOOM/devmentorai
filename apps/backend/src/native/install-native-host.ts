@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,7 +26,7 @@ interface ManifestPaths {
   chromium: string;
 }
 
-function getManifestPaths(): ManifestPaths {
+export function getManifestPaths(): ManifestPaths {
   const platform = os.platform();
   const home = os.homedir();
 
@@ -54,20 +54,20 @@ function getManifestPaths(): ManifestPaths {
   }
 }
 
-function createManifest(extensionId: string): object {
+function createManifest(extensionId: string, wrapperDir = __dirname): object {
   // Get the path to the native host executable
-  const hostPath = path.resolve(__dirname, 'host.js');
+  const hostPath = path.resolve(wrapperDir, 'host.js');
 
   // On Windows, we need a batch wrapper
   let executablePath: string;
   if (os.platform() === 'win32') {
-    executablePath = path.resolve(__dirname, 'native-host.bat');
+    executablePath = path.resolve(wrapperDir, 'native-host.bat');
     // Create batch wrapper
     const batchContent = `@echo off\r\n"${process.execPath}" "${hostPath}" %*\r\n`;
     fs.writeFileSync(executablePath, batchContent);
   } else {
     // On Unix, create a shell wrapper
-    executablePath = path.resolve(__dirname, 'native-host.sh');
+    executablePath = path.resolve(wrapperDir, 'native-host.sh');
     const shellContent = `#!/bin/sh\nexec "${process.execPath}" "${hostPath}" "$@"\n`;
     fs.writeFileSync(executablePath, shellContent, { mode: 0o755 });
   }
@@ -81,11 +81,11 @@ function createManifest(extensionId: string): object {
   };
 }
 
-function install(extensionId: string): void {
+export function install(extensionId: string, wrapperDir = __dirname): void {
   console.log(`Installing Native Messaging Host for extension: ${extensionId}`);
 
   const paths = getManifestPaths();
-  const manifest = createManifest(extensionId);
+  const manifest = createManifest(extensionId, wrapperDir);
   const manifestJson = JSON.stringify(manifest, null, 2);
 
   // Install for both Chrome and Chromium
@@ -117,7 +117,7 @@ function install(extensionId: string): void {
         execFileSync(
           'reg',
           ['add', registryKeys[browser], '/ve', '/t', 'REG_SZ', '/d', manifestPath, '/f'],
-          { stdio: 'ignore' },
+          { stdio: 'ignore' }
         );
         console.log(`  ✓ Registered for ${browser}: ${manifestPath}`);
       } catch (error) {
@@ -132,7 +132,7 @@ function install(extensionId: string): void {
   console.log('2. Enable "Native Messaging" in DevMentorAI settings');
 }
 
-function uninstall(): void {
+export function uninstall(wrapperDir = __dirname): void {
   console.log('Uninstalling Native Messaging Host...');
 
   const paths = getManifestPaths();
@@ -170,7 +170,7 @@ function uninstall(): void {
   // Remove wrapper scripts
   const wrappers = ['native-host.sh', 'native-host.bat'];
   for (const wrapper of wrappers) {
-    const wrapperPath = path.resolve(__dirname, wrapper);
+    const wrapperPath = path.resolve(wrapperDir, wrapper);
     if (fs.existsSync(wrapperPath)) {
       fs.unlinkSync(wrapperPath);
       console.log(`  ✓ Removed wrapper: ${wrapperPath}`);
@@ -180,31 +180,32 @@ function uninstall(): void {
   console.log('\n✓ Uninstallation complete!');
 }
 
-// Main
-const args = process.argv.slice(2);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const args = process.argv.slice(2);
 
-if (args.includes('--uninstall')) {
-  uninstall();
-} else if (args.length >= 1) {
-  const extensionId = args[0];
-  if (!/^[a-z]{32}$/i.test(extensionId)) {
-    console.error('Error: Invalid extension ID format');
-    console.error(
-      'Extension ID should be 32 lowercase letters (e.g., abcdefghijklmnopqrstuvwxyzabcdef)'
-    );
+  if (args.includes('--uninstall')) {
+    uninstall();
+  } else if (args.length >= 1) {
+    const extensionId = args[0];
+    if (!/^[a-z]{32}$/i.test(extensionId)) {
+      console.error('Error: Invalid extension ID format');
+      console.error(
+        'Extension ID should be 32 lowercase letters (e.g., abcdefghijklmnopqrstuvwxyzabcdef)'
+      );
+      process.exit(1);
+    }
+    install(extensionId);
+  } else {
+    console.log('DevMentorAI Native Messaging Host Installer');
+    console.log('');
+    console.log('Usage:');
+    console.log('  Install:   node install-native-host.js <extension-id>');
+    console.log('  Uninstall: node install-native-host.js --uninstall');
+    console.log('');
+    console.log('To find your extension ID:');
+    console.log('1. Go to chrome://extensions');
+    console.log('2. Enable Developer mode');
+    console.log('3. Copy the ID from the DevMentorAI extension card');
     process.exit(1);
   }
-  install(extensionId);
-} else {
-  console.log('DevMentorAI Native Messaging Host Installer');
-  console.log('');
-  console.log('Usage:');
-  console.log('  Install:   node install-native-host.js <extension-id>');
-  console.log('  Uninstall: node install-native-host.js --uninstall');
-  console.log('');
-  console.log('To find your extension ID:');
-  console.log('1. Go to chrome://extensions');
-  console.log('2. Enable Developer mode');
-  console.log('3. Copy the ID from the DevMentorAI extension card');
-  process.exit(1);
 }

@@ -12,10 +12,11 @@
  * The host reads JSON messages from stdin and writes responses to stdout.
  */
 
+import type { Readable, Writable } from 'node:stream';
 import { pathToFileURL } from 'node:url';
 import type { FastifyInstance } from 'fastify';
 
-interface NativeMessage {
+export interface NativeMessage {
   id: string;
   type: 'request' | 'stream' | 'abort';
   method: string;
@@ -23,7 +24,7 @@ interface NativeMessage {
   body?: unknown;
 }
 
-interface NativeResponse {
+export interface NativeResponse {
   id: string;
   type: 'response' | 'stream_chunk' | 'stream_end' | 'error';
   status?: number;
@@ -31,118 +32,91 @@ interface NativeResponse {
   error?: string;
 }
 
-class NativeMessagingHost {
+interface NativeMessagingHostOptions {
+  input?: Readable;
+  output?: Writable;
+  createApp?: () => Promise<FastifyInstance>;
+}
+
+const MAX_NATIVE_MESSAGE_SIZE = 1024 * 1024;
+
+export class NativeMessagingHost {
   private app: FastifyInstance | null = null;
   private activeStreams = new Map<string, AbortController>();
+  private pendingMessages = new Set<Promise<void>>();
+  private inputBuffer = Buffer.alloc(0);
+  private readonly input: Readable;
+  private readonly output: Writable;
+  private readonly inputIterator: AsyncIterator<unknown>;
+  private readonly createApp: () => Promise<FastifyInstance>;
+
+  constructor(options: NativeMessagingHostOptions = {}) {
+    this.input = options.input ?? process.stdin;
+    this.output = options.output ?? process.stdout;
+    this.inputIterator = this.input[Symbol.asyncIterator]();
+    this.createApp =
+      options.createApp ??
+      (async () => (await import('../app.js')).createServer({ logToStderr: true }));
+  }
 
   async initialize(): Promise<void> {
-    const { createServer } = await import('../app.js');
-    this.app = await createServer({ logToStderr: true });
+    this.app = await this.createApp();
     await this.app.ready();
     this.log('Native Messaging Host initialized');
   }
 
   private log(message: string): void {
-    // Write logs to stderr (not stdout, which is reserved for native messaging)
     process.stderr.write(`[NativeHost] ${message}\n`);
   }
 
-  /**
-   * Read a native message from stdin
-   * Format: 4-byte length (little-endian) + JSON payload
-   */
-  private readMessage(): Promise<NativeMessage | null> {
-    return new Promise((resolve, reject) => {
-      // Read 4-byte length header
-      const lengthBuffer = Buffer.alloc(4);
-      let bytesRead = 0;
-
-      const readLength = () => {
-        const chunk = process.stdin.read(4 - bytesRead);
-        if (chunk === null) {
-          // No data available yet
-          process.stdin.once('readable', readLength);
-          return;
-        }
-
-        chunk.copy(lengthBuffer, bytesRead);
-        bytesRead += chunk.length;
-
-        if (bytesRead < 4) {
-          process.stdin.once('readable', readLength);
-          return;
-        }
-
-        const messageLength = lengthBuffer.readUInt32LE(0);
-
+  private async readMessage(): Promise<NativeMessage | null> {
+    while (true) {
+      if (this.inputBuffer.length >= 4) {
+        const messageLength = this.inputBuffer.readUInt32LE(0);
         if (messageLength === 0) {
-          resolve(null);
-          return;
+          this.inputBuffer = this.inputBuffer.subarray(4);
+          return null;
         }
 
-        // Read message body
-        let messageBuffer = Buffer.alloc(0);
-
-        const readBody = () => {
-          const remaining = messageLength - messageBuffer.length;
-          const bodyChunk = process.stdin.read(remaining);
-
-          if (bodyChunk === null) {
-            process.stdin.once('readable', readBody);
-            return;
-          }
-
-          messageBuffer = Buffer.concat([messageBuffer, bodyChunk]);
-
-          if (messageBuffer.length < messageLength) {
-            process.stdin.once('readable', readBody);
-            return;
-          }
-
+        if (this.inputBuffer.length >= messageLength + 4) {
+          const payload = this.inputBuffer.subarray(4, messageLength + 4);
+          this.inputBuffer = this.inputBuffer.subarray(messageLength + 4);
           try {
-            const message = JSON.parse(messageBuffer.toString('utf-8'));
-            resolve(message);
-          } catch (err) {
-            reject(new Error(`Invalid JSON: ${err}`));
+            return JSON.parse(payload.toString('utf-8')) as NativeMessage;
+          } catch (error) {
+            throw new Error(`Invalid JSON: ${error}`);
           }
-        };
+        }
+      }
 
-        readBody();
-      };
+      const { value, done } = await this.inputIterator.next();
+      if (done) {
+        return null;
+      }
 
-      readLength();
-    });
+      this.inputBuffer = Buffer.concat([this.inputBuffer, Buffer.from(value as Uint8Array)]);
+    }
   }
 
-  /**
-   * Write a native message to stdout
-   * Format: 4-byte length (little-endian) + JSON payload
-   */
   private writeMessage(response: NativeResponse): void {
-    const json = JSON.stringify(response);
-    const buffer = Buffer.from(json, 'utf-8');
-    const lengthBuffer = Buffer.alloc(4);
-    lengthBuffer.writeUInt32LE(buffer.length, 0);
-
-    process.stdout.write(lengthBuffer);
-    process.stdout.write(buffer);
-  }
-
-  /**
-   * Handle incoming native message by routing to Fastify
-   * TODO: Fix type compatibility with Fastify inject API
-   */
-  private async handleMessage(message: NativeMessage): Promise<void> {
-    if (!this.app) {
-      this.writeMessage({
-        id: message.id,
-        type: 'error',
-        error: 'Host not initialized',
-      });
-      return;
+    let buffer = Buffer.from(JSON.stringify(response), 'utf-8');
+    if (buffer.length > MAX_NATIVE_MESSAGE_SIZE) {
+      buffer = Buffer.from(
+        JSON.stringify({
+          id: response.id,
+          type: 'error',
+          error: 'Response exceeds the 1 MB Native Messaging limit',
+        }),
+        'utf-8'
+      );
     }
 
-    // Handle abort requests
+    const lengthBuffer = Buffer.alloc(4);
+    lengthBuffer.writeUInt32LE(buffer.length, 0);
+    this.output.write(Buffer.concat([lengthBuffer, buffer]));
+  }
+
+  private async handleMessage(message: NativeMessage): Promise<void> {
     if (message.type === 'abort') {
       const controller = this.activeStreams.get(message.id);
       if (controller) {
@@ -152,8 +126,21 @@ class NativeMessagingHost {
       return;
     }
 
+    if (!this.app) {
+      this.writeMessage({
+        id: message.id,
+        type: 'error',
+        error: 'Host not initialized',
+      });
+      return;
+    }
+
     try {
-      // Route the request through Fastify's inject method
+      if (message.type === 'stream') {
+        await this.handleStreamMessage(message);
+        return;
+      }
+
       const response = await this.app.inject({
         method: message.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
         url: message.path,
@@ -163,27 +150,12 @@ class NativeMessagingHost {
         },
       });
 
-      // Check if this is a streaming response
-      const contentType = response.headers['content-type'];
-      if (message.type === 'stream' && contentType?.includes('text/event-stream')) {
-        // Handle SSE streaming
-        await this.handleStreamResponse(message.id, String(response.payload));
-      } else {
-        // Regular response
-        let data: unknown;
-        try {
-          data = JSON.parse(String(response.payload));
-        } catch {
-          data = String(response.payload);
-        }
-
-        this.writeMessage({
-          id: message.id,
-          type: 'response',
-          status: response.statusCode,
-          data,
-        });
-      }
+      this.writeMessage({
+        id: message.id,
+        type: 'response',
+        status: response.statusCode,
+        data: this.parsePayload(String(response.payload)),
+      });
     } catch (error) {
       this.writeMessage({
         id: message.id,
@@ -193,76 +165,152 @@ class NativeMessagingHost {
     }
   }
 
-  /**
-   * Handle SSE stream response by converting to native messages
-   */
-  private async handleStreamResponse(id: string, payload: string): Promise<void> {
+  private async handleStreamMessage(message: NativeMessage): Promise<void> {
     const controller = new AbortController();
-    this.activeStreams.set(id, controller);
+    this.activeStreams.set(message.id, controller);
 
-    const lines = payload.split('\n');
+    try {
+      const response = await this.app?.inject({
+        method: message.method as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+        url: message.path,
+        payload: message.body as Record<string, unknown> | undefined,
+        headers: {
+          'content-type': 'application/json',
+        },
+        payloadAsStream: true,
+        signal: controller.signal,
+      });
 
-    for (const line of lines) {
-      if (controller.signal.aborted) break;
+      if (!response || controller.signal.aborted) {
+        return;
+      }
 
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6);
-        if (data === '[DONE]') {
-          this.writeMessage({
-            id,
-            type: 'stream_end',
-          });
-        } else {
-          try {
-            const parsed = JSON.parse(data);
-            this.writeMessage({
-              id,
-              type: 'stream_chunk',
-              data: parsed,
-            });
-          } catch {
-            // Non-JSON data chunk
-            this.writeMessage({
-              id,
-              type: 'stream_chunk',
-              data: { raw: data },
-            });
+      const contentType = response.headers['content-type'];
+      if (response.statusCode >= 400 || !contentType?.includes('text/event-stream')) {
+        const chunks: Buffer[] = [];
+        for await (const chunk of response.stream()) {
+          if (controller.signal.aborted) {
+            return;
           }
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         }
+
+        this.writeMessage({
+          id: message.id,
+          type: 'response',
+          status: response.statusCode,
+          data: this.parsePayload(Buffer.concat(chunks).toString('utf-8')),
+        });
+        return;
+      }
+
+      await this.handleStreamResponse(message.id, response.stream(), controller);
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        this.writeMessage({
+          id: message.id,
+          type: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    } finally {
+      if (this.activeStreams.get(message.id) === controller) {
+        this.activeStreams.delete(message.id);
+      }
+    }
+  }
+
+  private parsePayload(payload: string): unknown {
+    try {
+      return JSON.parse(payload);
+    } catch {
+      return payload;
+    }
+  }
+
+  private async handleStreamResponse(
+    id: string,
+    stream: Readable,
+    controller: AbortController
+  ): Promise<void> {
+    let lineBuffer = '';
+    let streamEnded = false;
+
+    const handleLine = (line: string) => {
+      const normalizedLine = line.endsWith('\r') ? line.slice(0, -1) : line;
+      if (!normalizedLine.startsWith('data: ')) {
+        return;
+      }
+
+      const data = normalizedLine.slice(6);
+      if (data === '[DONE]') {
+        if (!streamEnded) {
+          this.writeMessage({ id, type: 'stream_end' });
+          streamEnded = true;
+        }
+        return;
+      }
+
+      if (streamEnded) {
+        return;
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(data);
+      } catch {
+        parsed = { raw: data };
+      }
+
+      this.writeMessage({
+        id,
+        type: 'stream_chunk',
+        data: parsed,
+      });
+    };
+
+    for await (const chunk of stream) {
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      lineBuffer += Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : String(chunk);
+      let newlineIndex = lineBuffer.indexOf('\n');
+      while (newlineIndex !== -1) {
+        handleLine(lineBuffer.slice(0, newlineIndex));
+        lineBuffer = lineBuffer.slice(newlineIndex + 1);
+        newlineIndex = lineBuffer.indexOf('\n');
       }
     }
 
-    this.activeStreams.delete(id);
+    if (controller.signal.aborted) {
+      return;
+    }
+
+    if (lineBuffer.length > 0) {
+      handleLine(lineBuffer);
+    }
+
+    if (!streamEnded) {
+      this.writeMessage({ id, type: 'stream_end' });
+    }
   }
 
-  /**
-   * Main loop - read and process messages
-   */
   async run(): Promise<void> {
     await this.initialize();
-
-    process.stdin.on('end', () => {
-      this.log('stdin closed, shutting down');
-      process.exit(0);
-    });
-
-    // Continuous message processing
     while (true) {
       try {
         const message = await this.readMessage();
         if (message === null) {
-          // Connection closed
+          this.log('stdin closed, shutting down');
           break;
         }
 
-        // Process message asynchronously but catch synchronous errors from the promise initialization
-        try {
-          this.handleMessage(message).catch((err) => {
-            this.log(`Error handling message: ${err}`);
-          });
-        } catch (handleErr) {
-          this.log(`Error initializing message handler: ${handleErr}`);
-        }
+        const pending = this.handleMessage(message).catch((error) => {
+          this.log(`Error handling message: ${error}`);
+        });
+        this.pendingMessages.add(pending);
+        void pending.finally(() => this.pendingMessages.delete(pending));
       } catch (error) {
         this.log(`Error reading message: ${error}`);
         break;
@@ -273,15 +321,16 @@ class NativeMessagingHost {
   }
 
   async shutdown(): Promise<void> {
-    // Abort all active streams
     for (const controller of this.activeStreams.values()) {
       controller.abort();
     }
     this.activeStreams.clear();
 
-    // Close Fastify
+    await Promise.allSettled(this.pendingMessages);
+
     if (this.app) {
       await this.app.close();
+      this.app = null;
     }
 
     this.log('Native Messaging Host shut down');
@@ -295,10 +344,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   console.debug = console.error;
 
   const host = new NativeMessagingHost();
-  host.run().catch((err) => {
-    process.stderr.write(`Fatal error: ${err}\n`);
-    process.exit(1);
-  });
+  host.run().then(
+    () => process.exit(0),
+    (err) => {
+      process.stderr.write(`Fatal error: ${err}\n`);
+      process.exit(1);
+    }
+  );
 }
-
-export { NativeMessagingHost, type NativeMessage, type NativeResponse };

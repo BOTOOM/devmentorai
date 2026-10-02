@@ -52,12 +52,15 @@ function getStatusIcon(status: CheckResult['status']): string {
 
 function checkNodeVersion(): CheckResult {
   const version = process.version;
-  const major = Number.parseInt(version.slice(1).split('.')[0], 10);
+  const [major, minor] = version
+    .slice(1)
+    .split('.')
+    .map((part) => Number.parseInt(part, 10));
 
-  if (major >= 20) {
-    return { name: 'Node.js', status: 'pass', message: `${version} (>= 20 required)` };
+  if (major > 22 || (major === 22 && minor >= 12)) {
+    return { name: 'Node.js', status: 'pass', message: `${version} (>= 22.12 required)` };
   }
-  return { name: 'Node.js', status: 'fail', message: `${version} — Node.js >= 20 is required` };
+  return { name: 'Node.js', status: 'fail', message: `${version} — Node.js >= 22.12 is required` };
 }
 
 function checkDataDirectory(): CheckResult {

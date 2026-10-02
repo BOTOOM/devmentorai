@@ -1,3 +1,24 @@
+## [1.9.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.8.0...backend-v1.9.0) (2026-10-02)
+
+### Features
+
+* **extension:** auto-resizing chat input and Markdown message rendering ([ed9f54c](https://github.com/BOTOOM/devmentorai/commit/ed9f54c13a59c9eb769bd10a4146900cfbcbab9f))
+
+### Bug Fixes
+
+* **backend:** resolve daemon entry path on Windows ([944f74a](https://github.com/BOTOOM/devmentorai/commit/944f74a5ae66eb2b29a8acd6303a23af20641f81))
+* **backend:** ship native messaging host in published package ([c3fa66e](https://github.com/BOTOOM/devmentorai/commit/c3fa66e2811698fce6d85a4dab5e1aa74e75c9d8))
+* **extension:** contain long code lines within chat bubble ([24e4a7c](https://github.com/BOTOOM/devmentorai/commit/24e4a7c32367c60faf80051190c23bcf591130ea))
+
+### Documentation
+
+* **website:** document ext/backend v1.7.0-v1.8.0 releases in changelog ([fbb4c39](https://github.com/BOTOOM/devmentorai/commit/fbb4c39e5bafc1163f32b89b2b7f392d7028430d))
+
+### Maintenance
+
+* **release:** extension v1.8.0 [skip ci] ([a164937](https://github.com/BOTOOM/devmentorai/commit/a1649373abc39d4e841faf01ddf723b00c2cc654))
+* **release:** extension v1.9.0 [skip ci] ([6fa219f](https://github.com/BOTOOM/devmentorai/commit/6fa219f6a4f904a52e663a927eef7d3b49cbf1c7))
+
 ## [1.8.0](https://github.com/BOTOOM/devmentorai/compare/backend-v1.7.2...backend-v1.8.0) (2026-07-06)
 
 ### Features

@@ -1,3 +1,15 @@
+## [1.10.1](https://github.com/BOTOOM/devmentorai/compare/ext-v1.10.0...ext-v1.10.1) (2026-10-02)
+
+### Bug Fixes
+
+* **backend:** return newest messages first page ([c09f684](https://github.com/BOTOOM/devmentorai/commit/c09f6843f2189542971809ac1cd08e116578c873))
+* **extension:** ignore stale message reloads, page all sessions, refresh sessions silently ([a69f294](https://github.com/BOTOOM/devmentorai/commit/a69f294b10e718a536952d9e37cbbf329538dab1))
+* **extension:** refresh side panel after quick actions ([c9dafeb](https://github.com/BOTOOM/devmentorai/commit/c9dafeb60cea1c5ed67b3a5ac5167acb4f1bed0c))
+
+### Maintenance
+
+* **release:** backend v1.10.1 [skip ci] ([da926f5](https://github.com/BOTOOM/devmentorai/commit/da926f5447e40cba5430f5c5de1c7ee4094c1df2))
+
 ## [1.10.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.9.0...ext-v1.10.0) (2026-10-02)
 
 ### Features

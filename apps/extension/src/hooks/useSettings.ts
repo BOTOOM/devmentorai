@@ -156,7 +156,7 @@ export function useSettings() {
 
           // Apply theme immediately when changed from another context
           if (key === 'theme') {
-            applyTheme(change.newValue);
+            applyTheme(change.newValue as Settings['theme']);
           }
         }
       }

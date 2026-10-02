@@ -445,7 +445,8 @@ export default defineContentScript({
       if (areaName !== 'local') return;
 
       if (changes.textReplacementBehavior) {
-        currentTextReplacementBehavior = changes.textReplacementBehavior.newValue || 'ask';
+        currentTextReplacementBehavior =
+          (changes.textReplacementBehavior.newValue as TextReplacementBehavior) || 'ask';
       }
 
       if (changes.floatingBubbleEnabled) {

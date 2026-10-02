@@ -27,6 +27,12 @@ import { ApiClient } from '../../services/api-client';
 
 // Extend QuickAction to include tone variations
 type ExtendedAction = QuickAction | `rewrite_${string}` | 'chat';
+type PendingAction = {
+  action: ExtendedAction;
+  selectedText: string;
+  pageUrl?: string;
+  pageTitle?: string;
+};
 
 export function SidePanel() {
   const apiClient = ApiClient.getInstance();
@@ -41,12 +47,7 @@ export function SidePanel() {
   const [authStatus, setAuthStatus] = useState<CopilotAuthStatus | null>(null);
   const [quotaStatus, setQuotaStatus] = useState<CopilotQuotaStatus | null>(null);
   const [isChangingModel, setIsChangingModel] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{
-    action: ExtendedAction;
-    selectedText: string;
-    pageUrl?: string;
-    pageTitle?: string;
-  } | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   // Ref to ChatView's addImage function (passed via callback)
   const addImageToChatRef = useRef<
@@ -133,9 +134,21 @@ export function SidePanel() {
   useEffect(() => {
     const checkPendingAction = async () => {
       try {
-        const response = await chrome.runtime.sendMessage({ type: 'GET_PENDING_ACTION' });
+        const response = (await chrome.runtime.sendMessage({
+          type: 'GET_PENDING_ACTION',
+        })) as {
+          action?: ExtendedAction;
+          selectedText?: string;
+          pageUrl?: string;
+          pageTitle?: string;
+        } | null;
         if (response?.action && response.selectedText) {
-          setPendingAction(response);
+          setPendingAction({
+            action: response.action,
+            selectedText: response.selectedText,
+            pageUrl: response.pageUrl,
+            pageTitle: response.pageTitle,
+          });
         }
       } catch (error) {
         console.error('[SidePanel] Failed to get pending action:', error);
@@ -147,7 +160,7 @@ export function SidePanel() {
     // Also listen for storage changes (for quick actions from toolbar)
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
       if (changes.pendingAction?.newValue) {
-        setPendingAction(changes.pendingAction.newValue);
+        setPendingAction(changes.pendingAction.newValue as PendingAction);
         chrome.storage.local.remove('pendingAction');
       }
     };

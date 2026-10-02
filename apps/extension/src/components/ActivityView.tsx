@@ -224,7 +224,9 @@ function ToolExecutionItem({ tool }: Readonly<ToolExecutionItemProps>): React.Re
           {tool.input && (
             <div>
               <span className="text-muted-foreground">Input: </span>
-              <code className="bg-muted px-1 rounded-sm">{JSON.stringify(tool.input, null, 2)}</code>
+              <code className="bg-muted px-1 rounded-sm">
+                {JSON.stringify(tool.input, null, 2)}
+              </code>
             </div>
           )}
           {tool.output && (

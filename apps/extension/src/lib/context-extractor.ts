@@ -316,8 +316,8 @@ const PRIVACY_PATTERNS = {
   accountId:
     /\b(user[_-]?id|account[_-]?id|customer[_-]?id|uid)[:\s=]["']?([a-zA-Z0-9_-]{8,})["']?/gi,
   // Resource IDs (AWS, Azure, GCP patterns)
-  awsArn: /arn:aws:[a-z0-9-]+:[a-z0-9-]*:\d*:[a-zA-Z0-9\-\/_]+/g,
-  azureResourceId: /\/subscriptions\/[a-f0-9-]+\/resourceGroups\/[^\/]+\/providers\/[^\s"']+/gi,
+  awsArn: /arn:aws:[a-z0-9-]+:[a-z0-9-]*:\d*:[a-zA-Z0-9\-/_]+/g,
+  azureResourceId: /\/subscriptions\/[a-f0-9-]+\/resourceGroups\/[^/]+\/providers\/[^\s"']+/gi,
   gcpResourceId: /projects\/[a-z][a-z0-9-]*\/[^\s"']+/gi,
   // JWT tokens
   jwt: /eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*/g,
@@ -579,7 +579,7 @@ function detectSpecificProduct(platform: PlatformType): string | undefined {
       return 'Azure Portal';
 
     case 'aws': {
-      const awsMatch = url.match(/console\.aws\.amazon\.com\/([^\/\?]+)/);
+      const awsMatch = url.match(/console\.aws\.amazon\.com\/([^/?]+)/);
       if (awsMatch) {
         const service = awsMatch[1].toUpperCase();
         return `AWS ${service}`;
@@ -588,7 +588,7 @@ function detectSpecificProduct(platform: PlatformType): string | undefined {
     }
 
     case 'gcp': {
-      const gcpMatch = url.match(/console\.cloud\.google\.com\/([^\/\?]+)/);
+      const gcpMatch = url.match(/console\.cloud\.google\.com\/([^/?]+)/);
       if (gcpMatch) return `GCP ${gcpMatch[1]}`;
       return 'GCP Console';
     }
@@ -1532,15 +1532,15 @@ function extractAzureContext(): Record<string, unknown> {
 
   // Extract resource info from URL
   const url = window.location.href;
-  const resourceMatch = url.match(/\/resource\/([^\/]+)/);
+  const resourceMatch = url.match(/\/resource\/([^/]+)/);
   if (resourceMatch) context.resourceType = resourceMatch[1];
 
   // Extract subscription from URL
-  const subMatch = url.match(/subscriptions\/([^\/]+)/);
+  const subMatch = url.match(/subscriptions\/([^/]+)/);
   if (subMatch) context.subscriptionId = subMatch[1];
 
   // Extract resource group
-  const rgMatch = url.match(/resourceGroups\/([^\/]+)/);
+  const rgMatch = url.match(/resourceGroups\/([^/]+)/);
   if (rgMatch) context.resourceGroup = rgMatch[1];
 
   // Check for activity log entries
@@ -1562,7 +1562,7 @@ function extractAWSContext(): Record<string, unknown> {
 
   // Extract service name from URL
   const url = window.location.href;
-  const serviceMatch = url.match(/console\.aws\.amazon\.com\/([^\/\?]+)/);
+  const serviceMatch = url.match(/console\.aws\.amazon\.com\/([^/?]+)/);
   if (serviceMatch) context.service = serviceMatch[1];
 
   // Extract region
@@ -1596,7 +1596,7 @@ function extractGCPContext(): Record<string, unknown> {
   if (projectMatch) context.project = decodeURIComponent(projectMatch[1]);
 
   // Extract service from URL
-  const serviceMatch = url.match(/console\.cloud\.google\.com\/([^\/\?]+)/);
+  const serviceMatch = url.match(/console\.cloud\.google\.com\/([^/?]+)/);
   if (serviceMatch) context.service = serviceMatch[1];
 
   return context;
@@ -1610,7 +1610,7 @@ function extractGitHubContext(): Record<string, unknown> {
   const pathname = window.location.pathname;
 
   // Extract repo info
-  const repoMatch = pathname.match(/^\/([^\/]+)\/([^\/]+)/);
+  const repoMatch = pathname.match(/^\/([^/]+)\/([^/]+)/);
   if (repoMatch) {
     context.owner = repoMatch[1];
     context.repo = repoMatch[2];

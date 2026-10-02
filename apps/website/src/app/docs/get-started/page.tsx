@@ -14,7 +14,7 @@ const PAGE_DESCRIPTION =
   'Get started quickly with DevMentorAI: prerequisites, Copilot CLI setup, extension installation, and first chat session flow.';
 
 const PREREQUISITES = [
-  'Node.js 20+ installed on your machine.',
+  'Node.js 22.12+ installed on your machine.',
   'DevMentorAI browser extension downloaded from the latest release.',
   'GitHub Copilot CLI installed and authenticated.',
   'Local backend command available: npx devmentorai-server.',

@@ -39,7 +39,7 @@ This project follows a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, 
 
 ### Prerequisites
 
-- **Node.js** 20+
+- **Node.js** 22.12+
 - **pnpm** 9+
 - **GitHub Copilot CLI** installed and authenticated
 - **Chrome/Chromium** browser

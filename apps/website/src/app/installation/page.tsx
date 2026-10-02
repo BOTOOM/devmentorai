@@ -67,7 +67,7 @@ export default async function InstallationPage() {
                 rel="noopener noreferrer"
                 className="font-medium text-primary hover:underline"
               >
-                Node.js 20+
+                Node.js 22.12+
               </a>{' '}
               installed locally. Backend package is available on{' '}
               <a

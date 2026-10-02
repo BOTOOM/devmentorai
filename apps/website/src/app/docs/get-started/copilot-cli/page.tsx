@@ -68,7 +68,7 @@ export default function CopilotCliDocsPage() {
         description: PAGE_DESCRIPTION,
         totalTime: 'PT7M',
         supply: [
-          { '@type': 'HowToSupply', name: 'Node.js 20+' },
+          { '@type': 'HowToSupply', name: 'Node.js 22.12+' },
           { '@type': 'HowToSupply', name: 'Terminal access' },
         ],
         step: [

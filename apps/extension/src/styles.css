@@ -69,7 +69,7 @@
   @apply bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-xs;
 }
 
-@layer utilities {
+@layer base {
   :root {
     --bg-primary: #ffffff;
     --bg-secondary: #f9fafb;
@@ -113,6 +113,4 @@
   ::-webkit-scrollbar-thumb:hover {
     background: var(--text-primary);
   }
-
-  /* Custom utility classes */
 }

@@ -7,16 +7,20 @@ services:
     environment:
       DEVMENTORAI_PORT: ${BACKEND_PORT:-3847}
       NODE_ENV: production
+      COPILOT_GITHUB_TOKEN: ${COPILOT_GITHUB_TOKEN:-}
+      GH_TOKEN: ${GH_TOKEN:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      COPILOT_TOKEN: ${COPILOT_TOKEN:-}
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       ALL_PROXY: ${ALL_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,backend}
     ports:
-      - "${BACKEND_PORT:-3847}:${BACKEND_PORT:-3847}"
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+      - "${BACKEND_BIND_ADDRESS:-127.0.0.1}:${BACKEND_PORT:-3847}:${BACKEND_PORT:-3847}"
+    user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
     volumes:
-      - ${HOST_DEVMENTOR_CONTAINER_DIR:-/home/botom/devmentor-container}/.copilot:/home/devmentor/.copilot
-      - ${HOST_DEVMENTOR_CONTAINER_DIR:-/home/botom/devmentor-container}/.devmentorai:/home/devmentor/.devmentorai
+      - ${DEVMENTORAI_COPILOT_VOLUME:-devmentorai-copilot}:/home/devmentor/.copilot
+      - ${DEVMENTORAI_DATA_VOLUME:-devmentorai-data}:/home/devmentor/.devmentorai
     restart: unless-stopped
     stdin_open: true
     tty: true
@@ -60,3 +64,9 @@ services:
 networks:
   custom_net:
     name: devmentorai_custom_net
+
+volumes:
+  devmentorai-copilot:
+    name: devmentorai-copilot
+  devmentorai-data:
+    name: devmentorai-data

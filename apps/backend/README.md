@@ -81,6 +81,10 @@ devmentorai-server start --foreground
 
 Then enable restart policies (`Restart=always`) so the backend auto-recovers if it crashes.
 
+### Docker (alternative)
+
+If npm/npx installation fails, run the backend in Docker with a GitHub token or in-container device-code login. See the [cross-platform Docker setup guide](https://github.com/BOTOOM/devmentorai/blob/master/docs/DOCKER_COPILOT_SETUP.md).
+
 ## Commands
 
 | Command | Description |

@@ -77,7 +77,7 @@ export function SidePanel() {
   useEffect(() => {
     const handleMessage = (message: { type?: string }) => {
       if (message.type === SESSION_MESSAGES_UPDATED) {
-        void refreshSessions().catch((error) => {
+        void refreshSessions({ silent: true }).catch((error) => {
           console.error('[SidePanel] Failed to refresh sessions after quick action:', error);
         });
       }

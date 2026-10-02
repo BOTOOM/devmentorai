@@ -96,4 +96,110 @@ describe('useChat session message updates', () => {
     });
     await waitFor(() => expect(getSessionMessages).toHaveBeenCalledTimes(2));
   });
+
+  it('ignores a quick-action reload that resolves after sending starts', async () => {
+    const staleMessage = {
+      id: 'stale-message',
+      sessionId: 'active-session',
+      role: 'assistant' as const,
+      content: 'stale quick-action content',
+      timestamp: '2026-01-01T00:00:00.000Z',
+    };
+    const staleResponse = {
+      success: true,
+      data: { items: [staleMessage], total: 1, page: 1, pageSize: 100, hasMore: false },
+    };
+    let finishStream: (() => void) | undefined;
+    streamChat.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishStream = resolve;
+        })
+    );
+
+    const { result } = renderHook(() => useChat('active-session'));
+    await waitFor(() => expect(getSessionMessages).toHaveBeenCalledTimes(1));
+
+    let resolveReload!: (response: typeof staleResponse) => void;
+    getSessionMessages.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveReload = resolve;
+      })
+    );
+
+    act(() => {
+      fireMessage({ type: SESSION_MESSAGES_UPDATED, sessionId: 'active-session' });
+    });
+    expect(getSessionMessages).toHaveBeenCalledTimes(2);
+
+    let sendPromise: Promise<void> | undefined;
+    act(() => {
+      sendPromise = result.current.sendMessage('Hello');
+    });
+
+    await act(async () => {
+      resolveReload(staleResponse);
+      await Promise.resolve();
+    });
+
+    expect(result.current.messages.some((message) => message.content === 'Hello')).toBe(true);
+    expect(result.current.messages.some((message) => message.id === staleMessage.id)).toBe(false);
+
+    await act(async () => {
+      finishStream?.();
+      await sendPromise;
+    });
+    await waitFor(() => expect(getSessionMessages).toHaveBeenCalledTimes(3));
+  });
+
+  it('ignores a pending message load after switching sessions', async () => {
+    const sessionAMessage = {
+      id: 'session-a-message',
+      sessionId: 'session-a',
+      role: 'assistant' as const,
+      content: 'Session A',
+      timestamp: '2026-01-01T00:00:00.000Z',
+    };
+    const sessionBMessage = {
+      id: 'session-b-message',
+      sessionId: 'session-b',
+      role: 'assistant' as const,
+      content: 'Session B',
+      timestamp: '2026-01-01T00:00:00.000Z',
+    };
+    const sessionAResponse = {
+      success: true,
+      data: { items: [sessionAMessage], total: 1, page: 1, pageSize: 100, hasMore: false },
+    };
+    const sessionBResponse = {
+      success: true,
+      data: { items: [sessionBMessage], total: 1, page: 1, pageSize: 100, hasMore: false },
+    };
+    let resolveSessionA!: (response: typeof sessionAResponse) => void;
+    getSessionMessages
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSessionA = resolve;
+        })
+      )
+      .mockResolvedValueOnce(sessionBResponse);
+
+    const { result, rerender } = renderHook(({ sessionId }) => useChat(sessionId), {
+      initialProps: { sessionId: 'session-a' },
+    });
+
+    expect(getSessionMessages).toHaveBeenCalledWith('session-a');
+
+    rerender({ sessionId: 'session-b' });
+    await waitFor(() =>
+      expect(result.current.messages.map((message) => message.id)).toEqual([sessionBMessage.id])
+    );
+
+    await act(async () => {
+      resolveSessionA(sessionAResponse);
+      await Promise.resolve();
+    });
+
+    expect(result.current.messages.map((message) => message.id)).toEqual([sessionBMessage.id]);
+  });
 });

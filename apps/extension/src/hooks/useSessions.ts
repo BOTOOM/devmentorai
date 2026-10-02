@@ -13,6 +13,10 @@ interface UseSessionsOptions {
   connectionStatus?: ConnectionStatus;
 }
 
+interface LoadSessionsOptions {
+  silent?: boolean;
+}
+
 export function useSessions(options?: UseSessionsOptions) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -22,26 +26,34 @@ export function useSessions(options?: UseSessionsOptions) {
 
   const apiClient = useMemo(() => ApiClient.getInstance(), []);
 
-  const loadSessions = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const response = await apiClient.listSessions();
-      if (response.success && response.data) {
-        setSessions(response.data.items);
-
-        if (!activeSessionId && response.data.items.length > 0) {
-          setActiveSessionId(response.data.items[0].id);
-        }
-      } else {
-        setError(response.error?.message || 'Failed to load sessions');
+  const loadSessions = useCallback(
+    async ({ silent = false }: LoadSessionsOptions = {}) => {
+      if (!silent) {
+        setIsLoading(true);
       }
-    } catch (err) {
-      console.error('[useSessions] Failed to load sessions:', err);
-      setError('Failed to load sessions');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeSessionId, apiClient]);
+
+      try {
+        const response = await apiClient.listSessions();
+        if (response.success && response.data) {
+          setSessions(response.data.items);
+
+          if (!activeSessionId && response.data.items.length > 0) {
+            setActiveSessionId(response.data.items[0].id);
+          }
+        } else {
+          setError(response.error?.message || 'Failed to load sessions');
+        }
+      } catch (err) {
+        console.error('[useSessions] Failed to load sessions:', err);
+        setError('Failed to load sessions');
+      } finally {
+        if (!silent) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [activeSessionId, apiClient]
+  );
 
   // Load sessions on mount
   useEffect(() => {

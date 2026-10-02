@@ -89,27 +89,45 @@ describe('writing assistant session', () => {
     });
   });
 
-  it('finds the Writing Assistant session on a later page instead of creating a duplicate', async () => {
-    const firstPage = Array.from({ length: 50 }, (_, index) => ({
+  it('finds the Writing Assistant session on page 21 instead of creating a duplicate', async () => {
+    const otherSessions = Array.from({ length: 50 }, (_, index) => ({
       ...writingSession,
       id: `other-session-${index}`,
       name: `Other session ${index}`,
       type: 'general',
     }));
-    apiClientMock.listSessions
-      .mockResolvedValueOnce({
-        success: true,
-        data: { items: firstPage, total: 51, page: 1, pageSize: 50, hasMore: true },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: { items: [writingSession], total: 51, page: 2, pageSize: 50, hasMore: false },
-      });
+    apiClientMock.listSessions.mockImplementation(async (page: number) => ({
+      success: true,
+      data: {
+        items: page === 21 ? [writingSession] : otherSessions,
+        total: 1050,
+        page,
+        pageSize: 50,
+        hasMore: page < 21,
+      },
+    }));
 
     await expect(getOrCreateWritingAssistantSession('test-model')).resolves.toEqual(writingSession);
 
     expect(apiClientMock.listSessions).toHaveBeenNthCalledWith(1, 1, 50);
-    expect(apiClientMock.listSessions).toHaveBeenNthCalledWith(2, 2, 50);
+    expect(apiClientMock.listSessions).toHaveBeenNthCalledWith(21, 21, 50);
+    expect(apiClientMock.listSessions).toHaveBeenCalledTimes(21);
     expect(apiClientMock.createSession).not.toHaveBeenCalled();
+  });
+
+  it('stops paging when a page is empty even if there are more pages', async () => {
+    apiClientMock.listSessions.mockResolvedValue({
+      success: true,
+      data: { items: [], total: 100, page: 1, pageSize: 50, hasMore: true },
+    });
+    apiClientMock.createSession.mockResolvedValue({
+      success: true,
+      data: writingSession,
+    });
+
+    await expect(getOrCreateWritingAssistantSession('test-model')).resolves.toEqual(writingSession);
+
+    expect(apiClientMock.listSessions).toHaveBeenCalledOnce();
+    expect(apiClientMock.createSession).toHaveBeenCalledOnce();
   });
 });

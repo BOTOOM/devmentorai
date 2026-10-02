@@ -43,6 +43,8 @@ export function useChat(sessionId: string | undefined) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentMessageRef = useRef<string>('');
   const currentSessionRef = useRef<string | undefined>(sessionId);
+  const loadGenerationRef = useRef(0);
+  const activeMessageLoadsRef = useRef(0);
   const isStreamingRef = useRef(false);
   const isSendingRef = useRef(false);
   const pendingReloadRef = useRef(false);
@@ -59,14 +61,40 @@ export function useChat(sessionId: string | undefined) {
   const apiClient = useMemo(() => ApiClient.getInstance(), []);
 
   const loadMessages = useCallback(
-    async (sid: string) => {
+    async (requestedSessionId: string) => {
+      const generation = ++loadGenerationRef.current;
+      activeMessageLoadsRef.current += 1;
+      const canApplyResponse = () => {
+        const isCurrentSession = currentSessionRef.current === requestedSessionId;
+        const isBusy = isSendingRef.current || isStreamingRef.current;
+
+        if (isCurrentSession && isBusy) {
+          pendingReloadRef.current = true;
+        }
+
+        return (
+          generation === loadGenerationRef.current &&
+          isCurrentSession &&
+          !isSendingRef.current &&
+          !isStreamingRef.current
+        );
+      };
+
       try {
-        const response = await apiClient.getSessionMessages(sid);
+        const response = await apiClient.getSessionMessages(requestedSessionId);
+        if (!canApplyResponse()) {
+          return;
+        }
+
         if (response.success && response.data) {
           setMessages(response.data.items);
         }
       } catch (err) {
-        console.error('[useChat] Failed to load messages:', err);
+        if (canApplyResponse()) {
+          console.error('[useChat] Failed to load messages:', err);
+        }
+      } finally {
+        activeMessageLoadsRef.current -= 1;
       }
     },
     [apiClient]
@@ -74,6 +102,7 @@ export function useChat(sessionId: string | undefined) {
 
   // Track session changes to prevent message mixup (A.4 fix)
   useEffect(() => {
+    loadGenerationRef.current += 1;
     currentSessionRef.current = sessionId;
     pendingReloadRef.current = false;
   }, [sessionId]);
@@ -167,6 +196,10 @@ export function useChat(sessionId: string | undefined) {
       // Store the session ID at the start of this request (A.4 fix)
       const requestSessionId = sessionId;
 
+      loadGenerationRef.current += 1;
+      if (activeMessageLoadsRef.current > 0) {
+        pendingReloadRef.current = true;
+      }
       setError(null);
       setIsSending(true);
       currentMessageRef.current = '';

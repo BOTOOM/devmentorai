@@ -12,7 +12,6 @@ export const SESSION_MESSAGES_UPDATED = 'SESSION_MESSAGES_UPDATED';
 const WRITING_ASSISTANT_SESSION_NAME = 'Writing Assistant';
 const WRITING_ASSISTANT_SESSION_TYPE = 'writing';
 const SESSION_PAGE_SIZE = 50;
-const MAX_SESSION_PAGES = 20;
 
 // Cache the session to avoid repeated API calls
 let cachedSession: Session | null = null;
@@ -156,12 +155,16 @@ export async function getOrCreateWritingAssistantSession(model?: string): Promis
 
   try {
     let existingSession: Session | undefined;
-    for (let page = 1; page <= MAX_SESSION_PAGES; page++) {
+    for (let page = 1; ; page++) {
       const response = await apiClient.listSessions(page, SESSION_PAGE_SIZE);
 
       if (!response.success || !response.data) {
         console.error('[WritingAssistant] Failed to list sessions:', response.error);
         return null;
+      }
+
+      if (response.data.items.length === 0) {
+        break;
       }
 
       existingSession = response.data.items.find(

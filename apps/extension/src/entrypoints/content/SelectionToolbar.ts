@@ -218,7 +218,7 @@ export function createSelectionToolbar(
       align-items: center;
       justify-content: center;
       transition: transform 0.15s, opacity 0.15s;
-      shrink: 0;
+      flex-shrink: 0;
     }
 
     .actions-container {

@@ -3,6 +3,8 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     cli: 'src/cli.ts',
+    host: 'src/native/host.ts',
+    'install-native-host': 'src/native/install-native-host.ts',
     server: 'src/server.ts',
   },
   format: ['esm'],

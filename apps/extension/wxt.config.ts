@@ -61,7 +61,15 @@ export default defineConfig({
         id: 'devmentorai@devmentorai.com',
       },
     },
-    permissions: ['storage', 'activeTab', 'contextMenus', 'scripting', 'tabs', 'alarms'],
+    permissions: [
+      'storage',
+      'activeTab',
+      'contextMenus',
+      'scripting',
+      'tabs',
+      'alarms',
+      'nativeMessaging',
+    ],
     host_permissions: ['http://localhost:3847/*', '<all_urls>'],
     default_locale: 'en',
     icons: {

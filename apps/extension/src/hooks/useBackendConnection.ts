@@ -2,6 +2,7 @@ import { DEFAULT_CONFIG } from '@devmentorai/shared';
 import type { HealthResponse } from '@devmentorai/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { storageGet } from '../lib/browser-utils';
+import { ApiClient } from '../services/api-client';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
@@ -25,23 +26,14 @@ export function useBackendConnection() {
         : defaultBaseUrl;
       setBaseUrl(resolvedBaseUrl);
 
-      const response = await fetch(`${resolvedBaseUrl}/api/health`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const response = await ApiClient.getInstance().getHealth();
 
-      if (!response.ok) {
-        throw new Error(`Health check failed: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.data) {
-        setHealth(data.data);
+      if (response.success && response.data) {
+        setHealth(response.data);
         setStatus('connected');
         setError(null);
       } else {
-        throw new Error(data.error?.message || 'Invalid health response');
+        throw new Error(response.error?.message || 'Invalid health response');
       }
     } catch (err) {
       console.error('[useBackendConnection] Health check failed:', err);

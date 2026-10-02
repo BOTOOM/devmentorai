@@ -219,13 +219,37 @@ The extension uses Chrome's `storage.local` for:
 
 For enhanced security, you can use Native Messaging instead of HTTP:
 
+Install globally so the wrapper path stays stable (the npx cache can be purged):
+
 ```bash
-# Get your extension ID from chrome://extensions
-cd apps/backend
-node src/native/install-native-host.js <extension-id>
+npm install -g devmentorai-server
+```
+
+Get your extension ID from chrome://extensions, then install the native host:
+
+macOS/Linux:
+```bash
+node "$(npm root -g)/devmentorai-server/dist/install-native-host.js" <extension-id>
+```
+
+Windows PowerShell:
+```powershell
+node "$(npm root -g)\devmentorai-server\dist\install-native-host.js" <extension-id>
 ```
 
 Then enable "Native Messaging" in DevMentorAI settings.
+
+To uninstall:
+
+macOS/Linux:
+```bash
+node "$(npm root -g)/devmentorai-server/dist/install-native-host.js" --uninstall
+```
+
+Windows PowerShell:
+```powershell
+node "$(npm root -g)\devmentorai-server\dist\install-native-host.js" --uninstall
+```
 
 ## Development
 

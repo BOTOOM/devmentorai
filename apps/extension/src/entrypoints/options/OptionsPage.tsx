@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { API_ENDPOINTS } from '@devmentorai/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AVAILABLE_LANGUAGES,
   DEFAULT_SETTINGS,
@@ -6,6 +7,7 @@ import {
   useSettings,
 } from '../../hooks/useSettings';
 import { useUpdateChecker } from '../../hooks/useUpdateChecker';
+import { getNativeTransport } from '../../services/communication';
 import {
   type QuickActionModelOption,
   getQuickActionModelState,
@@ -26,6 +28,7 @@ export function OptionsPage() {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>(
     'checking'
   );
+  const healthCheckRunRef = useRef(0);
 
   const backendStatusClassByState: Record<typeof backendStatus, string> = {
     connected: 'bg-green-500',
@@ -93,17 +96,32 @@ export function OptionsPage() {
   }, [isLoaded, settings.quickActionModel]);
 
   const checkBackendConnection = useCallback(async () => {
+    const run = ++healthCheckRunRef.current;
     try {
-      const response = await fetch(`${localSettings.backendUrl}/api/health`);
-      if (response.ok) {
-        setBackendStatus('connected');
-      } else {
-        setBackendStatus('disconnected');
+      if (localSettings.communicationMode === 'native') {
+        const response = await getNativeTransport().request<{ success?: boolean }>(
+          'GET',
+          API_ENDPOINTS.HEALTH
+        );
+        if (run === healthCheckRunRef.current) {
+          setBackendStatus(
+            response.status === 200 && response.data.success ? 'connected' : 'disconnected'
+          );
+        }
+        return;
+      }
+
+      const response = await fetch(`${localSettings.backendUrl}${API_ENDPOINTS.HEALTH}`);
+      const data = await response.json();
+      if (run === healthCheckRunRef.current) {
+        setBackendStatus(response.ok && data.success ? 'connected' : 'disconnected');
       }
     } catch {
-      setBackendStatus('disconnected');
+      if (run === healthCheckRunRef.current) {
+        setBackendStatus('disconnected');
+      }
     }
-  }, [localSettings.backendUrl]);
+  }, [localSettings.backendUrl, localSettings.communicationMode]);
 
   useEffect(() => {
     if (isLoaded) {

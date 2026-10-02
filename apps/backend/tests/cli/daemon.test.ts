@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Must use inline values in vi.mock factory (hoisted above variable declarations)
@@ -30,8 +31,34 @@ import {
   isServerRunning,
   readPid,
   removePid,
+  resolveServerEntry,
   writePid,
 } from '../../src/lib/daemon.js';
+
+describe('resolveServerEntry', () => {
+  it('resolves the server entry next to a file URL module path', () => {
+    const dir = path.join(os.tmpdir(), 'Edward Diaz', 'dist');
+    expect(resolveServerEntry(pathToFileURL(path.join(dir, 'cli.js')).href)).toBe(
+      path.join(dir, 'server.js')
+    );
+  });
+
+  it.runIf(process.platform === 'win32')('decodes Windows drive paths and spaces', () => {
+    expect(
+      resolveServerEntry(
+        'file:///C:/Users/Edward%20Diaz/AppData/Local/npm-cache/_npx/abc/node_modules/devmentorai-server/dist/cli.js'
+      )
+    ).toBe(
+      'C:\\Users\\Edward Diaz\\AppData\\Local\\npm-cache\\_npx\\abc\\node_modules\\devmentorai-server\\dist\\server.js'
+    );
+  });
+
+  it.skipIf(process.platform === 'win32')('decodes POSIX paths and spaces', () => {
+    expect(resolveServerEntry('file:///home/edward%20diaz/dist/cli.js')).toBe(
+      '/home/edward diaz/dist/server.js'
+    );
+  });
+});
 
 describe('daemon utilities', () => {
   beforeEach(() => {

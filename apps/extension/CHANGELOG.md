@@ -1,3 +1,25 @@
+## [1.10.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.9.0...ext-v1.10.0) (2026-10-02)
+
+### Features
+
+* **backend:** add injectable native host streaming ([86cc28d](https://github.com/BOTOOM/devmentorai/commit/86cc28d9471378438aac60b4f8bdaf9b8ce6eaa2))
+* **backend:** ship native messaging host and register it on Windows ([1aad9e8](https://github.com/BOTOOM/devmentorai/commit/1aad9e853afb1fbc08ef1790169e65f62758d3ca))
+* **extension:** route API calls through native messaging ([f22389d](https://github.com/BOTOOM/devmentorai/commit/f22389d1988637e06e21de25f8658d3e70c92f27))
+
+### Bug Fixes
+
+* **backend:** keep native host stdout reserved for protocol frames ([3f429e0](https://github.com/BOTOOM/devmentorai/commit/3f429e0b50ca93fee1dc2d2fbb9a7e626c99b825))
+* **backend:** resolve daemon entry path on Windows ([944f74a](https://github.com/BOTOOM/devmentorai/commit/944f74a5ae66eb2b29a8acd6303a23af20641f81))
+* **backend:** ship native messaging host in published package ([c3fa66e](https://github.com/BOTOOM/devmentorai/commit/c3fa66e2811698fce6d85a4dab5e1aa74e75c9d8))
+* **backend:** stop server.js import from auto-starting HTTP ([761f30f](https://github.com/BOTOOM/devmentorai/commit/761f30ff4477b9afdd82eaaa86e8193e6e2bfa52))
+* **extension:** release native port once pending calls finish ([c6119c1](https://github.com/BOTOOM/devmentorai/commit/c6119c153c3ab248331a25b8dfe552075e2e784c))
+* preserve native stream text and release idle connections ([aec7e84](https://github.com/BOTOOM/devmentorai/commit/aec7e8457dc87bfb0ae5115ce400eca49cae828d))
+
+### Maintenance
+
+* **release:** backend v1.10.0 [skip ci] ([8208ba1](https://github.com/BOTOOM/devmentorai/commit/8208ba15efa47b4eacd7125e71ffc5e3d6ba0a6a))
+* **release:** backend v1.9.0 [skip ci] ([f17d400](https://github.com/BOTOOM/devmentorai/commit/f17d40073a2d370d876175a03c14435ca18f4f13))
+
 ## [1.9.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.8.0...ext-v1.9.0) (2026-07-21)
 
 ### Features

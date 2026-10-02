@@ -146,6 +146,16 @@ export class NativeTransport {
     port?.disconnect();
   }
 
+  releaseIfIdle(): void {
+    if (this.pending.size !== 0 || !this.port) {
+      return;
+    }
+
+    const port = this.port;
+    this.port = null;
+    port.disconnect();
+  }
+
   private connect(): chrome.runtime.Port {
     if (this.port) {
       return this.port;
@@ -248,4 +258,8 @@ let nativeTransport: NativeTransport | undefined;
 export function getNativeTransport(): NativeTransport {
   nativeTransport ??= new NativeTransport();
   return nativeTransport;
+}
+
+export function releaseNativeTransportIfIdle(): void {
+  nativeTransport?.releaseIfIdle();
 }

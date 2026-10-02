@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '@devmentorai/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AVAILABLE_LANGUAGES,
   DEFAULT_SETTINGS,
@@ -28,6 +28,7 @@ export function OptionsPage() {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>(
     'checking'
   );
+  const healthCheckRunRef = useRef(0);
 
   const backendStatusClassByState: Record<typeof backendStatus, string> = {
     connected: 'bg-green-500',
@@ -95,23 +96,30 @@ export function OptionsPage() {
   }, [isLoaded, settings.quickActionModel]);
 
   const checkBackendConnection = useCallback(async () => {
+    const run = ++healthCheckRunRef.current;
     try {
       if (localSettings.communicationMode === 'native') {
         const response = await getNativeTransport().request<{ success?: boolean }>(
           'GET',
           API_ENDPOINTS.HEALTH
         );
-        setBackendStatus(
-          response.status === 200 && response.data.success ? 'connected' : 'disconnected'
-        );
+        if (run === healthCheckRunRef.current) {
+          setBackendStatus(
+            response.status === 200 && response.data.success ? 'connected' : 'disconnected'
+          );
+        }
         return;
       }
 
       const response = await fetch(`${localSettings.backendUrl}${API_ENDPOINTS.HEALTH}`);
       const data = await response.json();
-      setBackendStatus(response.ok && data.success ? 'connected' : 'disconnected');
+      if (run === healthCheckRunRef.current) {
+        setBackendStatus(response.ok && data.success ? 'connected' : 'disconnected');
+      }
     } catch {
-      setBackendStatus('disconnected');
+      if (run === healthCheckRunRef.current) {
+        setBackendStatus('disconnected');
+      }
     }
   }, [localSettings.backendUrl, localSettings.communicationMode]);
 

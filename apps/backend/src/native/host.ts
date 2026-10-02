@@ -13,6 +13,7 @@
  */
 
 import type { Readable, Writable } from 'node:stream';
+import { StringDecoder } from 'node:string_decoder';
 import { pathToFileURL } from 'node:url';
 import type { FastifyInstance } from 'fastify';
 
@@ -233,6 +234,7 @@ export class NativeMessagingHost {
     stream: Readable,
     controller: AbortController
   ): Promise<void> {
+    const decoder = new StringDecoder('utf8');
     let lineBuffer = '';
     let streamEnded = false;
 
@@ -274,7 +276,7 @@ export class NativeMessagingHost {
         return;
       }
 
-      lineBuffer += Buffer.isBuffer(chunk) ? chunk.toString('utf-8') : String(chunk);
+      lineBuffer += decoder.write(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
       let newlineIndex = lineBuffer.indexOf('\n');
       while (newlineIndex !== -1) {
         handleLine(lineBuffer.slice(0, newlineIndex));
@@ -287,6 +289,7 @@ export class NativeMessagingHost {
       return;
     }
 
+    lineBuffer += decoder.end();
     if (lineBuffer.length > 0) {
       handleLine(lineBuffer);
     }

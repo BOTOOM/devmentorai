@@ -15,7 +15,7 @@ import type {
   UpdateSessionRequest,
 } from '@devmentorai/shared';
 import { storageGet } from '../lib/browser-utils';
-import { getNativeTransport } from './communication';
+import { getNativeTransport, releaseNativeTransportIfIdle } from './communication';
 
 interface ModelsResponse {
   models: ModelInfo[];
@@ -50,14 +50,15 @@ export class ApiClient {
   }
 
   private async resolveMode(): Promise<'http' | 'native'> {
-    try {
-      const { communicationMode } = await storageGet<{ communicationMode?: string }>(
-        'communicationMode'
-      );
-      return communicationMode === 'native' ? 'native' : 'http';
-    } catch {
-      return 'http';
+    const { communicationMode } = await storageGet<{ communicationMode?: string }>(
+      'communicationMode'
+    ).catch((): { communicationMode?: string } => ({}));
+    if (communicationMode === 'native') {
+      return 'native';
     }
+
+    releaseNativeTransportIfIdle();
+    return 'http';
   }
 
   static getInstance(): ApiClient {

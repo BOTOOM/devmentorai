@@ -104,6 +104,22 @@ function createApp(
     });
   }
 
+  app.post('/api/utf8-stream', async (_request, reply) => {
+    reply.raw.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+    });
+    reply.hijack();
+
+    const event = Buffer.from('data: {"t":"€ñ"}\n\n');
+    const splitAt = event.indexOf(Buffer.from('€')) + 1;
+    reply.raw.write(event.subarray(0, splitAt));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    reply.raw.write(event.subarray(splitAt));
+    reply.raw.write(Buffer.from('data: [DONE]\n\n'));
+    reply.raw.end();
+  });
+
   return app;
 }
 
@@ -215,6 +231,32 @@ describe('NativeMessagingHost', () => {
     });
     expect(await harness.frames.next()).toEqual({
       id: 'stream',
+      type: 'stream_end',
+    });
+  });
+
+  it('preserves multibyte UTF-8 characters split across stream chunks', async () => {
+    const harness = startHost(async () => createApp());
+    activeInput = harness.input;
+    activeRun = harness.run;
+
+    harness.input.write(
+      encodeMessage({
+        id: 'utf8',
+        type: 'stream',
+        method: 'POST',
+        path: '/api/utf8-stream',
+        body: {},
+      })
+    );
+
+    expect(await harness.frames.next()).toEqual({
+      id: 'utf8',
+      type: 'stream_chunk',
+      data: { t: '€ñ' },
+    });
+    expect(await harness.frames.next()).toEqual({
+      id: 'utf8',
       type: 'stream_end',
     });
   });

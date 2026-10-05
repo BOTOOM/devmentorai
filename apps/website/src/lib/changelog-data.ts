@@ -16,6 +16,43 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
   extension: [
     {
       track: 'extension',
+      version: '1.10.1',
+      tag: 'ext-v1.10.1',
+      releasedAt: '2026-10-02',
+      headline: 'Quick action results now show up in the side panel right away',
+      summary:
+        'Quick actions save their work in your Writing Assistant session. This release makes sure those messages actually appear in the side panel, even in long conversations, without disturbing what you are typing.',
+      highlights: [
+        'After a quick action finishes, the side panel refreshes the Writing Assistant session on its own, so the new request and its answer appear without reopening the panel.',
+        'Long sessions now open on your most recent messages instead of the oldest ones, so new quick action results are never hidden behind older history.',
+        'The refresh is silent: the text you are typing in the chat box and your pending attachments stay exactly where they were.',
+      ],
+      fixes: [
+        'The extension no longer creates a duplicate Writing Assistant session when you have many sessions.',
+        'Older, slower reloads can no longer overwrite a newer view of the conversation.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/ext-v1.10.1',
+    },
+    {
+      track: 'extension',
+      version: '1.10.0',
+      tag: 'ext-v1.10.0',
+      releasedAt: '2026-10-02',
+      headline: 'Talk to the backend through Native Messaging, without an open local port',
+      summary:
+        'The extension can now use Chrome Native Messaging end to end. Pick it in Settings and chats, streaming replies, and cancel all work through the native host instead of HTTP.',
+      highlights: [
+        'Choose "Native Messaging" under Settings → Advanced → Communication Mode and every request, including streamed answers, goes through the native host.',
+        'Replies still arrive word by word, and the Stop button cancels the answer in Native Messaging mode too.',
+        'You can switch back to "HTTP Server" at any time; the native connection closes cleanly once pending requests finish.',
+      ],
+      fixes: [
+        'Accented letters, emoji, and other non-English text no longer get garbled while streaming over Native Messaging.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/ext-v1.10.0',
+    },
+    {
+      track: 'extension',
       version: '1.9.0',
       tag: 'ext-v1.9.0',
       releasedAt: '2026-07-21',
@@ -172,6 +209,19 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
     },
   ],
   backend: [
+    {
+      track: 'backend',
+      version: '1.10.1',
+      tag: 'backend-v1.10.1',
+      releasedAt: '2026-10-02',
+      headline: 'Sessions now load your newest messages first',
+      summary:
+        'This patch fixes how the backend pages through long conversations, which is what kept recent quick action messages from showing up in the side panel.',
+      highlights: [
+        'Message history now returns the most recent page of a session first, so long chats and the Writing Assistant session always show what just happened.',
+      ],
+      releaseUrl: 'https://github.com/BOTOOM/devmentorai/releases/tag/backend-v1.10.1',
+    },
     {
       track: 'backend',
       version: '1.10.0',
@@ -359,6 +409,29 @@ export const CHANGELOG_DATA: Record<ChangelogTrack, ChangelogEntry[]> = {
     },
   ],
 };
+
+export interface UpcomingChange {
+  title: string;
+  description: string;
+}
+
+export const UPCOMING_CHANGES: UpcomingChange[] = [
+  {
+    title: 'Docker backend with GitHub token or in-container login',
+    description:
+      'Run the backend in Docker on Windows, macOS, or Linux and sign in with a fine-grained GitHub token or with copilot login inside the container. Available now from the repository.',
+  },
+  {
+    title: 'Fresh dependencies and Node.js 22.12+',
+    description:
+      'Copilot SDK 1.x and newer native SQLite bindings remove the deprecated prebuild-install warning during install. The backend now requires Node.js 22.12 or newer.',
+  },
+  {
+    title: 'devmentorai-server --version shows the real version',
+    description:
+      'The CLI version and help output now read the published package version instead of a fixed 1.0.0.',
+  },
+];
 
 export function getChangelogEntries(track: ChangelogTrack): ChangelogEntry[] {
   return CHANGELOG_DATA[track];

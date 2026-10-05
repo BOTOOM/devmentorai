@@ -2,23 +2,29 @@ import { CTASection } from '@/components/sections/CTASection';
 import { HeroSection } from '@/components/sections/HeroSection';
 import { Badge } from '@/components/ui/Badge';
 import {
+  Brain,
   Bug,
   CheckCircle,
   Cloud,
+  Container,
   Cpu,
   Eye,
   FileEdit,
   Layers,
+  Laptop,
   MessageSquare,
+  Plug,
   ShieldCheck,
+  Square,
   Terminal,
+  Zap,
 } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Features',
   description:
-    'Full page awareness, DevOps mentoring, writing assistance, and privacy-first architecture. Explore all DevMentorAI capabilities.',
+    'Full page awareness, DevOps mentoring, writing assistance and quick actions, streaming answers, HTTP or Native Messaging, native Windows support, and a Docker backend. Explore all DevMentorAI capabilities.',
 };
 
 export default function FeaturesPage() {
@@ -235,6 +241,11 @@ export default function FeaturesPage() {
                 title="Technical Emails"
                 description="Transform cryptic logs into clear reports for management."
               />
+              <FeatureItem
+                icon={<Zap className="h-5 w-5 text-primary" />}
+                title="Quick Actions"
+                description="Select text on any page to explain, translate, rewrite, fix grammar, summarize, or change the tone. Every request and answer is saved in your Writing Assistant session and shows up in the side panel right away."
+              />
             </div>
           </div>
         </div>
@@ -280,14 +291,60 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      {/* Section 5: Multi-Session */}
+      {/* Section 5: Runs your way */}
+      <section className="border-t border-[var(--card-border)] bg-[var(--section-alt)] py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mx-auto mb-16 max-w-2xl text-center">
+            <h2 className="mb-4 text-3xl font-bold">Runs Your Way</h2>
+            <p className="text-[var(--muted)]">
+              Install the backend with npm on Windows, macOS, or Linux, or run it in Docker. Then
+              pick how the extension talks to it.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <CapabilityCard
+              icon={<Laptop className="h-5 w-5 text-primary" />}
+              title="Native Windows support"
+              description="Works in PowerShell and CMD without WSL, including user folders with spaces in their names. The same commands work on macOS and Linux."
+            />
+            <CapabilityCard
+              icon={<Plug className="h-5 w-5 text-primary" />}
+              title="HTTP or Native Messaging"
+              description="Use the local HTTP server (default) or let Chrome start the backend through Native Messaging, with no local port to keep open. Switch anytime in Settings."
+            />
+            <CapabilityCard
+              icon={<Container className="h-5 w-5 text-primary" />}
+              title="Docker backend"
+              description="If the npm install gives you trouble, run the backend in a container. Sign in with a fine-grained GitHub token or with copilot login inside the container; the login is kept in a Docker volume."
+            />
+            <CapabilityCard
+              icon={<Square className="h-5 w-5 text-primary" />}
+              title="Streaming with Stop"
+              description="Answers appear word by word over HTTP and Native Messaging alike, and the Stop button cancels a reply mid-way. Accents, emoji, and non-English text stay intact."
+            />
+            <CapabilityCard
+              icon={<Brain className="h-5 w-5 text-primary" />}
+              title="Models and reasoning effort"
+              description="Pick from the Copilot models available to your account and, for models that support it, choose how much reasoning effort they spend."
+            />
+            <CapabilityCard
+              icon={<ShieldCheck className="h-5 w-5 text-primary" />}
+              title="Your credentials stay yours"
+              description="The backend uses your own Copilot login. In Docker, tokens live only in your local .env file, the logs never print them, and the port is bound to 127.0.0.1 by default."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Section 6: Multi-Session */}
       <section className="border-t border-[var(--card-border)] py-24">
         <div className="mx-auto max-w-7xl px-6">
           <div className="mx-auto mb-16 max-w-2xl text-center">
             <h2 className="mb-4 text-3xl font-bold">Multi-Session Support</h2>
             <p className="text-[var(--muted)]">
               Context-switching without the cognitive load. Keep track of dozens of debugging
-              streams simultaneously.
+              streams simultaneously. Sessions are saved by the backend, so you can pick up where
+              you left off, and long chats open on your latest messages.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
@@ -349,6 +406,26 @@ function FeatureItem({
         <p className="text-sm text-[var(--muted)]">{description}</p>
       </div>
     </li>
+  );
+}
+
+function CapabilityCard({
+  icon,
+  title,
+  description,
+}: Readonly<{
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}>) {
+  return (
+    <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-6">
+      <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary-light">
+        {icon}
+      </div>
+      <h3 className="mb-2 font-bold">{title}</h3>
+      <p className="text-sm leading-relaxed text-[var(--muted)]">{description}</p>
+    </div>
   );
 }
 

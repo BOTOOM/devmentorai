@@ -149,6 +149,14 @@ export default function DocsSettingsPage() {
               health endpoint response.
             </li>
             <li>Useful when your backend runs on a custom port or private server URL.</li>
+            <li>
+              Under{' '}
+              <strong className="text-[var(--foreground)]">Advanced → Communication Mode</strong>,
+              choose <strong className="text-[var(--foreground)]">HTTP Server</strong> (default,
+              works with the npm backend and Docker) or{' '}
+              <strong className="text-[var(--foreground)]">Native Messaging</strong> (Chrome starts
+              the locally installed backend for you; requires the native host to be installed).
+            </li>
           </ul>
         </article>
 

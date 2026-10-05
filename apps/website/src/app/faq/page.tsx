@@ -17,6 +17,16 @@ const FAQ_ITEMS = [
       'Most users complete setup in around 2 minutes: run the backend, load the extension, and open the side panel.',
   },
   {
+    question: 'Does it work on Windows without WSL?',
+    answer:
+      'Yes. The backend runs natively in PowerShell or CMD, including user folders with spaces. Install it with npm install -g devmentorai-server@latest. The npm "EPERM" cleanup warnings that npx can print are harmless.',
+  },
+  {
+    question: 'What if the npm install does not work on my machine?',
+    answer:
+      'Run the backend in Docker instead. It works on Windows, macOS, and Linux, and you can sign in with a fine-grained GitHub token or with copilot login inside the container. See the Docker section on the installation page.',
+  },
+  {
     question: 'Which browsers are supported?',
     answer:
       'DevMentorAI supports Chromium-based browsers and Firefox builds provided in the release artifacts.',

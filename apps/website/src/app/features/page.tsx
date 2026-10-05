@@ -114,8 +114,8 @@ export default function FeaturesPage() {
 
       {/* Section 2: DevOps Mentor Mode */}
       <section className="bg-[var(--section-alt)] py-24">
-        <div className="mx-auto grid max-w-7xl items-center gap-16 px-6 md:grid-cols-2">
-          <div>
+        <div className="mx-auto grid grid-cols-1 max-w-7xl items-center gap-16 px-6 md:grid-cols-2">
+          <div className="min-w-0">
             <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
               <Terminal className="h-6 w-6" />
             </div>

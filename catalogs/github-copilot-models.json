@@ -2,7 +2,7 @@
   "version": 1,
   "provider": "github-copilot",
   "defaultQuickActionModel": "gpt-5-mini",
-  "quickActionModelOrder": ["gpt-5-mini", "gpt-5.4-mini", "claude-haiku-4.5", "mai-code-1-flash"],
+  "quickActionModelOrder": ["gpt-5-mini", "gpt-6-luna", "gpt-5.6-luna", "gpt-5.4-mini", "claude-haiku-4.5", "mai-code-1-flash"],
   "models": [
     {
       "id": "gpt-5-mini",
@@ -14,6 +14,28 @@
       "pricingTier": "cheap",
       "description": "Fast default model for quick text edits, translations, and rewrites.",
       "supportedReasoningEfforts": []
+    },
+    {
+      "id": "gpt-6-luna",
+      "name": "GPT-6 Luna",
+      "provider": "openai",
+      "accessProvider": "github-copilot",
+      "available": true,
+      "isRecommendedForQuickActions": true,
+      "pricingTier": "cheap",
+      "description": "Lowest-cost GPT-6 model for fast, focused text edits, translations, and rewrites.",
+      "supportedReasoningEfforts": ["none", "low", "medium", "high"]
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "name": "GPT-5.6 Luna",
+      "provider": "openai",
+      "accessProvider": "github-copilot",
+      "available": true,
+      "isRecommendedForQuickActions": true,
+      "pricingTier": "cheap",
+      "description": "Lowest-cost GPT-5.6 model for fast, lightweight editing tasks.",
+      "supportedReasoningEfforts": ["none", "low", "medium", "high"]
     },
     {
       "id": "gpt-5.4-mini",
@@ -51,5 +73,5 @@
       "aliases": ["mai-code-1-flash-picker", "MAI-Code-1-Flash"]
     }
   ],
-  "updatedAt": "2026-07-09T17:46:52Z"
+  "updatedAt": "2026-10-01T21:30:00Z"
 }

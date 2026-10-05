@@ -301,7 +301,7 @@ export default function CopilotCliDocsPage() {
           <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
             Running the backend in Docker? You log in inside the container instead, with{' '}
             <code className="rounded bg-[var(--section-alt)] px-1.5 py-0.5 font-mono text-xs">
-              docker compose exec backend copilot login
+              docker compose exec backend copilot login --device-code
             </code>{' '}
             or a fine-grained GitHub token. See the{' '}
             <Link href="/installation#docker" className="font-medium text-primary hover:underline">

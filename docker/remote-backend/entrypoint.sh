@@ -26,7 +26,7 @@ if [[ -n "$token_name" ]]; then
   fi
 else
   echo "[DevMentorAI Docker] No GitHub token found."
-  echo "[DevMentorAI Docker] Log in with a device code: docker compose exec backend copilot login"
+  echo "[DevMentorAI Docker] Log in with a device code: docker compose exec backend copilot login --device-code"
   echo "[DevMentorAI Docker] Then restart the backend: docker compose restart backend"
   echo "[DevMentorAI Docker] The login persists in the devmentorai-copilot volume."
 fi

@@ -263,7 +263,7 @@ export default async function InstallationPage() {
             <div className="mt-3">
               <CodeBlock
                 code={
-                  'node "$(npm root -g)devmentorai-serverdistinstall-native-host.js" <extension-id>'
+                  'node "$(npm root -g)/devmentorai-server/dist/install-native-host.js" <extension-id>'
                 }
                 language="powershell"
               />

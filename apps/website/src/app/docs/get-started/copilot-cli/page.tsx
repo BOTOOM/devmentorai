@@ -223,7 +223,7 @@ export default function CopilotCliDocsPage() {
             Recommended method using npm:
           </p>
           <div className="mt-4">
-            <CodeBlock code="npm install -g @github/copilot-cli" language="bash" />
+            <CodeBlock code="npm install -g @github/copilot" language="bash" />
           </div>
 
           <p className="mt-4 text-sm leading-relaxed text-[var(--muted)] sm:text-base">

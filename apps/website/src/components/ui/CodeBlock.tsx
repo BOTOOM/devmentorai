@@ -26,10 +26,16 @@ export function CodeBlock({
         <span className="font-mono text-xs text-slate-500">{language}</span>
       </div>
       <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <code className="w-full overflow-x-auto font-mono text-sm text-primary sm:text-lg md:text-xl">
-          <span className="mr-2 text-slate-500">$</span>
-          <span className="break-words">{code}</span>
-        </code>
+        {code.includes('\n') ? (
+          <pre className="w-full overflow-x-auto font-mono text-xs leading-relaxed text-primary sm:text-sm">
+            <code>{code}</code>
+          </pre>
+        ) : (
+          <code className="w-full overflow-x-auto font-mono text-sm text-primary sm:text-lg md:text-xl">
+            <span className="mr-2 text-slate-500">$</span>
+            <span className="break-words">{code}</span>
+          </code>
+        )}
         <button
           onClick={handleCopy}
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-primary/20 bg-primary-light px-3 py-2 text-xs font-bold text-primary transition-all hover:bg-primary/20 sm:w-auto sm:py-1.5"

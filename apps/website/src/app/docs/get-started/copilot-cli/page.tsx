@@ -75,7 +75,7 @@ export default function CopilotCliDocsPage() {
           {
             '@type': 'HowToStep',
             name: 'Install Copilot CLI',
-            text: 'Install globally with npm: npm install -g @github/copilot-cli',
+            text: 'Install globally with npm: npm install -g @github/copilot',
             url: OFFICIAL_INSTALL_DOCS,
           },
           {
@@ -223,7 +223,7 @@ export default function CopilotCliDocsPage() {
             Recommended method using npm:
           </p>
           <div className="mt-4">
-            <CodeBlock code="npm install -g @github/copilot-cli" language="bash" />
+            <CodeBlock code="npm install -g @github/copilot" language="bash" />
           </div>
 
           <p className="mt-4 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
@@ -287,7 +287,27 @@ export default function CopilotCliDocsPage() {
             <CodeBlock code="npx devmentorai-server" language="bash" />
           </div>
           <p className="mt-3 text-sm text-[var(--muted)]">
-            Run the backend command only after login success.
+            Run the backend command only after login success. For daily use, install it globally
+            with{' '}
+            <code className="rounded bg-[var(--section-alt)] px-1.5 py-0.5 font-mono text-xs">
+              npm install -g devmentorai-server@latest
+            </code>{' '}
+            and run{' '}
+            <code className="rounded bg-[var(--section-alt)] px-1.5 py-0.5 font-mono text-xs">
+              devmentorai-server
+            </code>
+            .
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
+            Running the backend in Docker? You log in inside the container instead, with{' '}
+            <code className="rounded bg-[var(--section-alt)] px-1.5 py-0.5 font-mono text-xs">
+              docker compose exec backend copilot login
+            </code>{' '}
+            or a fine-grained GitHub token. See the{' '}
+            <Link href="/installation#docker" className="font-medium text-primary hover:underline">
+              Docker setup
+            </Link>
+            .
           </p>
         </article>
 

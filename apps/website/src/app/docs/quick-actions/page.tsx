@@ -128,6 +128,10 @@ export default function DocsQuickActionsPage() {
                 Use <strong className="text-[var(--foreground)]">Add to chat</strong> when you need
                 multi-step assistance.
               </li>
+              <li>
+                Quick action requests and answers are saved in your Writing Assistant session, and
+                the side panel shows them right away without touching what you are typing.
+              </li>
             </ul>
           </article>
 

@@ -5,8 +5,9 @@ import {
   type ChangelogTrack,
   formatChangelogDate,
   getChangelogEntries,
+  UPCOMING_CHANGES,
 } from '@/lib/changelog-data';
-import { ArrowRight, ExternalLink, History, Puzzle, Server } from 'lucide-react';
+import { ArrowRight, ExternalLink, History, Puzzle, Server, Sparkles } from 'lucide-react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
@@ -72,6 +73,28 @@ export default function ChangelogPage() {
             This changelog focuses on user-facing features and fixes. Website-only updates,
             deployment tweaks, and documentation-only changes are intentionally left out.
           </p>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pb-12 sm:px-6 md:px-12 lg:px-20">
+        <div className="rounded-2xl border border-primary/30 bg-primary-light p-5 sm:p-6">
+          <Badge icon={<Sparkles className="h-3 w-3" />}>Coming in the next release</Badge>
+          <p className="mt-3 text-sm leading-relaxed text-[var(--muted)] sm:text-base">
+            These changes are already merged and ship with the next published version.
+          </p>
+          <ul className="mt-4 grid gap-4 md:grid-cols-3">
+            {UPCOMING_CHANGES.map((change) => (
+              <li
+                key={change.title}
+                className="rounded-xl border border-[var(--card-border)] bg-[var(--card)] p-4"
+              >
+                <p className="text-sm font-semibold text-foreground">{change.title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+                  {change.description}
+                </p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 

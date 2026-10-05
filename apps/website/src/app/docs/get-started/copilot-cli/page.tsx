@@ -142,7 +142,7 @@ export default function CopilotCliDocsPage() {
 
       <section className="mx-auto max-w-5xl px-4 pb-20 sm:px-6 md:pb-24">
         <div className="grid gap-4 md:grid-cols-[2fr_1fr]">
-          <article className="rounded-2xl border border-amber-300/40 bg-amber-100/40 p-5 sm:p-6">
+          <article className="rounded-2xl border border-amber-300/40 bg-amber-100/40 p-5 dark:border-amber-400/30 dark:bg-amber-500/10 sm:p-6">
             <h2 className="inline-flex items-center gap-2 text-lg font-bold sm:text-xl">
               <AlertTriangle className="h-5 w-5 text-amber-700 dark:text-amber-300" />
               Quick Summary

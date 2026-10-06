@@ -701,6 +701,21 @@ export class CopilotService {
       });
       // Try to get type from DB, fallback to 'general'
       const dbSession = this.sessionService.getSession(sessionId);
+      const sessionWithSetModel = session as unknown as {
+        setModel?: (model: string, options?: { reasoningEffort?: string }) => Promise<void>;
+      };
+      if (dbSession?.reasoningEffort && sessionWithSetModel.setModel) {
+        try {
+          await sessionWithSetModel.setModel(dbSession.model, {
+            reasoningEffort: dbSession.reasoningEffort,
+          });
+        } catch (error) {
+          console.warn(
+            `[CopilotService] Failed to apply reasoning effort when resuming session ${sessionId}:`,
+            error
+          );
+        }
+      }
       this.sessions.set(sessionId, { sessionId, session, type: dbSession?.type || 'general' });
       console.log(`[CopilotService] Session ${sessionId} resumed from disk`);
       return true;

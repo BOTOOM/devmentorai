@@ -242,6 +242,11 @@ export default function DocsSettingsPage() {
               against your active Copilot account when the backend is connected.
             </li>
             <li>
+              Quick actions run with reasoning turned off (&apos;none&apos;) on models that support
+              it, such as GPT-6 Luna and GPT-5.6 Luna, for the fastest answers. Models without that
+              option use Copilot&apos;s default reasoning.
+            </li>
+            <li>
               Model metadata refreshes from a remote JSON catalog at most once per day; if offline,
               DevMentorAI uses the last cached catalog or built-in defaults.
             </li>

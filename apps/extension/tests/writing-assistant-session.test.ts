@@ -9,16 +9,21 @@ const apiClientMock = vi.hoisted(() => ({
   resumeSession: vi.fn(),
 }));
 
+const modelCatalogMock = vi.hoisted(() => ({
+  getEffectiveQuickActionModel: vi.fn(async (modelId: string) => ({
+    modelId,
+    reasoningEffort: undefined as 'none' | undefined,
+  })),
+  invalidateModelAvailabilityCache: vi.fn(async () => {}),
+}));
+
 vi.mock('../src/services/api-client', () => ({
   ApiClient: {
     getInstance: () => apiClientMock,
   },
 }));
 
-vi.mock('../src/services/model-catalog', () => ({
-  getEffectiveQuickActionModel: vi.fn(async (modelId: string) => ({ modelId })),
-  invalidateModelAvailabilityCache: vi.fn(async () => {}),
-}));
+vi.mock('../src/services/model-catalog', () => modelCatalogMock);
 
 import {
   SESSION_MESSAGES_UPDATED,
@@ -45,6 +50,10 @@ describe('writing assistant session', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearWritingAssistantCache();
+    modelCatalogMock.getEffectiveQuickActionModel.mockImplementation(async (modelId) => ({
+      modelId,
+      reasoningEffort: undefined,
+    }));
 
     sendMessage = vi.fn().mockResolvedValue(undefined);
     originalChrome = Object.getOwnPropertyDescriptor(globalThis, 'chrome');
@@ -129,5 +138,183 @@ describe('writing assistant session', () => {
 
     expect(apiClientMock.listSessions).toHaveBeenCalledOnce();
     expect(apiClientMock.createSession).toHaveBeenCalledOnce();
+  });
+
+  it('creates a quick-action session with none when the model supports it', async () => {
+    modelCatalogMock.getEffectiveQuickActionModel.mockImplementationOnce(async (modelId) => ({
+      modelId,
+      reasoningEffort: 'none',
+    }));
+    apiClientMock.listSessions.mockResolvedValue({
+      success: true,
+      data: { items: [], total: 0, page: 1, pageSize: 50, hasMore: false },
+    });
+    apiClientMock.createSession.mockResolvedValue({
+      success: true,
+      data: { ...writingSession, model: 'gpt-6-luna', reasoningEffort: 'none' },
+    });
+    apiClientMock.streamChat.mockResolvedValue(undefined);
+
+    await streamQuickAction('Fix this text', 'gpt-6-luna', () => {});
+
+    expect(apiClientMock.createSession).toHaveBeenCalledWith({
+      name: 'Writing Assistant',
+      type: 'writing',
+      model: 'gpt-6-luna',
+      reasoningEffort: 'none',
+    });
+  });
+
+  it('switches an existing same-model session to none when it is not set', async () => {
+    const existingSession = {
+      ...writingSession,
+      model: 'gpt-6-luna',
+      reasoningEffort: null,
+    } as unknown as Session;
+    const updatedSession = { ...existingSession, reasoningEffort: 'none' } as Session;
+    apiClientMock.listSessions.mockResolvedValue({
+      success: true,
+      data: {
+        items: [existingSession],
+        total: 1,
+        page: 1,
+        pageSize: 50,
+        hasMore: false,
+      },
+    });
+    apiClientMock.switchSessionModel.mockResolvedValue({
+      success: true,
+      data: updatedSession,
+    });
+
+    await expect(getOrCreateWritingAssistantSession('gpt-6-luna', 'none')).resolves.toEqual(
+      updatedSession
+    );
+
+    expect(apiClientMock.switchSessionModel).toHaveBeenCalledWith(
+      writingSession.id,
+      'gpt-6-luna',
+      'none'
+    );
+  });
+
+  it('does not switch an existing session already using the model and none', async () => {
+    const existingSession = {
+      ...writingSession,
+      model: 'gpt-6-luna',
+      reasoningEffort: 'none',
+    } as Session;
+    apiClientMock.listSessions.mockResolvedValue({
+      success: true,
+      data: {
+        items: [existingSession],
+        total: 1,
+        page: 1,
+        pageSize: 50,
+        hasMore: false,
+      },
+    });
+
+    await expect(getOrCreateWritingAssistantSession('gpt-6-luna', 'none')).resolves.toEqual(
+      existingSession
+    );
+
+    expect(apiClientMock.switchSessionModel).not.toHaveBeenCalled();
+  });
+
+  it('omits reasoning effort for new models that do not support none', async () => {
+    apiClientMock.listSessions.mockResolvedValue({
+      success: true,
+      data: { items: [], total: 0, page: 1, pageSize: 50, hasMore: false },
+    });
+    apiClientMock.createSession.mockResolvedValue({
+      success: true,
+      data: { ...writingSession, model: 'gpt-5-mini' },
+    });
+
+    await getOrCreateWritingAssistantSession('gpt-5-mini');
+
+    expect(apiClientMock.createSession).toHaveBeenCalledWith({
+      name: 'Writing Assistant',
+      type: 'writing',
+      model: 'gpt-5-mini',
+    });
+  });
+
+  it('clears stale none when switching an existing session to a model without it', async () => {
+    const existingSession = {
+      ...writingSession,
+      model: 'gpt-6-luna',
+      reasoningEffort: 'none',
+    } as Session;
+    const updatedSession = {
+      ...existingSession,
+      model: 'gpt-5-mini',
+      reasoningEffort: undefined,
+    };
+    apiClientMock.listSessions.mockResolvedValue({
+      success: true,
+      data: {
+        items: [existingSession],
+        total: 1,
+        page: 1,
+        pageSize: 50,
+        hasMore: false,
+      },
+    });
+    apiClientMock.switchSessionModel.mockResolvedValue({
+      success: true,
+      data: updatedSession,
+    });
+
+    await expect(getOrCreateWritingAssistantSession('gpt-5-mini')).resolves.toEqual(updatedSession);
+
+    expect(apiClientMock.switchSessionModel).toHaveBeenCalledWith(
+      writingSession.id,
+      'gpt-5-mini',
+      undefined
+    );
+  });
+
+  it('resolves the fallback model effort when Copilot reports a model unavailable', async () => {
+    modelCatalogMock.getEffectiveQuickActionModel
+      .mockImplementationOnce(async (modelId) => ({
+        modelId,
+        reasoningEffort: 'none',
+      }))
+      .mockImplementationOnce(async () => ({
+        modelId: 'gpt-5-mini',
+        reasoningEffort: undefined,
+      }));
+    apiClientMock.listSessions.mockResolvedValue({
+      success: true,
+      data: { items: [], total: 0, page: 1, pageSize: 50, hasMore: false },
+    });
+    apiClientMock.createSession
+      .mockResolvedValueOnce({
+        success: true,
+        data: { ...writingSession, model: 'gpt-6-luna', reasoningEffort: 'none' },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { ...writingSession, id: 'fallback-session', model: 'gpt-5-mini' },
+      });
+    apiClientMock.streamChat
+      .mockRejectedValueOnce(new Error('MODEL_UNAVAILABLE'))
+      .mockResolvedValueOnce(undefined);
+
+    await streamQuickAction('Fix this text', 'gpt-6-luna', () => {});
+
+    expect(apiClientMock.createSession).toHaveBeenNthCalledWith(1, {
+      name: 'Writing Assistant',
+      type: 'writing',
+      model: 'gpt-6-luna',
+      reasoningEffort: 'none',
+    });
+    expect(apiClientMock.createSession).toHaveBeenNthCalledWith(2, {
+      name: 'Writing Assistant',
+      type: 'writing',
+      model: 'gpt-5-mini',
+    });
   });
 });

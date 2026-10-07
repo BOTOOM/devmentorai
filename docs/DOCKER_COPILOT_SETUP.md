@@ -42,8 +42,12 @@ Classic `ghp_` personal access tokens are not supported. The entrypoint logs whi
 Leave `COPILOT_GITHUB_TOKEN` blank. After starting the container below, run:
 
 ```sh
-docker compose exec backend copilot login
+docker compose exec backend copilot login --device-code
 ```
+
+Without `--device-code`, Copilot CLI may choose the browser flow and redirect to
+`http://127.0.0.1:<port>/callback`, which cannot reach the container; press Ctrl+C and rerun with
+`--device-code`.
 
 Open the printed URL, https://github.com/login/device, enter the device code, and complete login. Then restart the backend:
 

@@ -400,10 +400,17 @@ export default async function InstallationPage() {
                   </p>
                   <div className="mt-3">
                     <CodeBlock
-                      code="docker compose exec backend copilot login"
+                      code="docker compose exec backend copilot login --device-code"
                       language="terminal"
                     />
                   </div>
+                  <Callout title="Browser login note">
+                    Without <InlineCode>--device-code</InlineCode>, Copilot may choose the browser
+                    flow and redirect to{' '}
+                    <InlineCode>http://127.0.0.1:&lt;port&gt;/callback</InlineCode>, which cannot
+                    reach the container; press <InlineCode>Ctrl+C</InlineCode> and rerun with{' '}
+                    <InlineCode>--device-code</InlineCode>.
+                  </Callout>
                   <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
                     Open{' '}
                     <a

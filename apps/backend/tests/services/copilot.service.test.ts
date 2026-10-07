@@ -12,6 +12,7 @@ type TestStreamEvent = {
 
 // Mock the Copilot SDK
 vi.mock('@github/copilot-sdk', () => ({
+  approveAll: vi.fn(),
   CopilotClient: vi.fn().mockImplementation(() => ({
     start: vi.fn().mockRejectedValue(new Error('Mock: Copilot CLI not available')),
     stop: vi.fn().mockResolvedValue([]),
@@ -38,6 +39,9 @@ describe('CopilotService', () => {
         model TEXT,
         system_prompt TEXT,
         custom_agent TEXT,
+        tone TEXT,
+        explain_tradeoffs INTEGER,
+        reasoning_effort TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         message_count INTEGER DEFAULT 0
@@ -149,10 +153,147 @@ describe('CopilotService', () => {
       expect(copilotService.isMockMode()).toBe(true);
     });
 
+    it('passes none reasoning effort to SDK session creation and model switching', async () => {
+      const sdkSession = {
+        disconnect: vi.fn().mockResolvedValue(undefined),
+        setModel: vi.fn().mockResolvedValue(undefined),
+      };
+      const createSession = vi.fn().mockResolvedValue(sdkSession);
+      const serviceWithInternals = copilotService as unknown as {
+        mockMode: boolean;
+        client: {
+          createSession: typeof createSession;
+          deleteSession: ReturnType<typeof vi.fn>;
+          stop: ReturnType<typeof vi.fn>;
+        };
+      };
+      serviceWithInternals.mockMode = false;
+      serviceWithInternals.client = {
+        createSession,
+        deleteSession: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
+      };
+
+      await copilotService.createCopilotSession(
+        'reasoning-session',
+        'writing',
+        'gpt-6-luna',
+        undefined,
+        false,
+        undefined,
+        undefined,
+        'none'
+      );
+      await copilotService.switchSessionModel(
+        'reasoning-session',
+        'writing',
+        'gpt-5.6-luna',
+        undefined,
+        'none'
+      );
+
+      expect(createSession).toHaveBeenCalledWith(
+        expect.objectContaining({ model: 'gpt-6-luna', reasoningEffort: 'none' })
+      );
+      expect(sdkSession.setModel).toHaveBeenCalledWith('gpt-5.6-luna', {
+        reasoningEffort: 'none',
+      });
+    });
+
     it('should resume session in mock mode', async () => {
       const result = await copilotService.resumeCopilotSession('any-session-id');
 
       expect(result).toBe(true);
+    });
+
+    it('applies the stored reasoning effort when resuming a session', async () => {
+      const dbSession = sessionService.createSession({
+        name: 'Resumable Writing Assistant',
+        type: 'writing',
+        model: 'gpt-6-luna',
+        reasoningEffort: 'none',
+      });
+      const sdkSession = {
+        disconnect: vi.fn().mockResolvedValue(undefined),
+        setModel: vi.fn().mockResolvedValue(undefined),
+      };
+      const resumeSession = vi.fn().mockResolvedValue(sdkSession);
+      const serviceWithInternals = copilotService as unknown as {
+        mockMode: boolean;
+        client: {
+          resumeSession: typeof resumeSession;
+          stop: ReturnType<typeof vi.fn>;
+        };
+      };
+      serviceWithInternals.mockMode = false;
+      serviceWithInternals.client = {
+        resumeSession,
+        stop: vi.fn().mockResolvedValue(undefined),
+      };
+
+      await expect(copilotService.resumeCopilotSession(dbSession.id)).resolves.toBe(true);
+
+      expect(sdkSession.setModel).toHaveBeenCalledWith('gpt-6-luna', {
+        reasoningEffort: 'none',
+      });
+    });
+
+    it('does not change the model when the stored reasoning effort is null', async () => {
+      const dbSession = sessionService.createSession({
+        name: 'Resumable Writing Assistant',
+        type: 'writing',
+        model: 'gpt-6-luna',
+      });
+      const sdkSession = {
+        disconnect: vi.fn().mockResolvedValue(undefined),
+        setModel: vi.fn().mockResolvedValue(undefined),
+      };
+      const serviceWithInternals = copilotService as unknown as {
+        mockMode: boolean;
+        client: {
+          resumeSession: ReturnType<typeof vi.fn>;
+          stop: ReturnType<typeof vi.fn>;
+        };
+      };
+      serviceWithInternals.mockMode = false;
+      serviceWithInternals.client = {
+        resumeSession: vi.fn().mockResolvedValue(sdkSession),
+        stop: vi.fn().mockResolvedValue(undefined),
+      };
+
+      await expect(copilotService.resumeCopilotSession(dbSession.id)).resolves.toBe(true);
+
+      expect(sdkSession.setModel).not.toHaveBeenCalled();
+    });
+
+    it('keeps a resumed session when applying the stored reasoning effort fails', async () => {
+      const dbSession = sessionService.createSession({
+        name: 'Resumable Writing Assistant',
+        type: 'writing',
+        model: 'gpt-6-luna',
+        reasoningEffort: 'none',
+      });
+      const sdkSession = {
+        disconnect: vi.fn().mockResolvedValue(undefined),
+        setModel: vi.fn().mockRejectedValue(new Error('Unsupported reasoning effort')),
+      };
+      const serviceWithInternals = copilotService as unknown as {
+        mockMode: boolean;
+        client: {
+          resumeSession: ReturnType<typeof vi.fn>;
+          stop: ReturnType<typeof vi.fn>;
+        };
+      };
+      serviceWithInternals.mockMode = false;
+      serviceWithInternals.client = {
+        resumeSession: vi.fn().mockResolvedValue(sdkSession),
+        stop: vi.fn().mockResolvedValue(undefined),
+      };
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      await expect(copilotService.resumeCopilotSession(dbSession.id)).resolves.toBe(true);
+
+      expect(sdkSession.setModel).toHaveBeenCalledOnce();
     });
 
     it('should destroy session without error', async () => {

@@ -527,7 +527,7 @@ async function handleStreamingQuickAction(
   // Stream the response
   try {
     console.log('[DevMentorAI] Starting streamQuickAction...');
-    await streamQuickAction(prompt, model, async (event) => {
+    const onStreamEvent: Parameters<typeof streamQuickAction>[2] = async (event) => {
       try {
         console.log('[DevMentorAI] Stream event:', event.type, {
           contentLength: event.content?.length,
@@ -578,7 +578,14 @@ async function handleStreamingQuickAction(
       } catch (error_) {
         console.error('[DevMentorAI] Failed to send stream event:', error_);
       }
-    });
+    };
+    await streamQuickAction(
+      prompt,
+      model,
+      onStreamEvent,
+      undefined,
+      effectiveModel.reasoningEffort
+    );
   } catch (error_) {
     console.error('[DevMentorAI] Streaming quick action failed:', error_);
     try {

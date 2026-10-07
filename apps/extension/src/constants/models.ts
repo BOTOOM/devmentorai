@@ -13,6 +13,8 @@ const DEPRECATED_QUICK_ACTION_MODEL_REPLACEMENTS = new Map<string, string>([
 
 export const QUICK_ACTION_FAST_MODEL_ORDER = [
   DEFAULT_QUICK_ACTION_MODEL,
+  'gpt-6-luna',
+  'gpt-5.6-luna',
   'gpt-5.4-mini',
   'claude-haiku-4.5',
   'gemini-3.5-flash',
@@ -22,6 +24,8 @@ export const QUICK_ACTION_FAST_MODEL_ORDER = [
 
 export const QUICK_ACTION_MODEL_OPTIONS = [
   { value: DEFAULT_QUICK_ACTION_MODEL, label: 'GPT-5 Mini (Fast, no reasoning)' },
+  { value: 'gpt-6-luna', label: 'GPT-6 Luna (Fast)' },
+  { value: 'gpt-5.6-luna', label: 'GPT-5.6 Luna (Fast)' },
   { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini (Fast)' },
   { value: 'claude-haiku-4.5', label: 'Claude Haiku 4.5 (Fast)' },
   { value: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash (Fast)' },
@@ -39,6 +43,29 @@ export const FALLBACK_MODEL_CATALOG = [
     isRecommendedForQuickActions: true,
     pricingTier: 'free',
     description: 'Fast default model for quick text edits, translations, and rewrites.',
+  },
+  {
+    id: 'gpt-6-luna',
+    name: 'GPT-6 Luna',
+    provider: 'openai',
+    accessProvider: GITHUB_COPILOT_ACCESS_PROVIDER,
+    available: true,
+    isRecommendedForQuickActions: true,
+    pricingTier: 'cheap',
+    description:
+      'Lowest-cost GPT-6 model for fast, focused text edits, translations, and rewrites.',
+    supportedReasoningEfforts: ['none', 'low', 'medium', 'high'],
+  },
+  {
+    id: 'gpt-5.6-luna',
+    name: 'GPT-5.6 Luna',
+    provider: 'openai',
+    accessProvider: GITHUB_COPILOT_ACCESS_PROVIDER,
+    available: true,
+    isRecommendedForQuickActions: true,
+    pricingTier: 'cheap',
+    description: 'Lowest-cost GPT-5.6 model for fast, lightweight editing tasks.',
+    supportedReasoningEfforts: ['none', 'low', 'medium', 'high'],
   },
   {
     id: 'gpt-5.4-mini',

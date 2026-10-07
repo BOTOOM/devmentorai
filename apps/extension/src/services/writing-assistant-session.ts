@@ -3,7 +3,7 @@
  * Manages the special "Writing Assistant" session used for quick actions
  */
 
-import type { Session } from '@devmentorai/shared';
+import type { ReasoningEffort, Session } from '@devmentorai/shared';
 import { ApiClient } from './api-client';
 import { getEffectiveQuickActionModel, invalidateModelAvailabilityCache } from './model-catalog';
 
@@ -45,6 +45,10 @@ function isRecoverableSessionError(error: unknown): boolean {
 function isModelUnavailableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return message.includes('MODEL_UNAVAILABLE') || message.toLowerCase().includes('not available');
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
 }
 
 async function streamQuickActionOnce(
@@ -114,19 +118,38 @@ async function streamQuickActionOnce(
 async function ensureWritingAssistantModel(
   apiClient: ApiClient,
   session: Session,
-  model?: string
+  model?: string,
+  reasoningEffort?: ReasoningEffort
 ): Promise<Session> {
-  if (!model || session.model === model) {
+  const nextModel = model || session.model;
+  const modelChanged = Boolean(model && session.model !== model);
+  const reasoningEffortChanged = (reasoningEffort ?? null) !== (session.reasoningEffort ?? null);
+
+  if (!modelChanged && !reasoningEffortChanged) {
     return session;
   }
 
   console.log('[WritingAssistant] Switching existing session model:', {
     sessionId: session.id,
     from: session.model,
-    to: model,
+    to: nextModel,
   });
 
-  const response = await apiClient.switchSessionModel(session.id, model);
+  let response: Awaited<ReturnType<typeof apiClient.switchSessionModel>>;
+  let retriedWithoutReasoningEffort = false;
+  try {
+    response = await apiClient.switchSessionModel(session.id, nextModel, reasoningEffort);
+  } catch (error) {
+    if (!reasoningEffort || isAbortError(error)) {
+      throw error;
+    }
+    retriedWithoutReasoningEffort = true;
+    response = await apiClient.switchSessionModel(session.id, nextModel, undefined);
+  }
+
+  if ((!response.success || !response.data) && reasoningEffort && !retriedWithoutReasoningEffort) {
+    response = await apiClient.switchSessionModel(session.id, nextModel, undefined);
+  }
 
   if (!response.success || !response.data) {
     const codePrefix = response.error?.code ? `${response.error.code}: ` : '';
@@ -144,13 +167,16 @@ async function ensureWritingAssistantModel(
  * Get or create the Writing Assistant session
  * This session is used for all quick actions to provide fast AI responses
  */
-export async function getOrCreateWritingAssistantSession(model?: string): Promise<Session | null> {
+export async function getOrCreateWritingAssistantSession(
+  model?: string,
+  reasoningEffort?: ReasoningEffort
+): Promise<Session | null> {
   const apiClient = ApiClient.getInstance();
 
   // Check cache
   const now = Date.now();
   if (cachedSession && now - lastFetchTime < CACHE_TTL_MS) {
-    return ensureWritingAssistantModel(apiClient, cachedSession, model);
+    return ensureWritingAssistantModel(apiClient, cachedSession, model, reasoningEffort);
   }
 
   try {
@@ -178,7 +204,12 @@ export async function getOrCreateWritingAssistantSession(model?: string): Promis
     }
 
     if (existingSession) {
-      const session = await ensureWritingAssistantModel(apiClient, existingSession, model);
+      const session = await ensureWritingAssistantModel(
+        apiClient,
+        existingSession,
+        model,
+        reasoningEffort
+      );
       cachedSession = session;
       lastFetchTime = now;
       console.log('[WritingAssistant] Found existing session:', session.id);
@@ -187,11 +218,33 @@ export async function getOrCreateWritingAssistantSession(model?: string): Promis
 
     // Create new Writing Assistant session
     console.log('[WritingAssistant] Creating new session with model:', model);
-    const createResponse = await apiClient.createSession({
+    const createSessionRequest: Parameters<typeof apiClient.createSession>[0] = {
       name: WRITING_ASSISTANT_SESSION_NAME,
       type: WRITING_ASSISTANT_SESSION_TYPE,
       model: model,
-    });
+    };
+    let createResponse: Awaited<ReturnType<typeof apiClient.createSession>>;
+    let retriedWithoutReasoningEffort = false;
+    try {
+      createResponse = await apiClient.createSession({
+        ...createSessionRequest,
+        ...(reasoningEffort ? { reasoningEffort } : {}),
+      });
+    } catch (error) {
+      if (!reasoningEffort || isAbortError(error)) {
+        throw error;
+      }
+      retriedWithoutReasoningEffort = true;
+      createResponse = await apiClient.createSession(createSessionRequest);
+    }
+
+    if (
+      (!createResponse.success || !createResponse.data) &&
+      reasoningEffort &&
+      !retriedWithoutReasoningEffort
+    ) {
+      createResponse = await apiClient.createSession(createSessionRequest);
+    }
 
     if (!createResponse.success || !createResponse.data) {
       console.error('[WritingAssistant] Failed to create session:', createResponse.error);
@@ -241,10 +294,11 @@ export async function streamQuickAction(
   prompt: string,
   model: string,
   onEvent: (event: { type: string; content?: string; error?: string }) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  reasoningEffort?: ReasoningEffort
 ): Promise<void> {
   let effectiveModel = model;
-  let session = await getOrCreateWritingAssistantSession(effectiveModel);
+  let session = await getOrCreateWritingAssistantSession(effectiveModel, reasoningEffort);
 
   if (!session) {
     onEvent({ type: 'error', error: 'Failed to get Writing Assistant session' });
@@ -278,7 +332,10 @@ export async function streamQuickAction(
 
       if (!resumeSucceeded) {
         clearWritingAssistantCache();
-        const recoveredSession = await getOrCreateWritingAssistantSession(effectiveModel);
+        const recoveredSession = await getOrCreateWritingAssistantSession(
+          effectiveModel,
+          reasoningEffort
+        );
         if (!recoveredSession) {
           throw error;
         }
@@ -298,8 +355,9 @@ export async function streamQuickAction(
 
       if (fallbackModel.modelId !== effectiveModel) {
         effectiveModel = fallbackModel.modelId;
+        reasoningEffort = fallbackModel.reasoningEffort;
         clearWritingAssistantCache();
-        session = await getOrCreateWritingAssistantSession(effectiveModel);
+        session = await getOrCreateWritingAssistantSession(effectiveModel, reasoningEffort);
         if (session) {
           streamedSessionId = session.id;
           try {

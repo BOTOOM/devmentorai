@@ -27,7 +27,7 @@ interface DbSession {
   custom_agent: string | null;
   tone: string | null;
   explain_tradeoffs: number | null; // SQLite boolean as 0/1
-  reasoning_effort: string | null; // 'low' | 'medium' | 'high'
+  reasoning_effort: string | null; // 'none' | 'low' | 'medium' | 'high'
   message_count: number;
   created_at: string;
   updated_at: string;

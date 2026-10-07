@@ -102,7 +102,7 @@ export async function sessionRoutes(fastify: FastifyInstance) {
       // Create in database
       const session = fastify.sessionService.createSession(body);
 
-      // Create Copilot session ('none' is normalized to "no reasoning" inside CopilotService)
+      // Create Copilot session with the requested reasoning effort
       await fastify.copilotService.createCopilotSession(
         session.id,
         session.type,

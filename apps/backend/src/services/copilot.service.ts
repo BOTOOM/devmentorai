@@ -324,10 +324,7 @@ export class CopilotService {
 
         if (session.setModel) {
           console.log(`[CopilotService] Switching model for session ${sessionId} to ${model}`);
-          await session.setModel(
-            model,
-            reasoningEffort && reasoningEffort !== 'none' ? { reasoningEffort } : undefined
-          );
+          await session.setModel(model, reasoningEffort ? { reasoningEffort } : undefined);
 
           // Update stored session info
           this.sessions.set(sessionId, { ...existing, type });
@@ -536,8 +533,7 @@ export class CopilotService {
       tools,
       mcpServers,
       onPermissionRequest: approveAll,
-      // Add reasoning effort if provided, supported by SDK, and not explicitly 'none'
-      ...(reasoningEffort && reasoningEffort !== 'none' ? { reasoningEffort } : {}),
+      ...(reasoningEffort ? { reasoningEffort } : {}),
     };
 
     const session = await this.client.createSession(
@@ -705,6 +701,21 @@ export class CopilotService {
       });
       // Try to get type from DB, fallback to 'general'
       const dbSession = this.sessionService.getSession(sessionId);
+      const sessionWithSetModel = session as unknown as {
+        setModel?: (model: string, options?: { reasoningEffort?: string }) => Promise<void>;
+      };
+      if (dbSession?.reasoningEffort && sessionWithSetModel.setModel) {
+        try {
+          await sessionWithSetModel.setModel(dbSession.model, {
+            reasoningEffort: dbSession.reasoningEffort,
+          });
+        } catch (error) {
+          console.warn(
+            `[CopilotService] Failed to apply reasoning effort when resuming session ${sessionId}:`,
+            error
+          );
+        }
+      }
       this.sessions.set(sessionId, { sessionId, session, type: dbSession?.type || 'general' });
       console.log(`[CopilotService] Session ${sessionId} resumed from disk`);
       return true;
@@ -727,7 +738,10 @@ export class CopilotService {
         dbSession.type,
         dbSession.model,
         dbSession.systemPrompt || undefined,
-        false // MCP disabled by default on recreate
+        false, // MCP disabled by default on recreate
+        undefined,
+        undefined,
+        dbSession.reasoningEffort
       );
       console.log(`[CopilotService] Session ${sessionId} recreated successfully`);
       return true;

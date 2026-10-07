@@ -1,4 +1,4 @@
-import type { ModelInfo } from '@devmentorai/shared';
+import type { ModelInfo, ReasoningEffort } from '@devmentorai/shared';
 import {
   DEFAULT_QUICK_ACTION_MODEL,
   FALLBACK_MODEL_CATALOG,
@@ -62,8 +62,13 @@ export interface EffectiveQuickActionModel {
   modelId: string;
   requestedModelId: string;
   wasFallback: boolean;
+  reasoningEffort?: ReasoningEffort;
   reason?: string;
   state: QuickActionModelState;
+}
+
+export function getQuickActionReasoningEffort(model?: ModelInfo): ReasoningEffort | undefined {
+  return model?.supportedReasoningEfforts?.includes('none') ? 'none' : undefined;
 }
 
 function fallbackCatalog(): RemoteModelCatalog {
@@ -120,6 +125,12 @@ function mergeModels(catalogModels: ModelInfo[], availabilityModels: ModelInfo[]
 
   for (const availableModel of availabilityModels) {
     const catalogModel = byId.get(availableModel.id);
+    const supportedReasoningEfforts = Array.from(
+      new Set([
+        ...(catalogModel?.supportedReasoningEfforts || []),
+        ...(availableModel.supportedReasoningEfforts || []),
+      ])
+    );
     byId.set(availableModel.id, {
       ...catalogModel,
       ...availableModel,
@@ -132,6 +143,8 @@ function mergeModels(catalogModels: ModelInfo[], availabilityModels: ModelInfo[]
       available: availableModel.available,
       isRecommendedForQuickActions:
         catalogModel?.isRecommendedForQuickActions || fastModelIds.has(availableModel.id),
+      supportedReasoningEfforts:
+        supportedReasoningEfforts.length > 0 ? supportedReasoningEfforts : undefined,
     });
   }
 
@@ -337,12 +350,15 @@ export async function getEffectiveQuickActionModel(
     ? state.allModels.filter((model) => model.available && !excluded.has(model.id))
     : state.allModels.filter((model) => !model.deprecated && !excluded.has(model.id));
   const availableIds = new Set(availableModels.map((model) => model.id));
+  const getReasoningEffort = (modelId: string) =>
+    getQuickActionReasoningEffort(state.allModels.find((model) => model.id === modelId));
 
   if (availableIds.has(requestedModelId)) {
     return {
       modelId: requestedModelId,
       requestedModelId,
       wasFallback: false,
+      reasoningEffort: getReasoningEffort(requestedModelId),
       state,
     };
   }
@@ -358,6 +374,7 @@ export async function getEffectiveQuickActionModel(
     modelId: fallbackModelId,
     requestedModelId,
     wasFallback: fallbackModelId !== requestedModelId,
+    reasoningEffort: getReasoningEffort(fallbackModelId),
     reason: state.availabilityKnown
       ? `Model ${requestedModelId} is not available from Copilot.`
       : `Model ${requestedModelId} is not in the cached catalog.`,

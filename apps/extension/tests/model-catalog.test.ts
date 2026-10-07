@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ModelInfo } from '@devmentorai/shared';
 import { DEFAULT_QUICK_ACTION_MODEL, normalizeQuickActionModel } from '../src/constants/models';
 
 const storage = new Map<string, unknown>();
@@ -36,6 +37,14 @@ vi.mock('../src/services/api-client', () => ({
               available: true,
             },
             {
+              id: 'gpt-6-luna',
+              name: 'GPT-6 Luna',
+              provider: 'openai',
+              accessProvider: 'github-copilot',
+              available: true,
+              supportedReasoningEfforts: ['low', 'medium', 'high'],
+            },
+            {
               id: 'claude-haiku-4.5',
               name: 'Claude Haiku 4.5',
               provider: 'anthropic',
@@ -61,7 +70,7 @@ describe('model catalog', () => {
           version: 1,
           provider: 'github-copilot',
           defaultQuickActionModel: DEFAULT_QUICK_ACTION_MODEL,
-          quickActionModelOrder: [DEFAULT_QUICK_ACTION_MODEL, 'claude-haiku-4.5'],
+          quickActionModelOrder: [DEFAULT_QUICK_ACTION_MODEL, 'gpt-6-luna', 'claude-haiku-4.5'],
           models: [
             {
               id: DEFAULT_QUICK_ACTION_MODEL,
@@ -70,6 +79,15 @@ describe('model catalog', () => {
               accessProvider: 'github-copilot',
               available: true,
               isRecommendedForQuickActions: true,
+            },
+            {
+              id: 'gpt-6-luna',
+              name: 'GPT-6 Luna',
+              provider: 'openai',
+              accessProvider: 'github-copilot',
+              available: true,
+              isRecommendedForQuickActions: true,
+              supportedReasoningEfforts: ['none', 'low', 'medium', 'high'],
             },
             {
               id: 'claude-haiku-4.5',
@@ -108,5 +126,44 @@ describe('model catalog', () => {
 
     expect(effectiveModel.modelId).toBe(DEFAULT_QUICK_ACTION_MODEL);
     expect(effectiveModel.wasFallback).toBe(true);
+  });
+
+  it('preserves catalog reasoning efforts when live availability omits none', async () => {
+    const { getQuickActionModelState } = await import('../src/services/model-catalog');
+
+    const state = await getQuickActionModelState();
+    const model = state.allModels.find((candidate) => candidate.id === 'gpt-6-luna');
+
+    expect(model?.supportedReasoningEfforts).toEqual(['none', 'low', 'medium', 'high']);
+  });
+
+  it('resolves none for direct and fallback quick-action models', async () => {
+    const { getEffectiveQuickActionModel } = await import('../src/services/model-catalog');
+
+    const directModel = await getEffectiveQuickActionModel('gpt-6-luna');
+    const fallbackModel = await getEffectiveQuickActionModel('unknown-model', {
+      excludeModelIds: [DEFAULT_QUICK_ACTION_MODEL],
+    });
+
+    expect(directModel.reasoningEffort).toBe('none');
+    expect(fallbackModel.modelId).toBe('gpt-6-luna');
+    expect(fallbackModel.reasoningEffort).toBe('none');
+  });
+
+  it('returns none only when the model catalog explicitly supports it', async () => {
+    const { getQuickActionReasoningEffort } = await import('../src/services/model-catalog');
+    const model = {
+      id: 'gpt-6-luna',
+      name: 'GPT-6 Luna',
+      provider: 'openai',
+      available: true,
+      supportedReasoningEfforts: ['none'],
+    } satisfies ModelInfo;
+
+    expect(getQuickActionReasoningEffort(model)).toBe('none');
+    expect(getQuickActionReasoningEffort({ ...model, supportedReasoningEfforts: [] })).toBe(
+      undefined
+    );
+    expect(getQuickActionReasoningEffort()).toBeUndefined();
   });
 });

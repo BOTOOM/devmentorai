@@ -19,7 +19,7 @@ export function StepCard({ step, title, description, children, isLast = false }:
           <div className="absolute top-8 h-full w-px bg-[var(--card-border)] sm:top-10" />
         )}
       </div>
-      <div className={`flex-1 ${isLast ? '' : 'pb-12'}`}>
+      <div className={`min-w-0 flex-1 ${isLast ? '' : 'pb-12'}`}>
         <div className="mb-6 flex flex-col gap-1">
           <h3 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h3>
           <p className="text-sm text-[var(--muted)] sm:text-base">{description}</p>

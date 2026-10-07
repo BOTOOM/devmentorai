@@ -561,7 +561,7 @@ function InlineCode({ children }: Readonly<{ children: ReactNode }>) {
 
 function Callout({ title, children }: Readonly<{ title: string; children: ReactNode }>) {
   return (
-    <div className="mt-6 rounded-xl border border-amber-300/40 bg-amber-100/40 p-4 sm:p-5">
+    <div className="mt-6 rounded-xl border border-amber-300/40 bg-amber-100/40 p-4 dark:border-amber-400/30 dark:bg-amber-500/10 sm:p-5">
       <p className="text-xs font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
         {title}
       </p>

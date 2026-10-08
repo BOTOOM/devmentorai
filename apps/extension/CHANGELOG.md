@@ -1,3 +1,46 @@
+## [1.11.0](https://github.com/BOTOOM/devmentorai/compare/ext-v1.10.1...ext-v1.11.0) (2026-10-08)
+
+### Features
+
+* **quick-actions:** use reasoning effort none by default when supported ([70e8e35](https://github.com/BOTOOM/devmentorai/commit/70e8e35473af0bdcabeb6ac198d4954556d2b0ea))
+
+### Bug Fixes
+
+* **backend:** report the real package version in CLI --version ([8fa1716](https://github.com/BOTOOM/devmentorai/commit/8fa17168b29f0b5a98b21d3e8a883d68b0941396))
+* **backend:** require Node.js 22.12+ in doctor check ([63c0115](https://github.com/BOTOOM/devmentorai/commit/63c011543733159f1124fecaa121bc0fda2f8f7d))
+* **deps:** address review findings ([1b9e74b](https://github.com/BOTOOM/devmentorai/commit/1b9e74bc628e8450918ee7afedbad7db59b2bb04))
+* **deps:** resolve migration compatibility issues ([51a6756](https://github.com/BOTOOM/devmentorai/commit/51a6756aa60d222bc9e9d09d9bb7a79852e372e8))
+* **docker:** resolve one token for SDK and CLI, pin CLI to lockfile version ([488ea3f](https://github.com/BOTOOM/devmentorai/commit/488ea3f6e3f9d3579015d73ff0c86af4dc51800e))
+* **docker:** use device-code flow for copilot login inside the container ([20fdd55](https://github.com/BOTOOM/devmentorai/commit/20fdd55f1bba72806b4cdb167eea1ee8f62555bc))
+* **extension:** restore flex-shrink in selection toolbar CSS ([15d2a83](https://github.com/BOTOOM/devmentorai/commit/15d2a8394378dcd084b37eba73aa2f9d3a4adaa3))
+* **quick-actions:** apply reasoning effort across sessions ([b64f0f6](https://github.com/BOTOOM/devmentorai/commit/b64f0f6c2a214a440d165095e2e93690eb4ff519))
+* **release:** pin conventionalcommits preset to v9 for release-notes-generator ([93f8f45](https://github.com/BOTOOM/devmentorai/commit/93f8f4527e60ab9ec0e6c9fdeae891e7f773cceb))
+* **website:** fix /features mobile overflow and theme toggle hydration mismatch ([b9a1947](https://github.com/BOTOOM/devmentorai/commit/b9a19478da3f91df90f049d1dc1ea30c6dc54262))
+* **website:** keep code blocks inside the layout on mobile and fix dark callouts ([0b568bb](https://github.com/BOTOOM/devmentorai/commit/0b568bb23c4b09335d10e2c13be61e23031469b1))
+
+### Documentation
+
+* **backend:** add Windows install guidance ([a29c7e3](https://github.com/BOTOOM/devmentorai/commit/a29c7e3c117e06c5b27bbb359e5983527ea4f2e8))
+* **backend:** restart the server after a Windows global update ([8f7d322](https://github.com/BOTOOM/devmentorai/commit/8f7d3221431670af12a164a8f5ab4be3ceb490fd))
+* **docker:** cross-platform setup guide with token and device login ([f8bdb76](https://github.com/BOTOOM/devmentorai/commit/f8bdb76ab6dc59754c10f9f080c784446802916f))
+* require Node.js 22.12+ ([b2b14b9](https://github.com/BOTOOM/devmentorai/commit/b2b14b9bd4f13e2d4f2abcfc14ccac305565a3b4))
+* **website:** add changelog entries for ext 1.9.0 and backend 1.9.0/1.10.0 ([f47ed52](https://github.com/BOTOOM/devmentorai/commit/f47ed52a97fe5fe1093599195e298e953cf9c98e))
+* **website:** add changelog entries for ext 1.9.0 and backend 1.9.0/1.10.0 ([f5f2a3c](https://github.com/BOTOOM/devmentorai/commit/f5f2a3ca497034e74df39f05cf08261e412efd5f))
+* **website:** document 1.10.1 releases, Docker backend, and install options ([b84067b](https://github.com/BOTOOM/devmentorai/commit/b84067b965b29da4f991091cce97d819d01cfa4a))
+* **website:** fix native host PowerShell path and Copilot CLI package name ([85635a5](https://github.com/BOTOOM/devmentorai/commit/85635a55bce0b8cfdd6867392ba1130ad5605a64))
+
+### Maintenance
+
+* **backend:** update Copilot CLI and SDK ([0dfefed](https://github.com/BOTOOM/devmentorai/commit/0dfefed681b50cdfd947878e618991327af15821))
+* **backend:** upgrade runtime dependencies and Zod 4 ([5e5147b](https://github.com/BOTOOM/devmentorai/commit/5e5147b995f3c147d04ff32334ad5c441a8a8cf8))
+* **extension:** migrate to Tailwind CSS 4 ([fed46bc](https://github.com/BOTOOM/devmentorai/commit/fed46bcb0d8d2d0550e025c730b8af286ef468bb))
+* **extension:** update non-Tailwind dependencies ([58184a7](https://github.com/BOTOOM/devmentorai/commit/58184a7e4bbcb21159c50a39c02a6b2e3ea82cf3))
+* **release:** backend v1.11.0 [skip ci] ([b0ad141](https://github.com/BOTOOM/devmentorai/commit/b0ad141271e72452c4fe2499cf1b7ed6c492427f))
+* **shared:** restore generated entrypoint ([5d718db](https://github.com/BOTOOM/devmentorai/commit/5d718db0e960b4994e81b2c528304e2ab91e55ec))
+* **tooling:** migrate Biome configuration to v2 ([6a9bd51](https://github.com/BOTOOM/devmentorai/commit/6a9bd51e1a441346d5bc766226de949a59939884))
+* **tooling:** update TypeScript, Biome, and release tools ([9ea2485](https://github.com/BOTOOM/devmentorai/commit/9ea2485ec6dd342fe201c296d02dc26c6f6e0850))
+* **website:** update dependencies and replace GitHub icons ([257964d](https://github.com/BOTOOM/devmentorai/commit/257964dfc40a393f669b320d558bad6077d6253c))
+
 ## [1.10.1](https://github.com/BOTOOM/devmentorai/compare/ext-v1.10.0...ext-v1.10.1) (2026-10-02)
 
 ### Bug Fixes
